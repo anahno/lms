@@ -51,6 +51,8 @@ export default async function DashboardPage() {
               imageUrl={path.imageUrl}
               chaptersLength={path.chapters.length}
               category={path.category?.name || "بدون دسته‌بندی"}
+                  isPublished={path.isPublished} // <-- این خط را اضافه کنید
+
             />
           ))}
         </div>

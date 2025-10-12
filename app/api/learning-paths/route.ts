@@ -1,9 +1,11 @@
 // فایل: app/api/learning-paths/route.ts
-import { NextRequest, NextResponse } from "next/server"; // ۱. NextRequest را اینجا وارد می‌کنیم
+
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { db } from "@/lib/db";
 
+// تابع POST برای ایجاد یک مسیر یادگیری جدید
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -34,8 +36,8 @@ export async function POST(req: Request) {
   }
 }
 
-// --- تابع GET اصلاح شده ---
-export async function GET(_req: NextRequest) { // ۲. نام req به _req تغییر کرد
+// تابع GET برای دریافت لیست تمام مسیرهای یادگیری کاربر
+export async function GET(_req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

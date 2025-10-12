@@ -47,6 +47,7 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+
 // مدل کاربر (User) - سازگار شده با NextAuth
 model User {
   id            String    @id @default(cuid())
@@ -60,6 +61,8 @@ model User {
 
   // رابطه با مسیرهای یادگیری (بدون تغییر)
   learningPaths LearningPath[]
+    progress UserProgress[]
+
 }
 
 
@@ -68,6 +71,8 @@ model LearningPath {
   title       String
   description String?  @db.Text
   imageUrl    String?
+    isPublished Boolean @default(false) // <-- این خط را اضافه کنید
+
   // --- این خط جدید است ---
   // یک مسیر یادگیری می‌تواند چندین فصل داشته باشد
   chapters Chapter[]
@@ -107,4 +112,24 @@ model Chapter {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+    progress UserProgress[]
+
+}
+
+// --- این مدل جدید است ---
+model UserProgress {
+  id        String  @id @default(cuid())
+  userId    String
+  chapterId String
+  isCompleted Boolean @default(false)
+
+  // تعریف رابطه با کاربر و فصل
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ایجاد یک کلید ترکیبی منحصر به فرد
+  @@unique([userId, chapterId])
 }
