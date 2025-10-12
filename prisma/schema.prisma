@@ -1,0 +1,110 @@
+// فایل: prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// مدل‌های مورد نیاز NextAuth.js
+// این مدل‌ها برای مدیریت حساب‌ها، نشست‌ها و توکن‌ها ضروری هستند.
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// مدل کاربر (User) - سازگار شده با NextAuth
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String? // ما همچنان از این فیلد برای ورود با رمز عبور استفاده می‌کنیم
+  accounts      Account[]
+  sessions      Session[]
+
+  // رابطه با مسیرهای یادگیری (بدون تغییر)
+  learningPaths LearningPath[]
+}
+
+
+model LearningPath {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  imageUrl    String?
+  // --- این خط جدید است ---
+  // یک مسیر یادگیری می‌تواند چندین فصل داشته باشد
+  chapters Chapter[]
+
+  // --- این بخش تغییر می‌کند ---
+  categoryId String?  // شناسه دسته‌بندی
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- این مدل جدید است ---
+model Category {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  learningPaths LearningPath[]
+}
+
+// --- این مدل جدید است ---
+model Chapter {
+  id          String  @id @default(cuid())
+  title       String
+  description String? @db.Text
+  videoUrl    String? @db.Text
+  position    Int     // برای مرتب‌سازی و جابجایی
+
+  isPublished Boolean @default(false)
+  isFree      Boolean @default(false)
+
+  // --- تعریف رابطه با LearningPath ---
+  learningPathId String
+  learningPath   LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

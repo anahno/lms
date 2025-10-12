@@ -1,0 +1,13 @@
+// فایل: lib/db.ts
+
+import { PrismaClient } from "@prisma/client";
+
+declare global {
+  var prisma: PrismaClient | undefined;
+}
+
+// این کار از ایجاد نمونه‌های جدید PrismaClient در حین hot-reloading در محیط توسعه جلوگیری می‌کند.
+const client = globalThis.prisma || new PrismaClient();
+if (process.env.NODE_ENV !== "production") globalThis.prisma = client;
+
+export const db = client;
