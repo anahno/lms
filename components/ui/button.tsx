@@ -21,6 +21,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
                 // --- این خط جدید را اضافه کنید ---
         success: "bg-emerald-600 text-white hover:bg-emerald-700",
+        
         // --------------------------------
       },
       size: {

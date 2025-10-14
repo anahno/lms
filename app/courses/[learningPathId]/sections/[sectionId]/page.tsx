@@ -5,127 +5,73 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getProgress } from "@/actions/get-progress";
-
-// این کامپوننت‌ها را در قدم بعدی خواهیم ساخت/منتقل کرد
-import { CourseSidebar } from "./_components/CourseSidebar";
-import { CourseNavbar } from "./_components/CourseNavbar";
-import { CourseProgressButton } from "./_components/CourseProgressButton";
+import { CourseProgressButton } from "../../../_components/CourseProgressButton";
 
 export default async function SectionIdPage({
   params,
 }: {
-  params: { learningPathId: string; sectionId: string };
+  params: Promise<{ learningPathId: string; sectionId: string }>;
 }) {
-  const { learningPathId, sectionId } = params;
+  const { learningPathId, sectionId } = await params;
+  
   const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return redirect("/");
 
-  if (!session?.user?.id) {
-    return redirect("/");
-  }
-  const userId = session.user.id;
-
-  // ۱. --- Query جامع برای دریافت کل ساختار دوره و بخش فعلی ---
-  const learningPath = await db.learningPath.findUnique({
-    where: {
-      id: learningPathId,
-    },
+  const section = await db.section.findUnique({
+    where: { id: sectionId, isPublished: true },
     include: {
-      levels: {
-        orderBy: { position: "asc" },
-        include: {
-          chapters: {
-            where: { isPublished: true },
-            orderBy: { position: "asc" },
-            include: {
-              sections: {
-                where: { isPublished: true },
-                orderBy: { position: "asc" },
-              },
-            },
-          },
-        },
-      },
+      progress: { where: { userId: session.user.id } },
     },
   });
 
-  if (!learningPath) {
-    return redirect("/");
-  }
+  if (!section) return redirect("/");
 
-  // پیدا کردن بخش فعلی از ساختار دریافت شده
-  const currentSection = learningPath.levels
-    .flatMap(level => level.chapters)
-    .flatMap(chapter => chapter.sections)
-    .find(section => section.id === sectionId);
-
-  if (!currentSection) {
-    return redirect("/");
-  }
-
-  const userTotalProgress = await getProgress(userId, learningPathId);
-
-  const userProgressForThisSection = await db.userProgress.findUnique({
+  const allSectionsInOrder = await db.section.findMany({
     where: {
-      userId_sectionId: {
-        userId,
-        sectionId,
-      },
+      chapter: { level: { learningPathId: learningPathId } },
+      isPublished: true,
     },
+    orderBy: [
+      { chapter: { level: { position: 'asc' } } },
+      { chapter: { position: 'asc' } },
+      { position: 'asc' },
+    ],
+    select: { id: true },
   });
 
-  // پیدا کردن بخش بعدی برای دکمه "تکمیل و ادامه"
-  const allSections = learningPath.levels
-    .flatMap(level => level.chapters)
-    .flatMap(chapter => chapter.sections);
-    
-  const currentSectionIndex = allSections.findIndex(s => s.id === sectionId);
-  const nextSection = allSections[currentSectionIndex + 1];
+  const currentSectionIndex = allSectionsInOrder.findIndex(s => s.id === sectionId);
+  const nextSection = allSectionsInOrder[currentSectionIndex + 1];
+  const isCompleted = !!section.progress[0]?.isCompleted;
 
   return (
-    <div className="h-full">
-      <div className="h-[80px] fixed inset-y-0 w-full z-50">
-        <CourseNavbar
-          learningPath={learningPath} // پاس دادن کل ساختار
-          userProgressCount={userTotalProgress}
+    <div className="p-4 md:p-8 flex flex-col h-full">
+      <div className="flex-grow">
+        <h1 className="text-2xl md:text-3xl font-semibold mb-4">{section.title}</h1>
+        
+        {section.videoUrl && (
+          <div className="relative aspect-video">
+            <video
+              src={section.videoUrl}
+              controls
+              className="w-full h-full rounded-md bg-slate-900"
+            />
+          </div>
+        )}
+        
+        <div
+          className="mt-8 prose dark:prose-invert max-w-none"
+          dangerouslySetInnerHTML={{ __html: section.description || "" }}
         />
       </div>
-
-      <div className="hidden md:flex h-full w-80 flex-col fixed inset-y-0 z-50 pt-[80px]">
-        <CourseSidebar
-          learningPath={learningPath} // پاس دادن کل ساختار
-          userProgressCount={userTotalProgress}
+      
+      <div className="mt-8 border-t pt-4">
+        <CourseProgressButton
+          sectionId={sectionId}
+          learningPathId={learningPathId}
+          nextSectionId={nextSection?.id}
+          isCompleted={isCompleted}
         />
       </div>
-
-      <main className="md:pr-80 pt-[80px] h-full">
-        <div className="p-4 md:p-8">
-          <h1 className="text-2xl md:text-3xl font-semibold mb-4">{currentSection.title}</h1>
-          
-          {currentSection.videoUrl && (
-            <div className="relative aspect-video">
-              <video
-                src={currentSection.videoUrl}
-                controls
-                className="w-full h-full rounded-md"
-              />
-            </div>
-          )}
-          
-          <div
-            className="mt-8 prose dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: currentSection.description || "" }}
-          />
-
-          <hr className="my-8" />
-          <CourseProgressButton
-            sectionId={sectionId}
-            learningPathId={learningPathId}
-            nextSectionId={nextSection?.id}
-            isCompleted={!!userProgressForThisSection?.isCompleted}
-          />
-        </div>
-      </main>
     </div>
   );
 }

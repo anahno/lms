@@ -1,57 +1,32 @@
-import { db } from "@/lib/db";
+// فایل: app/courses/[learningPathId]/_components/CourseSidebar.tsx
+
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { Level, Chapter, Section } from "@prisma/client";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { CourseSidebarItem } from "./CourseSidebarItem";
 import { Progress } from "@/components/ui/progress";
-
-type ChapterWithSections = Chapter & { sections: Section[] };
-type LevelWithChapters = Level & { chapters: ChapterWithSections[] };
-type LearningPathWithStructure = {
-  id: string;
-  title: string;
-  levels: LevelWithChapters[];
-};
+// --- ۱. تایپ‌ها از فایل متمرکز وارد می‌شوند ---
+import { LearningPathWithStructure } from "@/lib/types";
 
 interface CourseSidebarProps {
   learningPath: LearningPathWithStructure;
-  userProgressCount: number;
+  progressCount: number;
 }
 
 export const CourseSidebar = async ({
   learningPath,
-  userProgressCount,
+  progressCount,
 }: CourseSidebarProps) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return redirect("/");
-
-  const userProgress = await db.userProgress.findMany({
-    where: {
-      userId: session.user.id,
-      section: {
-        chapter: {
-          level: {
-            learningPathId: learningPath.id
-          }
-        }
-      }
-    },
-    select: {
-      sectionId: true,
-      isCompleted: true,
-    }
-  });
-
-  const userProgressMap = new Map(userProgress.map(p => [p.sectionId, p.isCompleted]));
 
   return (
     <div className="h-full border-l flex flex-col overflow-y-auto shadow-sm">
       <div className="p-8 flex flex-col border-b">
         <h1 className="font-semibold">{learningPath.title}</h1>
         <div className="mt-4">
-          <Progress value={userProgressCount} className="h-2" />
-          <p className="text-xs mt-2">{Math.round(userProgressCount)}% تکمیل شده</p>
+          <Progress value={progressCount} className="h-2" />
+          <p className="text-xs mt-2">{Math.round(progressCount)}% تکمیل شده</p>
         </div>
       </div>
       <div className="flex flex-col w-full">
@@ -67,7 +42,8 @@ export const CourseSidebar = async ({
                     id={section.id}
                     label={section.title}
                     learningPathId={learningPath.id}
-                    isCompleted={!!userProgressMap.get(section.id)}
+                    // --- ۲. این خط هم صحیح است و از "progress" استفاده می‌کند ---
+                    isCompleted={!!section.progress[0]?.isCompleted}
                   />
                 ))}
               </div>
