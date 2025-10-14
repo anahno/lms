@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { ArrowLeft } from "lucide-react"; // آیکون برای ورود به دوره
+import { Plus } from "lucide-react";
 
 import { getCourseEntryUrl } from "@/actions/go-to-course";
 import { Button } from "./ui/button";
@@ -23,10 +23,8 @@ export const ViewCourseButton = ({ learningPathId }: ViewCourseButtonProps) => {
       const result = await getCourseEntryUrl(learningPathId);
 
       if (result.url) {
-        // اگر URL معتبر بود، کاربر را هدایت کن
         router.push(result.url);
       } else if (result.error) {
-        // اگر خطایی وجود داشت، آن را نمایش بده
         toast.error(result.error);
       }
     } catch (error) {
@@ -37,9 +35,13 @@ export const ViewCourseButton = ({ learningPathId }: ViewCourseButtonProps) => {
   };
 
   return (
-    <Button onClick={handleClick} disabled={isLoading} size="sm">
-      {isLoading ? "در حال ورود..." : "ورود به دوره"}
-      <ArrowLeft className="h-4 w-4 mr-2" />
+    <Button 
+      onClick={handleClick} 
+      disabled={isLoading} 
+      size="icon-lg"
+      className="rounded-full w-16 h-16 shadow-lg bg-red-500 text-white hover:bg-red-600 transition-all duration-300 ease-in-out transform hover:scale-110"
+    >
+      {isLoading ? "..." : <Plus className="w-8 h-8" />}
     </Button>
   );
 };
