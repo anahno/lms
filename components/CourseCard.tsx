@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { Button } from "@/components/ui/button";
+import { ViewCourseButton } from "./ViewCourseButton";
 
 interface CourseCardProps {
   id: string;
@@ -88,16 +89,14 @@ export const CourseCard = ({
                 </DropdownMenuItem>
               </Link>
               <ConfirmModal onConfirm={onDelete}>
-                {/* --- شروع تغییرات کلیدی --- */}
                 <DropdownMenuItem
-                  onSelect={(e) => e.preventDefault()} // از بسته شدن منو جلوگیری می‌کند
+                  onSelect={(e) => e.preventDefault()}
                   disabled={isLoading}
                   className="text-red-600 focus:text-red-600"
                 >
                   <Trash className="h-4 w-4 ml-2" />
                   حذف
                 </DropdownMenuItem>
-                {/* --- پایان تغییرات کلیدی --- */}
               </ConfirmModal>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -112,10 +111,14 @@ export const CourseCard = ({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="p-4 pt-0">
-        <Badge className={isPublished ? "bg-sky-700" : "bg-sky-700"}>
+      <CardFooter className="p-4 pt-0 flex items-center justify-between">
+        <Badge className={isPublished ? "bg-sky-700" : "bg-slate-500"}>
           {isPublished ? "منتشر شده" : "پیش‌نویس"}
         </Badge>
+        
+        {isPublished && (
+            <ViewCourseButton learningPathId={id} />
+        )}
       </CardFooter>
     </Card>
   );
