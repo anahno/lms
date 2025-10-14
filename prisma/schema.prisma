@@ -73,10 +73,21 @@ model LearningPath {
   levels      Level[]
 }
 
+// --- این مدل را با نسخه جدید جایگزین کنید ---
 model Category {
-  id            String         @id @default(cuid())
-  name          String         @unique
+  id            String   @id @default(cuid())
+  name          String   @unique
   learningPaths LearningPath[]
+
+  // --- شروع تغییرات کلیدی ---
+  // این فیلد ID والد را نگه می‌دارد. علامت ؟ یعنی اختیاری است (دسته‌بندی‌های اصلی والد ندارند)
+  parentId      String?
+  // این رابطه، خود دسته‌بندی والد را تعریف می‌کند
+  parent        Category?  @relation("ParentSubcategories", fields: [parentId], references: [id], onDelete: Cascade)
+  
+  // این رابطه، لیستی از تمام زیرمجموعه‌های این دسته‌بندی را نگه می‌دارد
+  subcategories Category[] @relation("ParentSubcategories")
+  // --- پایان تغییرات کلیدی ---
 }
 
 model Level {

@@ -1,4 +1,5 @@
-// فایل: app/(dashboard)/learning-paths/[learningPathId]/edit/_components/CategoryForm.tsx
+
+// فایل: .../edit/_components/CategoryForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -10,7 +11,8 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
-import { Combobox } from "@/components/ui/combobox"; // ما این کامپوننت را در قدم بعد می‌سازیم
+import { Combobox } from "@/components/ui/combobox";
+import { Category } from "@prisma/client"; // تایپ Category را وارد می‌کنیم
 
 const formSchema = z.object({
   categoryId: z.string().min(1),
@@ -21,10 +23,11 @@ interface CategoryFormProps {
     categoryId: string | null;
   };
   learningPathId: string;
-  options: { label: string; value: string; }[];
+  // تایپ options را به ساختار جدید تغییر می‌دهیم
+  options: (Category & { subcategories: Category[] })[];
 }
 
-export const CategoryForm = ({ initialData, learningPathId, options }: CategoryFormProps) => {
+export const CategoryForm = ({ initialData, learningPathId, options = [] }: CategoryFormProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
 
@@ -48,8 +51,20 @@ export const CategoryForm = ({ initialData, learningPathId, options }: CategoryF
       toast.error("مشکلی پیش آمد.");
     }
   };
+  
+  // منطق جدید برای پیدا کردن گزینه انتخاب شده در بین تمام زیرمجموعه‌ها
+  const selectedOption = options
+    .flatMap((group) => group.subcategories)
+    .find((option) => option.id === initialData.categoryId);
 
-  const selectedOption = options.find((option) => option.value === initialData.categoryId);
+  // تبدیل داده‌های دریافتی به فرمتی که کامپوننت Combobox انتظار دارد
+  const formattedOptions = options.map(group => ({
+      label: group.name,
+      options: group.subcategories.map(sub => ({
+          label: sub.name,
+          value: sub.id,
+      }))
+  }));
 
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
@@ -60,12 +75,12 @@ export const CategoryForm = ({ initialData, learningPathId, options }: CategoryF
         </Button>
       </div>
       {!isEditing && (
-        <p className="text-sm mt-2">{selectedOption?.label || "انتخاب نشده"}</p>
+        <p className="text-sm mt-2">{selectedOption?.name || "انتخاب نشده"}</p>
       )}
       {isEditing && (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
           <Combobox
-            options={options}
+            options={formattedOptions}
             {...form.register("categoryId")}
             onChange={(value) => form.setValue("categoryId", value, { shouldValidate: true })}
             value={form.watch("categoryId")}
