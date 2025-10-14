@@ -1,27 +1,28 @@
-// فایل: .../chapters/[chapterId]/_components/ChapterVideoForm.tsx
+// فایل: .../sections/[sectionId]/_components/SectionVideoForm.tsx
 "use client";
 
 import { useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import { Chapter } from "@prisma/client";
+import { Section } from "@prisma/client";
 import { Pencil, PlusCircle, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// import MuxPlayer from "@mux/mux-player-react"; // ۱. ما دیگر به این پکیج نیازی نداریم
 
-interface ChapterVideoFormProps {
-  initialData: Chapter;
+interface SectionVideoFormProps {
+  initialData: Section;
   learningPathId: string;
   chapterId: string;
+  sectionId: string;
 }
 
-export const ChapterVideoForm = ({
+export const SectionVideoForm = ({
   initialData,
   learningPathId,
   chapterId,
-}: ChapterVideoFormProps) => {
+  sectionId,
+}: SectionVideoFormProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
@@ -29,7 +30,6 @@ export const ChapterVideoForm = ({
   const toggleEdit = () => setIsEditing((current) => !current);
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    // ... منطق آپلود بدون تغییر باقی می‌ماند ...
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -39,7 +39,7 @@ export const ChapterVideoForm = ({
 
     try {
       const uploadResponse = await axios.post("/api/upload", formData);
-      await axios.patch(`/api/learning-paths/${learningPathId}/chapters/${chapterId}`, {
+      await axios.patch(`/api/learning-paths/${learningPathId}/chapters/${chapterId}/sections/${sectionId}`, {
         videoUrl: uploadResponse.data.url,
       });
       toast.success("ویدیو با موفقیت آپلود شد.");
@@ -55,7 +55,7 @@ export const ChapterVideoForm = ({
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        ویدیوی فصل
+        ویدیوی بخش
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing && "انصراف"}
           {!isEditing && !initialData.videoUrl && (
@@ -72,16 +72,13 @@ export const ChapterVideoForm = ({
             <Video className="h-10 w-10 text-slate-500" />
           </div>
         ) : (
-          // ۲. --- تغییر کلیدی در اینجا ---
-          // از تگ <video> استاندارد HTML برای نمایش فایل mp4 استفاده می‌کنیم
           <div className="relative aspect-video mt-2">
             <video
               src={initialData.videoUrl}
-              controls // نمایش دکمه‌های کنترل (play, pause, volume)
+              controls
               className="w-full h-full rounded-md"
             />
           </div>
-          // --- پایان تغییر ---
         ))}
       {isEditing && (
         <div className="mt-2">

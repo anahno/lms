@@ -1,12 +1,11 @@
-// فایل: .../chapters/[chapterId]/_components/CourseSidebarItem.tsx
 "use client";
 
-import { CheckCircle,PlayCircle } from "lucide-react";
+import { CheckCircle, PlayCircle } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 interface CourseSidebarItemProps {
-  id: string;
+  id: string; // sectionId
   label: string;
   isCompleted: boolean;
   learningPathId: string;
@@ -25,7 +24,7 @@ export const CourseSidebarItem = ({
   const isActive = pathname?.includes(id);
 
   const onClick = () => {
-    router.push(`/courses/${learningPathId}/chapters/${id}`);
+    router.push(`/courses/${learningPathId}/sections/${id}`);
   };
 
   return (

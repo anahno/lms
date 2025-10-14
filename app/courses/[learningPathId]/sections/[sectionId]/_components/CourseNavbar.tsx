@@ -1,11 +1,17 @@
-// فایل: .../chapters/[chapterId]/_components/CourseNavbar.tsx
-import { Chapter, LearningPath } from "@prisma/client";
+import { Level, Chapter, Section } from "@prisma/client";
 import { CourseMobileSidebar } from "./CourseMobileSidebar";
 
+// تعریف تایپ‌های جدید
+type ChapterWithSections = Chapter & { sections: Section[] };
+type LevelWithChapters = Level & { chapters: ChapterWithSections[] };
+type LearningPathWithStructure = {
+  id: string;
+  title: string;
+  levels: LevelWithChapters[];
+};
+
 interface CourseNavbarProps {
-  learningPath: LearningPath & {
-    chapters: Chapter[];
-  };
+  learningPath: LearningPathWithStructure;
   userProgressCount: number;
 }
 
@@ -20,7 +26,6 @@ export const CourseNavbar = ({
         userProgressCount={userProgressCount}
       />
       <h1 className="font-semibold text-lg">{learningPath.title}</h1>
-      {/* در آینده می‌توانید دکمه‌های دیگری اینجا اضافه کنید */}
     </div>
   );
 };

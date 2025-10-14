@@ -1,14 +1,20 @@
-// فایل: .../chapters/[chapterId]/_components/CourseMobileSidebar.tsx
 import { Menu } from "lucide-react";
-import { Chapter, LearningPath } from "@prisma/client";
+import { Level, Chapter, Section } from "@prisma/client";
 
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { CourseSidebar } from "./CourseSidebar";
 
+// تعریف تایپ‌های جدید
+type ChapterWithSections = Chapter & { sections: Section[] };
+type LevelWithChapters = Level & { chapters: ChapterWithSections[] };
+type LearningPathWithStructure = {
+  id: string;
+  title: string;
+  levels: LevelWithChapters[];
+};
+
 interface CourseMobileSidebarProps {
-  learningPath: LearningPath & {
-    chapters: Chapter[];
-  };
+  learningPath: LearningPathWithStructure;
   userProgressCount: number;
 }
 

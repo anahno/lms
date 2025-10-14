@@ -1,4 +1,5 @@
-// فایل: prisma/schema.prisma
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -8,9 +9,6 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// مدل‌های مورد نیاز NextAuth.js
-// این مدل‌ها برای مدیریت حساب‌ها، نشست‌ها و توکن‌ها ضروری هستند.
 
 model Account {
   id                String  @id @default(cuid())
@@ -47,89 +45,87 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-
-// مدل کاربر (User) - سازگار شده با NextAuth
 model User {
-  id            String    @id @default(cuid())
+  id            String         @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?        @unique
   emailVerified DateTime?
   image         String?
-  password      String? // ما همچنان از این فیلد برای ورود با رمز عبور استفاده می‌کنیم
+  password      String?
   accounts      Account[]
   sessions      Session[]
-
-  // رابطه با مسیرهای یادگیری (بدون تغییر)
   learningPaths LearningPath[]
-    progress UserProgress[]
-
+  progress      UserProgress[]
 }
-
 
 model LearningPath {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
-  description String?  @db.Text
+  description String?   @db.Text
   imageUrl    String?
-    isPublished Boolean @default(false) // <-- این خط را اضافه کنید
-
-  // --- این خط جدید است ---
-  // یک مسیر یادگیری می‌تواند چندین فصل داشته باشد
-  chapters Chapter[]
-
-  // --- این بخش تغییر می‌کند ---
-  categoryId String?  // شناسه دسته‌بندی
-  category   Category? @relation(fields: [categoryId], references: [id])
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isPublished Boolean   @default(false)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  levels      Level[]
 }
 
-// --- این مدل جدید است ---
 model Category {
-  id            String   @id @default(cuid())
-  name          String   @unique
+  id            String         @id @default(cuid())
+  name          String         @unique
   learningPaths LearningPath[]
 }
 
-// --- این مدل جدید است ---
-model Chapter {
-  id          String  @id @default(cuid())
-  title       String
-  description String? @db.Text
-  videoUrl    String? @db.Text
-  position    Int     // برای مرتب‌سازی و جابجایی
-
-  isPublished Boolean @default(false)
-  isFree      Boolean @default(false)
-
-  // --- تعریف رابطه با LearningPath ---
+model Level {
+  id             String       @id @default(cuid())
+  title          String
+  position       Int
   learningPathId String
   learningPath   LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-    progress UserProgress[]
-
+  chapters       Chapter[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
-// --- این مدل جدید است ---
+model Chapter {
+  id          String    @id @default(cuid())
+  title       String
+  position    Int
+  isPublished Boolean   @default(false)
+  levelId     String
+  level       Level     @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  sections    Section[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Section {
+  id          String         @id @default(cuid())
+  title       String
+  description String?        @db.Text
+  videoUrl    String?        @db.Text
+  position    Int
+  isPublished Boolean        @default(false)
+  isFree      Boolean        @default(false)
+  chapterId   String
+  chapter     Chapter        @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  progress    UserProgress[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
 model UserProgress {
-  id        String  @id @default(cuid())
-  userId    String
-  chapterId String
-  isCompleted Boolean @default(false)
+  id          String   @id @default(cuid())
+  userId      String
+  isCompleted Boolean  @default(false)
+  sectionId   String
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // تعریف رابطه با کاربر و فصل
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // ایجاد یک کلید ترکیبی منحصر به فرد
-  @@unique([userId, chapterId])
+  @@unique([userId, sectionId])
 }

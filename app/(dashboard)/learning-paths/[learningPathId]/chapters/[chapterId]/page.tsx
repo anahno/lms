@@ -5,24 +5,34 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-// وارد کردن تمام کامپوننت‌های فرم مربوط به فصل
-import { ChapterTitleForm } from "./_components/ChapterTitleForm";
-import { ChapterDescriptionForm } from "./_components/ChapterDescriptionForm";
-import { ChapterVideoForm } from "./_components/ChapterVideoForm";
-import { ChapterActions } from "./_components/ChapterActions"; // کامپوننت عملیات مربوط به این فصل
+// وارد کردن کامپوننت‌های فرم مربوط به "فصل"
+import { ChapterTitleForm } from "./_components/ChapterTitleForm"; // این باقی می‌ماند
+import { ChapterActions } from "./_components/ChapterActions"; // این هم برای انتشار/حذف خود فصل باقی می‌ماند
+
+// ۱. --- وارد کردن کامپوننت جدید برای مدیریت بخش‌ها ---
+import { SectionsForm } from "./sections/[sectionId]/_components/SectionsForm";
 
 export default async function ChapterIdPage({
   params,
 }: {
-  params: Promise<{ learningPathId: string; chapterId: string }>;
+  params: { learningPathId: string; chapterId: string };
 }) {
-  const { learningPathId, chapterId } = await params;
+  const { learningPathId, chapterId } = params;
 
-  // دریافت اطلاعات کامل این فصل خاص
+  // ۲. --- به‌روزرسانی query برای دریافت "بخش‌های" مربوط به این فصل ---
   const chapter = await db.chapter.findUnique({
     where: {
       id: chapterId,
-      learningPathId: learningPathId,
+      level: {
+        learningPathId: learningPathId, // برای امنیت، اطمینان از تعلق فصل به مسیر
+      }
+    },
+    include: {
+      sections: {
+        orderBy: {
+          position: "asc",
+        },
+      },
     },
   });
 
@@ -30,12 +40,17 @@ export default async function ChapterIdPage({
     return redirect("/");
   }
 
+  // ۳. --- به‌روزرسانی منطق تکمیل فصل ---
+  // یک فصل زمانی کامل است که عنوان داشته باشد و منتشر شده باشد.
+  // شرط داشتن محتوا (ویدیو/توضیحات) حذف می‌شود چون به "بخش" منتقل شده.
+  // شرط جدید: یک فصل باید حداقل یک بخش منتشر شده داشته باشد تا خود فصل قابل انتشار باشد.
+  const hasPublishedSection = chapter.sections.some(section => section.isPublished);
+  
   const requiredFields = [
     chapter.title,
-    chapter.description,
-    chapter.videoUrl,
+    // chapter.description, // حذف شد
+    // chapter.videoUrl,    // حذف شد
   ];
-
   const totalFields = requiredFields.length;
   const completedFields = requiredFields.filter(Boolean).length;
   const completionText = `(${completedFields}/${totalFields})`;
@@ -53,23 +68,26 @@ export default async function ChapterIdPage({
           </Link>
           <div className="flex items-center justify-between w-full">
             <div className="flex flex-col gap-y-2">
-              <h1 className="text-2xl font-medium">ویرایش فصل</h1>
+              <h1 className="text-2xl font-medium">تنظیمات فصل</h1>
               <span className="text-sm text-slate-700">
-                فیلدهای تکمیل شده {completionText}
+                فیلدهای الزامی را تکمیل کنید {completionText}
               </span>
             </div>
-            {/* استفاده از کامپوننت دکمه‌های انتشار و حذف فصل */}
             <ChapterActions
-              initialData={chapter}
               learningPathId={learningPathId}
               chapterId={chapterId}
+              // ۴. --- ارسال اطلاعات جدید به کامپوننت دکمه‌ها ---
+              isPublished={chapter.isPublished}
+              // یک فصل تنها زمانی قابل انتشار است که حداقل یک بخش منتشر شده داشته باشد
+              canPublish={hasPublishedSection}
             />
           </div>
         </div>
       </div>
 
+      {/* ۵. --- بازسازی کامل ساختار صفحه --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16">
-        {/* ستون اول */}
+        {/* ستون اول: اطلاعات کلی فصل */}
         <div className="space-y-4">
           <div>
             <div className="flex items-center gap-x-2 mb-4">
@@ -80,23 +98,19 @@ export default async function ChapterIdPage({
               learningPathId={learningPathId}
               chapterId={chapterId}
             />
-            <ChapterDescriptionForm
-              initialData={chapter}
-              learningPathId={learningPathId}
-              chapterId={chapterId}
-            />
           </div>
         </div>
-        {/* ستون دوم */}
+
+        {/* ستون دوم: مدیریت بخش‌های این فصل */}
         <div className="space-y-4">
-          <div>
+           <div>
             <div className="flex items-center gap-x-2 mb-4">
-              <h2 className="text-xl">ویدیو</h2>
+              <h2 className="text-xl">بخش‌های این فصل</h2>
             </div>
-            <ChapterVideoForm
-              initialData={chapter}
-              learningPathId={learningPathId}
-              chapterId={chapterId}
+            <SectionsForm
+                initialData={{ sections: chapter.sections }}
+                learningPathId={learningPathId}
+                chapterId={chapterId}
             />
           </div>
         </div>

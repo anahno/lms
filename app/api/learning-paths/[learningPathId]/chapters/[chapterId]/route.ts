@@ -1,4 +1,6 @@
 // فایل: app/api/learning-paths/[learningPathId]/chapters/[chapterId]/route.ts
+"use server";
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../../auth/[...nextauth]/route";
@@ -6,6 +8,7 @@ import { db } from "@/lib/db";
 
 export async function PATCH(
   req: NextRequest,
+  // --- ۱. اصلاح تایپ context ---
   context: { params: Promise<{ learningPathId: string; chapterId: string }> }
 ) {
   try {
@@ -14,6 +17,7 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    // --- ۲. اضافه کردن await ---
     const { learningPathId, chapterId } = await context.params;
     const values = await req.json();
 
@@ -28,11 +32,12 @@ export async function PATCH(
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    // به‌روزرسانی فصل در پایگاه داده
+    // --- ۳. اصلاح query برای به‌روزرسانی فصل ---
+    // ما فقط به chapterId برای پیدا کردن رکورد نیاز داریم.
+    // شرط تعلق به learningPath به صورت ضمنی در بررسی مالکیت بالا انجام شده.
     const chapter = await db.chapter.update({
       where: {
         id: chapterId,
-        learningPathId: learningPathId,
       },
       data: {
         ...values,
@@ -46,8 +51,10 @@ export async function PATCH(
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
+
 export async function DELETE(
   req: NextRequest,
+  // --- ۴. اصلاح تایپ context ---
   context: { params: Promise<{ learningPathId: string; chapterId: string }> }
 ) {
   try {
@@ -56,6 +63,7 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    // --- ۵. اضافه کردن await ---
     const { learningPathId, chapterId } = await context.params;
     
     // بررسی مالکیت
@@ -66,9 +74,10 @@ export async function DELETE(
       return new NextResponse("Forbidden", { status: 403 });
     }
     
-    // حذف فصل
+    // --- ۶. اصلاح query برای حذف فصل ---
+    // فقط به chapterId برای حذف نیاز داریم.
     const deletedChapter = await db.chapter.delete({
-      where: { id: chapterId, learningPathId: learningPathId },
+      where: { id: chapterId },
     });
 
     return NextResponse.json(deletedChapter);

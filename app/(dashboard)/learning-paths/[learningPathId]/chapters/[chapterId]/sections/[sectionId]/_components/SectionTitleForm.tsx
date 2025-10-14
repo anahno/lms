@@ -1,4 +1,4 @@
-// فایل: .../chapters/[chapterId]/_components/ChapterDescriptionForm.tsx
+// فایل: .../sections/[sectionId]/_components/SectionTitleForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -8,34 +8,34 @@ import * as z from "zod";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import { Chapter } from "@prisma/client";
-import { Pencil } from "lucide-react";
+import { Section } from "@prisma/client";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
-// وارد کردن ویرایشگر جدید Tiptap
-import { TiptapEditor } from "@/components/tiptap/TiptapEditor";
+import { Pencil } from "lucide-react";
 
 const formSchema = z.object({
-  description: z.string().min(1, { message: "توضیحات الزامی است" }),
+  title: z.string().min(1),
 });
 
-interface ChapterDescriptionFormProps {
-  initialData: Chapter;
+interface SectionTitleFormProps {
+  initialData: Section;
   learningPathId: string;
   chapterId: string;
+  sectionId: string;
 }
 
-export const ChapterDescriptionForm = ({
+export const SectionTitleForm = ({
   initialData,
   learningPathId,
   chapterId,
-}: ChapterDescriptionFormProps) => {
+  sectionId,
+}: SectionTitleFormProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { description: initialData.description || "" },
+    defaultValues: { title: initialData.title },
   });
 
   const { isSubmitting, isValid } = form.formState;
@@ -43,8 +43,8 @@ export const ChapterDescriptionForm = ({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      await axios.patch(`/api/learning-paths/${learningPathId}/chapters/${chapterId}`, values);
-      toast.success("توضیحات فصل به‌روزرسانی شد.");
+      await axios.patch(`/api/learning-paths/${learningPathId}/chapters/${chapterId}/sections/${sectionId}`, values);
+      toast.success("عنوان بخش به‌روزرسانی شد.");
       toggleEdit();
       router.refresh();
     } catch {
@@ -55,22 +55,18 @@ export const ChapterDescriptionForm = ({
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        توضیحات فصل
+        عنوان بخش
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? "انصراف" : <><Pencil className="h-4 w-4 ml-2" /> ویرایش</>}
         </Button>
       </div>
-      {!isEditing && (
-        <div
-          className="text-sm mt-2 prose" // کلاس prose برای استایل‌دهی به HTML
-          dangerouslySetInnerHTML={{ __html: initialData.description || "<i>توضیحاتی ثبت نشده است.</i>" }}
-        />
-      )}
+      {!isEditing && <p className="text-sm mt-2">{initialData.title}</p>}
       {isEditing && (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
-          <TiptapEditor
-            value={form.watch("description")}
-            onChange={(value) => form.setValue("description", value, { shouldValidate: true })}
+          <Input
+            disabled={isSubmitting}
+            placeholder="مثال: مقدمه‌ای بر ..."
+            {...form.register("title")}
           />
           <div className="flex items-center gap-x-2">
             <Button disabled={isSubmitting || !isValid} type="submit">ذخیره</Button>

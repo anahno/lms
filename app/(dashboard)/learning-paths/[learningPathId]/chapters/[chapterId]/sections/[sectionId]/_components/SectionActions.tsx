@@ -1,4 +1,4 @@
-// فایل: .../chapters/[chapterId]/_components/ChapterActions.tsx
+// فایل: .../sections/[sectionId]/_components/SectionActions.tsx
 "use client";
 
 import { useState } from "react";
@@ -9,32 +9,33 @@ import { Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 
-interface ChapterActionsProps {
+interface SectionActionsProps {
   learningPathId: string;
   chapterId: string;
+  sectionId: string;
   isPublished: boolean;
-  canPublish: boolean; // پراپرتی جدید
+  isComplete: boolean;
 }
 
-export const ChapterActions = ({
+export const SectionActions = ({
   learningPathId,
   chapterId,
+  sectionId,
   isPublished,
-  canPublish,
-}: ChapterActionsProps) => {
+  isComplete,
+}: SectionActionsProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  // تابع برای تغییر وضعیت انتشار
   const onPublishToggle = async () => {
     try {
       setIsLoading(true);
       if (isPublished) {
-        await axios.patch(`/api/learning-paths/${learningPathId}/chapters/${chapterId}`, { isPublished: false });
-        toast.success("فصل به حالت پیش‌نویس درآمد.");
+        await axios.patch(`/api/learning-paths/${learningPathId}/chapters/${chapterId}/sections/${sectionId}`, { isPublished: false });
+        toast.success("بخش به حالت پیش‌نویس درآمد.");
       } else {
-        await axios.patch(`/api/learning-paths/${learningPathId}/chapters/${chapterId}`, { isPublished: true });
-        toast.success("فصل با موفقیت منتشر شد.");
+        await axios.patch(`/api/learning-paths/${learningPathId}/chapters/${chapterId}/sections/${sectionId}`, { isPublished: true });
+        toast.success("بخش با موفقیت منتشر شد.");
       }
       router.refresh();
     } catch {
@@ -44,17 +45,16 @@ export const ChapterActions = ({
     }
   };
   
-  // تابع برای حذف فصل
   const onDelete = async () => {
     try {
       setIsLoading(true);
-      await axios.delete(`/api/learning-paths/${learningPathId}/chapters/${chapterId}`);
-      toast.success("فصل با موفقیت حذف شد.");
+      await axios.delete(`/api/learning-paths/${learningPathId}/chapters/${chapterId}/sections/${sectionId}`);
+      toast.success("بخش با موفقیت حذف شد.");
       router.refresh();
-      // بازگشت به صفحه قبلی پس از حذف
-      router.push(`/learning-paths/${learningPathId}/edit`);
+      // بازگشت به صفحه قبلی (مدیریت فصل) پس از حذف
+      router.push(`/learning-paths/${learningPathId}/chapters/${chapterId}`);
     } catch {
-      toast.error("مشکلی در حذف فصل پیش آمد.");
+      toast.error("مشکلی در حذف بخش پیش آمد.");
     } finally {
       setIsLoading(false);
     }
@@ -62,8 +62,7 @@ export const ChapterActions = ({
 
   return (
     <div className="flex items-center gap-x-2">
-      {/* دکمه انتشار فقط زمانی فعال است که canPublish সত্য باشد */}
-      <Button onClick={onPublishToggle} disabled={isLoading || !canPublish} variant="outline" size="sm">
+      <Button onClick={onPublishToggle} disabled={isLoading || !isComplete} variant="outline" size="sm">
         {isPublished ? "لغو انتشار" : "انتشار"}
       </Button>
       <ConfirmModal onConfirm={onDelete}>

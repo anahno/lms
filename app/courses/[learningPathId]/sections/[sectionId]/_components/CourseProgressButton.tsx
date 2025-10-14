@@ -1,4 +1,3 @@
-// فایل: .../_components/CourseProgressButton.tsx
 "use client";
 
 import { useTransition } from "react";
@@ -6,20 +5,19 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-import { toggleChapterCompletion } from "@/actions/progress"; // وارد کردن Server Action
+import { toggleSectionCompletion } from "@/actions/progress";
 
 interface CourseProgressButtonProps {
-  chapterId: string;
+  sectionId: string;
   learningPathId: string;
-  nextChapterId?: string;
+  nextSectionId?: string;
   isCompleted: boolean;
 }
 
 export const CourseProgressButton = ({
-  chapterId,
+  sectionId,
   learningPathId,
-  nextChapterId,
+  nextSectionId,
   isCompleted,
 }: CourseProgressButtonProps) => {
   const router = useRouter();
@@ -30,13 +28,14 @@ export const CourseProgressButton = ({
 
   const onClick = () => {
     startTransition(async () => {
-      const result = await toggleChapterCompletion(chapterId, learningPathId, isCompleted);
+      const result = await toggleSectionCompletion(sectionId, learningPathId, isCompleted);
       
       if (result.success) {
         toast.success("وضعیت پیشرفت به‌روز شد.");
-        if (!isCompleted && nextChapterId) {
-          router.push(`/courses/${learningPathId}/chapters/${nextChapterId}`);
+        if (!isCompleted && nextSectionId) {
+          router.push(`/courses/${learningPathId}/sections/${nextSectionId}`);
         }
+        router.refresh();
       } else {
         toast.error("مشکلی پیش آمد.");
       }
