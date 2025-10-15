@@ -10,6 +10,7 @@ import { ImageForm } from "./_components/ImageForm";
 import { CategoryForm } from "./_components/CategoryForm";
 import { LevelsForm } from "./_components/LevelsForm";
 import { CourseActions } from "./_components/CourseActions";
+import { WhatYouWillLearnForm } from "./_components/WhatYouWillLearnForm"; // ایمپورت جدید
 
 export default async function EditLearningPathPage({
   params,
@@ -99,6 +100,8 @@ export default async function EditLearningPathPage({
         <div className="space-y-6">
           <TitleForm initialData={learningPath} learningPathId={learningPath.id} />
           <DescriptionForm initialData={learningPath} learningPathId={learningPath.id} />
+                    <WhatYouWillLearnForm initialData={learningPath} learningPathId={learningPath.id} />
+
           <CategoryForm
             initialData={learningPath}
             learningPathId={learningPath.id}

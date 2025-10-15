@@ -6,21 +6,26 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getProgress } from "@/actions/get-progress";
-import { CourseSidebar } from "../../../_components/CourseSidebar";
-import { CourseNavbar } from "../../../_components/CourseNavbar";
+import { CoursePlayerLayout } from "../../../_components/CoursePlayerLayout"; // کامپوننت لایه‌بندی کلاینت
 
-export default async function CourseLayout({
+// --- شروع اصلاحات کلیدی ---
+export default async function CourseSectionLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ learningPathId: string }>;
+  // این تایپ باید شامل تمام پارامترهای مسیر تا این نقطه باشد.
+  // چون این layout داخل پوشه [sectionId] است، پس هم learningPathId و هم sectionId را دارد.
+  params: Promise<{ learningPathId: string; sectionId: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return redirect("/");
 
-  const { learningPathId } = await params;
+  // Promise را باز می‌کنیم تا به مقادیر دسترسی پیدا کنیم
+  const resolvedParams = await params;
+  const { learningPathId } = resolvedParams;
 
+  // واکشی داده‌ها در Server Component
   const learningPath = await db.learningPath.findUnique({
     where: { id: learningPathId },
     include: {
@@ -49,23 +54,14 @@ export default async function CourseLayout({
 
   const progressCount = await getProgress(session.user.id, learningPath.id);
 
+  // ارسال داده‌های آماده به کامپوننت کلاینت برای مدیریت UI
   return (
-    <div className="h-full">
-      <div className="h-[80px] fixed inset-y-0 w-full z-50">
-        <CourseNavbar
-          learningPath={learningPath}
-          progressCount={progressCount}
-        />
-      </div>
-      <div className="hidden md:flex h-full w-80 flex-col fixed inset-y-0 z-50 pt-[80px]">
-        <CourseSidebar
-          learningPath={learningPath}
-          progressCount={progressCount}
-        />
-      </div>
-      <main className="md:pr-80 pt-[80px] h-full">
-        {children}
-      </main>
-    </div>
+    <CoursePlayerLayout
+      learningPath={learningPath}
+      progressCount={progressCount}
+    >
+      {children}
+    </CoursePlayerLayout>
   );
 }
+// --- پایان اصلاحات ---

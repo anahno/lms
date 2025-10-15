@@ -1,37 +1,27 @@
 // فایل: app/courses/_components/CourseNavbar.tsx
+"use client";
 
-import { Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { LearningPathWithStructure } from "@/lib/types";
-import { CourseSidebar } from "./CourseSidebar"; // ما به این کامپوننت در اینجا نیاز داریم
+import type { LearningPathWithStructure } from "@/lib/types";
 
 interface CourseNavbarProps {
   learningPath: LearningPathWithStructure;
   progressCount: number;
+  children: React.ReactNode; // برای دریافت دکمه منوی موبایل
 }
 
 export const CourseNavbar = ({
   learningPath,
   progressCount,
+  children,
 }: CourseNavbarProps) => {
   return (
     <div className="p-4 border-b h-full flex items-center bg-white shadow-sm">
-      {/* منوی همبرگری برای موبایل که سایدبار را در یک Sheet باز می‌کند */}
-      <Sheet>
-        <SheetTrigger className="md:hidden pr-4 hover:opacity-75 transition">
-          <Menu />
-        </SheetTrigger>
-        <SheetContent side="right" className="p-0 bg-white w-72">
-          {/* سایدبار فقط برای حالت موبایل در اینجا رندر می‌شود */}
-          <CourseSidebar
-            learningPath={learningPath}
-            progressCount={progressCount}
-          />
-        </SheetContent>
-      </Sheet>
+      {/* دکمه منو (برای موبایل) از والدش اینجا قرار می‌گیرد */}
+      {children}
+      
+      <h1 className="font-semibold text-lg flex-1">{learningPath.title}</h1>
 
-      {/* عنوان دوره */}
-      <h1 className="font-semibold text-lg">{learningPath.title}</h1>
+      {/* می‌توانید سایر عناصر نوار ناوبری مانند پیشرفت یا دکمه اشتراک‌گذاری را اینجا اضافه کنید */}
     </div>
   );
 };

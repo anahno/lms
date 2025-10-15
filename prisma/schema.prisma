@@ -61,8 +61,11 @@ model User {
 model LearningPath {
   id          String    @id @default(cuid())
   title       String
+  subtitle         String?   @db.Text      // اضافه شد: زیرعنوان دوره
   description String?   @db.Text
   imageUrl    String?
+  whatYouWillLearn String[]  @default([]) 
+  requirements     String[]  @default([])
   isPublished Boolean   @default(false)
   categoryId  String?
   category    Category? @relation(fields: [categoryId], references: [id])
@@ -118,6 +121,8 @@ model Section {
   title       String
   description String?        @db.Text
   videoUrl    String?        @db.Text
+    duration        Int?           
+
   position    Int
   isPublished Boolean        @default(false)
   isFree      Boolean        @default(false)
