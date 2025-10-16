@@ -3,23 +3,34 @@
 
 import { db } from "@/lib/db";
 import { CourseCatalogCard } from "@/components/CourseCatalogCard";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export default async function CoursesCatalogPage() {
   
-  // ۱. دریافت تمام دوره‌های "منتشر شده" از دیتابیس
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
   const courses = await db.learningPath.findMany({
     where: {
-      isPublished: true,
+      // --- تغییر کلیدی در اینجا ---
+      // به جای isPublished، از status استفاده می‌کنیم
+      status: 'PUBLISHED',
     },
     include: {
-      category: true, // برای نمایش نام دسته‌بندی
+      category: true,
       levels: {
         include: {
-          chapters: { // برای شمارش تعداد کل فصل‌ها
+          chapters: {
             where: { isPublished: true },
             select: { id: true }
           }
         }
+      },
+      enrollments: {
+        where: {
+          userId: userId,
+        },
       },
     },
     orderBy: {
@@ -41,7 +52,6 @@ export default async function CoursesCatalogPage() {
       {courses.length > 0 ? (
         <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {courses.map((course) => {
-            // شمارش تعداد فصل‌های منتشر شده در هر دوره
             const totalChapters = course.levels.reduce((acc, level) => acc + level.chapters.length, 0);
 
             return (
@@ -52,6 +62,7 @@ export default async function CoursesCatalogPage() {
                 imageUrl={course.imageUrl}
                 chaptersLength={totalChapters}
                 category={course.category?.name || "بدون دسته‌بندی"}
+                isEnrolled={course.enrollments.length > 0}
               />
             );
           })}

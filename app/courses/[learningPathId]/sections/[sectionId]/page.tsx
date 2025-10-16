@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { db } from "@/lib/db";
-import { CoursePlayerPage } from "../../../_components/CoursePlayerPage";
+import { CoursePlayerPage } from "@/app/courses/_components/CoursePlayerPage";
+import { CourseStatus } from "@prisma/client"; // ۱. ایمپورت کردن enum برای type safety
 
 export default async function SectionIdPageWrapper({
   params,
@@ -22,25 +23,25 @@ export default async function SectionIdPageWrapper({
   const { learningPathId, sectionId } = resolvedParams;
 
   const [learningPath, section] = await Promise.all([
-    db.learningPath.findUnique({
+    db.learningPath.findFirst({
+      // --- شروع تغییر نهایی و قطعی ---
+      // به جای isPublished، از status: 'PUBLISHED' استفاده می‌کنیم
       where: {
         id: learningPathId,
-        isPublished: true,
+        status: CourseStatus.PUBLISHED, // <-- استفاده از enum صحیح
       },
-      // --- شروع تغییر کلیدی ---
-      // ما به Prisma صریحاً می‌گوییم که تمام فیلدهای مورد نیاز را انتخاب کند.
+      // --- پایان تغییر نهایی و قطعی ---
       select: {
         id: true,
         title: true,
         subtitle: true,
         description: true,
-        whatYouWillLearn: true, // این فیلد حالا واکشی می‌شود
-        requirements: true,     // این فیلد حالا واکشی می‌شود
-        // هر فیلد دیگری که از learningPath نیاز دارید را اینجا اضافه کنید
-      }
-      // --- پایان تغییر کلیدی ---
+        whatYouWillLearn: true,
+        requirements: true,
+      },
     }),
-    db.section.findUnique({
+    // کوئری برای Section صحیح است چون Section هنوز isPublished دارد
+    db.section.findFirst({
       where: {
         id: sectionId,
         isPublished: true,
@@ -57,6 +58,7 @@ export default async function SectionIdPageWrapper({
     return redirect("/");
   }
 
+  // ... بقیه کد بدون تغییر ...
   const allSectionsInOrder = await db.section.findMany({
     where: {
       chapter: {

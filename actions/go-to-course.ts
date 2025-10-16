@@ -10,7 +10,8 @@ export const getCourseEntryUrl = async (learningPathId: string) => {
     const learningPath = await db.learningPath.findUnique({
       where: {
         id: learningPathId,
-        isPublished: true, // خود دوره باید منتشر شده باشد
+        // --- تغییر کلیدی در اینجا ---
+        status: "PUBLISHED", // خود دوره باید منتشر شده باشد
       },
       include: {
         levels: {

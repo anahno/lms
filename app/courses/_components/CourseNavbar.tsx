@@ -11,7 +11,7 @@ interface CourseNavbarProps {
 
 export const CourseNavbar = ({
   learningPath,
-  progressCount,
+ // progressCount,
   children,
 }: CourseNavbarProps) => {
   return (

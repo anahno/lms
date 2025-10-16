@@ -4,30 +4,31 @@
 import { db } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { getProgress } from "@/actions/get-progress";
-import { CoursePlayerLayout } from "../../../_components/CoursePlayerLayout"; // کامپوننت لایه‌بندی کلاینت
+import { CoursePlayerLayout } from "../../../_components/CoursePlayerLayout";
 
-// --- شروع اصلاحات کلیدی ---
 export default async function CourseSectionLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  // این تایپ باید شامل تمام پارامترهای مسیر تا این نقطه باشد.
-  // چون این layout داخل پوشه [sectionId] است، پس هم learningPathId و هم sectionId را دارد.
   params: Promise<{ learningPathId: string; sectionId: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return redirect("/");
+  if (!session?.user?.id) return redirect("/login");
 
-  // Promise را باز می‌کنیم تا به مقادیر دسترسی پیدا کنیم
   const resolvedParams = await params;
   const { learningPathId } = resolvedParams;
+  const userId = session.user.id;
 
-  // واکشی داده‌ها در Server Component
-  const learningPath = await db.learningPath.findUnique({
-    where: { id: learningPathId },
+  // --- شروع تغییرات کلیدی برای دسترسی ادمین ---
+
+  // ۱. ابتدا خود دوره را واکشی می‌کنیم تا مالک آن را پیدا کنیم
+  const learningPathData = await db.learningPath.findUnique({
+    where: { 
+      id: learningPathId 
+    },
     include: {
       levels: {
         orderBy: { position: "asc" },
@@ -40,7 +41,7 @@ export default async function CourseSectionLayout({
                 where: { isPublished: true },
                 orderBy: { position: "asc" },
                 include: {
-                  progress: { where: { userId: session.user.id } },
+                  progress: { where: { userId: userId } },
                 },
               },
             },
@@ -50,18 +51,38 @@ export default async function CourseSectionLayout({
     },
   });
 
-  if (!learningPath) return redirect("/");
+  if (!learningPathData) return redirect("/");
 
-  const progressCount = await getProgress(session.user.id, learningPath.id);
+  // ۲. بررسی می‌کنیم که آیا کاربر فعلی، مالک دوره است؟
+  const isOwner = learningPathData.userId === userId;
 
-  // ارسال داده‌های آماده به کامپوننت کلاینت برای مدیریت UI
+  // ۳. اگر مالک نبود، آنگاه وضعیت ثبت‌نام را بررسی می‌کنیم
+  if (!isOwner) {
+    const enrollment = await db.enrollment.findUnique({
+      where: {
+        userId_learningPathId: {
+          userId,
+          learningPathId,
+        },
+      },
+    });
+
+    // ۴. اگر مالک نبود و ثبت‌نام هم نکرده بود، او را هدایت می‌کنیم
+    if (!enrollment) {
+      return redirect("/courses");
+    }
+  }
+  // --- پایان تغییرات کلیدی ---
+
+  // اگر کاربر مالک باشد یا ثبت‌نام کرده باشد، به اینجا می‌رسد
+  const progressCount = await getProgress(userId, learningPathData.id);
+
   return (
     <CoursePlayerLayout
-      learningPath={learningPath}
+      learningPath={learningPathData}
       progressCount={progressCount}
     >
       {children}
     </CoursePlayerLayout>
   );
 }
-// --- پایان اصلاحات ---

@@ -17,9 +17,17 @@ export const PublicNavbar = () => {
 
       <div className="flex items-center gap-4">
         {status === "authenticated" ? (
-          <Link href="/">
-            <Button variant="outline">داشبورد مدرس</Button>
-          </Link>
+          <>
+            <Link href="/my-courses">
+              <Button>دوره‌های من</Button>
+            </Link>
+            {/* --- تغییر کلیدی: این دکمه فقط برای استاد و ادمین است --- */}
+            {(session.user.role === "ADMIN" || session.user.role === "INSTRUCTOR") && (
+              <Link href="/">
+                <Button variant="outline">پنل مدیریت</Button>
+              </Link>
+            )}
+          </>
         ) : (
           <Link href="/login">
             <Button>

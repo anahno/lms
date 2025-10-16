@@ -1,30 +1,26 @@
 // فایل: app/(dashboard)/learning-paths/[learningPathId]/chapters/[chapterId]/page.tsx
-
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-
-// وارد کردن کامپوننت‌های فرم مربوط به "فصل"
-import { ChapterTitleForm } from "./_components/ChapterTitleForm"; // این باقی می‌ماند
-import { ChapterActions } from "./_components/ChapterActions"; // این هم برای انتشار/حذف خود فصل باقی می‌ماند
-
-// ۱. --- وارد کردن کامپوننت جدید برای مدیریت بخش‌ها ---
+import { ChapterTitleForm } from "./_components/ChapterTitleForm";
+import { ChapterActions } from "./_components/ChapterActions";
 import { SectionsForm } from "./sections/[sectionId]/_components/SectionsForm";
 
 export default async function ChapterIdPage({
   params,
 }: {
-  params: { learningPathId: string; chapterId: string };
+  // --- تغییر کلیدی ۱: اضافه کردن Promise به تایپ ---
+  params: Promise<{ learningPathId: string; chapterId: string }>;
 }) {
-  const { learningPathId, chapterId } = params;
+  // --- تغییر کلیدی ۲: اضافه کردن await ---
+  const { learningPathId, chapterId } = await params;
 
-  // ۲. --- به‌روزرسانی query برای دریافت "بخش‌های" مربوط به این فصل ---
   const chapter = await db.chapter.findUnique({
     where: {
       id: chapterId,
       level: {
-        learningPathId: learningPathId, // برای امنیت، اطمینان از تعلق فصل به مسیر
+        learningPathId: learningPathId,
       }
     },
     include: {
@@ -40,17 +36,9 @@ export default async function ChapterIdPage({
     return redirect("/");
   }
 
-  // ۳. --- به‌روزرسانی منطق تکمیل فصل ---
-  // یک فصل زمانی کامل است که عنوان داشته باشد و منتشر شده باشد.
-  // شرط داشتن محتوا (ویدیو/توضیحات) حذف می‌شود چون به "بخش" منتقل شده.
-  // شرط جدید: یک فصل باید حداقل یک بخش منتشر شده داشته باشد تا خود فصل قابل انتشار باشد.
   const hasPublishedSection = chapter.sections.some(section => section.isPublished);
   
-  const requiredFields = [
-    chapter.title,
-    // chapter.description, // حذف شد
-    // chapter.videoUrl,    // حذف شد
-  ];
+  const requiredFields = [chapter.title];
   const totalFields = requiredFields.length;
   const completedFields = requiredFields.filter(Boolean).length;
   const completionText = `(${completedFields}/${totalFields})`;
@@ -76,18 +64,14 @@ export default async function ChapterIdPage({
             <ChapterActions
               learningPathId={learningPathId}
               chapterId={chapterId}
-              // ۴. --- ارسال اطلاعات جدید به کامپوننت دکمه‌ها ---
               isPublished={chapter.isPublished}
-              // یک فصل تنها زمانی قابل انتشار است که حداقل یک بخش منتشر شده داشته باشد
               canPublish={hasPublishedSection}
             />
           </div>
         </div>
       </div>
 
-      {/* ۵. --- بازسازی کامل ساختار صفحه --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16">
-        {/* ستون اول: اطلاعات کلی فصل */}
         <div className="space-y-4">
           <div>
             <div className="flex items-center gap-x-2 mb-4">
@@ -100,8 +84,6 @@ export default async function ChapterIdPage({
             />
           </div>
         </div>
-
-        {/* ستون دوم: مدیریت بخش‌های این فصل */}
         <div className="space-y-4">
            <div>
             <div className="flex items-center gap-x-2 mb-4">

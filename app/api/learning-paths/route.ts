@@ -2,11 +2,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth"; // <-- از مسیر جدید import می‌کنیم
 import { db } from "@/lib/db";
 
 // تابع POST برای ایجاد یک مسیر یادگیری جدید
-export async function POST(req: Request) {
+export async function POST(_req: Request) {
   try {
     const session = await getServerSession(authOptions);
 

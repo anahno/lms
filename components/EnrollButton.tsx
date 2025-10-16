@@ -1,4 +1,4 @@
-// فایل: components/ViewCourseButton.tsx
+// فایل: components/EnrollButton.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,24 +6,25 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Plus } from "lucide-react";
 
-import { getCourseEntryUrl } from "@/actions/go-to-course";
+import { enrollInCourse } from "@/actions/enroll-course";
 import { Button } from "./ui/button";
 
-interface ViewCourseButtonProps {
+interface EnrollButtonProps {
   learningPathId: string;
 }
 
-export const ViewCourseButton = ({ learningPathId }: ViewCourseButtonProps) => {
+export const EnrollButton = ({ learningPathId }: EnrollButtonProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = async () => {
     setIsLoading(true);
     try {
-      const result = await getCourseEntryUrl(learningPathId);
+      const result = await enrollInCourse(learningPathId);
 
-      if (result.url) {
-        router.push(result.url);
+      if (result.success) {
+        toast.success(result.success);
+        router.refresh(); // برای به‌روزرسانی UI و نمایش دکمه "مشاهده"
       } else if (result.error) {
         toast.error(result.error);
       }
@@ -39,7 +40,8 @@ export const ViewCourseButton = ({ learningPathId }: ViewCourseButtonProps) => {
       onClick={handleClick} 
       disabled={isLoading} 
       size="icon-lg"
-      className="rounded-full w-16 h-16 shadow-lg bg-red-500 text-white hover:bg-red-600 transition-all duration-300 ease-in-out transform hover:scale-110"
+      className="rounded-full w-16 h-16 shadow-lg bg-sky-500 text-white hover:bg-sky-600 transition-all duration-300 ease-in-out transform hover:scale-110"
+      aria-label="ثبت‌نام در دوره"
     >
       {isLoading ? "..." : <Plus className="w-8 h-8" />}
     </Button>

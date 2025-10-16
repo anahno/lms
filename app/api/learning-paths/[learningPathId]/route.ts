@@ -1,72 +1,83 @@
 // فایل: app/api/learning-paths/[learningPathId]/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
 import { db } from "@/lib/db";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getServerSession } from "next-auth";
+// --- ۱. ایمپورت NextRequest و NextResponse ---
+import { NextRequest, NextResponse } from "next/server";
 
-// تابع PATCH برای به‌روزرسانی یک مسیر یادگیری خاص
+// ... (تابع DELETE شما اگر وجود دارد، می‌تواند به همین شکل اصلاح شود) ...
+
 export async function PATCH(
+  // --- ۲. استفاده از NextRequest و context ---
   req: NextRequest,
   context: { params: Promise<{ learningPathId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
+    // --- ۳. Await کردن params برای استخراج مقادیر ---
     const { learningPathId } = await context.params;
     const values = await req.json();
 
-    const learningPathOwner = await db.learningPath.findUnique({
-      where: { id: learningPathId, userId: session.user.id },
-    });
-    if (!learningPathOwner) {
+    if (!session?.user?.id || session.user.role !== "ADMIN") {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    const updatedLearningPath = await db.learningPath.update({
-      where: { id: learningPathId },
-      data: { ...values },
+    const learningPath = await db.learningPath.update({
+      where: {
+        id: learningPathId,
+        //userId: session.user.id, // می‌توانید این شرط را برای امنیت بیشتر فعال نگه دارید
+      },
+      data: {
+        ...values,
+      },
+      // این include برای اطمینان از صحت ساختار است
+      include: {
+        levels: true,
+      }
     });
 
-    return NextResponse.json(updatedLearningPath);
-
+    return NextResponse.json(learningPath);
   } catch (error) {
-    console.log("[LEARNING_PATH_ID_PATCH_ERROR]", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    console.log("[LEARNING_PATH_ID_PATCH]", error);
+    return new NextResponse("Internal Error", { status: 500 });
   }
 }
 
-// تابع DELETE برای حذف یک مسیر یادگیری خاص
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest, // برای هماهنگی، این را هم اصلاح کنید
   context: { params: Promise<{ learningPathId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
+    const { learningPathId } = await context.params;
+
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { learningPathId } = await context.params;
-
-    const courseOwner = await db.learningPath.findUnique({
-      where: { id: learningPathId, userId: session.user.id },
+    const learningPath = await db.learningPath.findUnique({
+      where: {
+        id: learningPathId,
+        userId: session.user.id,
+      },
     });
-    if (!courseOwner) {
-      return new NextResponse("Forbidden", { status: 403 });
+
+    if (!learningPath) {
+      return new NextResponse("Not found", { status: 404 });
     }
 
+    // اینجا می‌توانید منطق مربوط به حذف فایل‌ها از S3 یا فضاهای دیگر را اضافه کنید
+
     const deletedLearningPath = await db.learningPath.delete({
-      where: { id: learningPathId },
+      where: {
+        id: learningPathId,
+      },
     });
 
     return NextResponse.json(deletedLearningPath);
-    
   } catch (error) {
-    console.error("[LP_ID_DELETE_ERROR]", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    console.log("[LEARNING_PATH_ID_DELETE]", error);
+    return new NextResponse("Internal Error", { status: 500 });
   }
 }

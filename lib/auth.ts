@@ -1,22 +1,25 @@
-// فایل: app/api/auth/[...nextauth]/route.ts
+// فایل: lib/auth.ts
 
-import NextAuth from "next-auth"; // ۱. NextAuth را وارد می‌کنیم
+import NextAuth from "next-auth";
 import { db } from "@/lib/db";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { Adapter } from "next-auth/adapters"; // ۱. Adapter را از next-auth ایمپورت کنید
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(db),
+  // --- شروع تغییر ---
+  adapter: PrismaAdapter(db) as Adapter, // ۲. با استفاده از as Adapter به TypeScript می‌گوییم که نوع را بپذیرد
+  // --- پایان تغییر ---
+  session: {
+    strategy: "jwt",
+  },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
-  session: {
-    strategy: "jwt",
-  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -37,14 +40,6 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === "development",
 };
 
-// --- شروع تغییرات کلیدی ---
-
-// ۲. با استفاده از NextAuth و تنظیمات بالا، یک هندلر می‌سازیم.
-// این هندلر به طور خودکار درخواست‌های مربوط به لاگین، لاگ‌اوت و مدیریت سشن را مدیریت می‌کند.
 const handler = NextAuth(authOptions);
 
-// ۳. هندلر ساخته شده را برای متدهای GET و POST اکسپورت می‌کنیم.
-// این همان چیزی است که Next.js App Router انتظار دارد.
 export { handler as GET, handler as POST };
-
-// --- پایان تغییرات کلیدی ---

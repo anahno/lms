@@ -10,6 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- مدل‌های استاندارد Next-Auth (بدون تغییر) ---
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -45,6 +46,25 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// --- تعریف Enum ها برای نقش‌ها و وضعیت دوره ---
+
+// ۱. تعریف نقش‌های سه‌گانه: دانشجو، استاد، ادمین
+enum Role {
+  USER
+  INSTRUCTOR
+  ADMIN
+}
+
+// ۲. تعریف وضعیت‌های مختلف دوره برای مدیریت فرآیند تایید و انتشار
+enum CourseStatus {
+  DRAFT     // پیش‌نویس: فقط استاد و ادمین می‌بینند
+  PENDING   // در انتظار تایید: استاد ارسال کرده، منتظر تایید ادمین است
+  PUBLISHED // منتشر شده: برای همه در کاتالوگ قابل مشاهده است
+}
+
+
+// --- مدل‌های اصلی برنامه ---
+
 model User {
   id            String         @id @default(cuid())
   name          String?
@@ -52,45 +72,67 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String?
+  
+  // ۳. اضافه کردن فیلد نقش به کاربر (مهم: پیش‌فرض USER است)
+  // این تضمین می‌کند هر کاربر جدیدی که ثبت‌نام می‌کند، دانشجو باشد.
+  role          Role           @default(USER)
+
   accounts      Account[]
   sessions      Session[]
   learningPaths LearningPath[]
   progress      UserProgress[]
+  enrollments   Enrollment[]   // رابطه جدید برای ثبت‌نام‌ها
 }
 
 model LearningPath {
-  id          String    @id @default(cuid())
-  title       String
-  subtitle         String?   @db.Text      // اضافه شد: زیرعنوان دوره
-  description String?   @db.Text
-  imageUrl    String?
-  whatYouWillLearn String[]  @default([]) 
-  requirements     String[]  @default([])
-  isPublished Boolean   @default(false)
-  categoryId  String?
-  category    Category? @relation(fields: [categoryId], references: [id])
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  levels      Level[]
+  id               String       @id @default(cuid())
+  title            String
+  subtitle         String?      @db.Text
+  description      String?      @db.Text
+  imageUrl         String?
+  whatYouWillLearn String[]     @default([]) 
+  requirements     String[]     @default([])
+  
+  // ۴. جایگزینی isPublished با فیلد status جدید
+  status           CourseStatus @default(DRAFT)
+  
+  categoryId       String?
+  category         Category?    @relation(fields: [categoryId], references: [id])
+  
+  userId           String       // این ID مشخص می‌کند کدام استاد دوره را ساخته
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  
+  levels           Level[]
+  enrollments      Enrollment[] // رابطه جدید برای ثبت‌نام‌ها
 }
 
-// --- این مدل را با نسخه جدید جایگزین کنید ---
-model Category {
-  id            String   @id @default(cuid())
-  name          String   @unique
-  learningPaths LearningPath[]
+// ۵. مدل جدید برای مدیریت ثبت‌نام دانشجو در دوره
+model Enrollment {
+  id             String       @id @default(cuid())
+  userId         String
+  learningPathId String
 
-  // --- شروع تغییرات کلیدی ---
-  // این فیلد ID والد را نگه می‌دارد. علامت ؟ یعنی اختیاری است (دسته‌بندی‌های اصلی والد ندارند)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningPath   LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // این خط تضمین می‌کند که یک دانشجو نمی‌تواند بیش از یک بار در یک دوره ثبت‌نام کند
+  @@unique([userId, learningPathId])
+}
+
+
+model Category {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  learningPaths LearningPath[]
   parentId      String?
-  // این رابطه، خود دسته‌بندی والد را تعریف می‌کند
-  parent        Category?  @relation("ParentSubcategories", fields: [parentId], references: [id], onDelete: Cascade)
-  
-  // این رابطه، لیستی از تمام زیرمجموعه‌های این دسته‌بندی را نگه می‌دارد
-  subcategories Category[] @relation("ParentSubcategories")
-  // --- پایان تغییرات کلیدی ---
+  parent        Category?      @relation("ParentSubcategories", fields: [parentId], references: [id], onDelete: Cascade)
+  subcategories Category[]     @relation("ParentSubcategories")
 }
 
 model Level {
@@ -121,8 +163,7 @@ model Section {
   title       String
   description String?        @db.Text
   videoUrl    String?        @db.Text
-    duration        Int?           
-
+  duration    Int?           
   position    Int
   isPublished Boolean        @default(false)
   isFree      Boolean        @default(false)
