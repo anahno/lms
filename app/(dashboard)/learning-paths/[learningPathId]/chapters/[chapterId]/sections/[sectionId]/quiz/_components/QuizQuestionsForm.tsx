@@ -98,6 +98,9 @@ export const QuizQuestionsForm = ({
             <DropdownMenuItem onClick={() => onAddQuestion(QuestionType.MULTIPLE_CHOICE)}>
               چند گزینه‌ای
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAddQuestion(QuestionType.FILL_IN_THE_BLANK)}>
+              جای خالی
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

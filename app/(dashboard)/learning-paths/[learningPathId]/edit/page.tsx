@@ -5,13 +5,11 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// وارد کردن تمام کامپوننت‌های فرم
 import { TitleForm } from "./_components/TitleForm";
 import { DescriptionForm } from "./_components/DescriptionForm";
 import { ImageForm } from "./_components/ImageForm";
 import { CategoryForm } from "./_components/CategoryForm";
 import { IntroAudioForm } from "./_components/IntroAudioForm";
-
 import { LevelsForm } from "./_components/LevelsForm";
 import { CourseActions } from "./_components/CourseActions";
 import { WhatYouWillLearnForm } from "./_components/WhatYouWillLearnForm";
@@ -20,9 +18,11 @@ import { Role } from "@prisma/client";
 export default async function EditLearningPathPage({
   params,
 }: {
-  params: { learningPathId: string };
+  // ۱. تایپ params را به Promise تغییر می‌دهیم (اختیاری ولی برای خوانایی بهتر است)
+  params: Promise<{ learningPathId: string }>; 
 }) {
-  const { learningPathId } = params;
+  // ۲. در اینجا params را await می‌کنیم تا به مقدار واقعی آن دسترسی پیدا کنیم
+  const { learningPathId } = await params;
 
   const session = await getServerSession(authOptions);
   
@@ -30,17 +30,12 @@ export default async function EditLearningPathPage({
     return redirect("/login");
   }
 
-  // --- شروع تغییر کلیدی نهایی (Double Assertion) ---
   const userId = session.user.id;
-  // ابتدا به unknown و سپس به نوع داده مورد نظر تبدیل می‌کنیم
   const userRole = (session.user as unknown as { role: Role }).role;
 
   if (!userRole) {
       return redirect("/login");
   }
-  // --- پایان تغییر کلیدی ---
-
-  // ... بقیه کد فایل دقیقاً مثل قبل است ...
 
   const [learningPath, categories] = await Promise.all([
     db.learningPath.findUnique({
@@ -49,33 +44,21 @@ export default async function EditLearningPathPage({
       },
       include: {
         levels: {
-          orderBy: {
-            position: "asc",
-          },
+          orderBy: { position: "asc" },
           include: {
             chapters: {
-              orderBy: {
-                position: "asc",
-              },
+              orderBy: { position: "asc" },
             },
           },
         },
       },
     }),
     db.category.findMany({
-      where: {
-        parentId: null,
-      },
+      where: { parentId: null },
       include: {
-        subcategories: {
-          orderBy: {
-            name: "asc",
-          },
-        },
+        subcategories: { orderBy: { name: "asc" } },
       },
-      orderBy: {
-        name: "asc",
-      },
+      orderBy: { name: "asc" },
     }),
   ]);
 
@@ -130,7 +113,7 @@ export default async function EditLearningPathPage({
             learningPathId={learningPath.id}
             options={categories}
           />
-                    <IntroAudioForm 
+          <IntroAudioForm 
             initialData={learningPath} 
             learningPathId={learningPath.id} 
           />

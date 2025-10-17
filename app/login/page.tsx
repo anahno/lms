@@ -30,14 +30,13 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        // از پیام خطای خود authorize استفاده می‌کنیم
         setError(result.error);
       } else {
-        // پس از ورود موفق، به صفحه اصلی داشبورد برو
         router.push("/"); 
-        router.refresh(); // برای اطمینان از بارگذاری مجدد layout سرور
+        router.refresh();
       }
-    } catch (err) {
+    } catch (_err) { // <--- تغییر کلیدی در اینجا: err به _err تغییر کرد
+      // این تغییر هشدار مربوط به "متغیر استفاده نشده" را رفع می‌کند.
       setError("خطایی رخ داد. لطفاً دوباره تلاش کنید.");
     } finally {
       setIsLoading(false);
@@ -100,7 +99,6 @@ export default function LoginPage() {
           </div>
 
           <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
-            {/* می‌توانید آیکون گوگل را اینجا اضافه کنید */}
             ورود با گوگل
           </Button>
 

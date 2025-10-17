@@ -9,7 +9,8 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox"; // ۱. کامپوننت Checkbox را وارد می‌کنیم
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input"; // ۱. Input را وارد می‌کنیم
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 
@@ -26,12 +27,11 @@ interface QuizPlayerProps {
   learningPathId: string;
 }
 
-// ۲. نوع state پاسخ‌ها را تغییر می‌دهیم تا هم رشته (برای تک‌گزینه‌ای) و هم آرایه‌ای از رشته‌ها (برای چندگزینه‌ای) را بپذیرد
+// این نوع بدون تغییر باقی می‌ماند چون پاسخ متنی هم یک رشته است
 type AnswersState = Record<string, string | string[]>;
 
 export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  // ۳. مقدار اولیه state را یک آبجکت خالی قرار می‌دهیم
   const [selectedAnswers, setSelectedAnswers] = useState<AnswersState>({});
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -40,18 +40,21 @@ export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
   const currentQuestion = quiz.questions[currentQuestionIndex];
   const progressPercentage = ((currentQuestionIndex + 1) / totalQuestions) * 100;
 
-  // ۴. تابع جدید برای مدیریت انتخاب گزینه‌های چند جوابی (Checkbox)
   const handleMultiChoiceSelect = (questionId: string, optionId: string) => {
     setSelectedAnswers(prev => {
       const currentAnswers = (prev[questionId] as string[] | undefined) || [];
       const newAnswers = currentAnswers.includes(optionId)
-        ? currentAnswers.filter(id => id !== optionId) // اگر از قبل انتخاب شده بود، حذف کن
-        : [...currentAnswers, optionId]; // در غیر این صورت، اضافه کن
+        ? currentAnswers.filter(id => id !== optionId)
+        : [...currentAnswers, optionId];
       return { ...prev, [questionId]: newAnswers };
     });
   };
 
-  // ۵. تابع قبلی را برای مدیریت انتخاب تک‌گزینه‌ای (Radio) حفظ می‌کنیم
+  // ۲. یک تابع جدید برای مدیریت ورودی متنی اضافه می‌کنیم
+  const handleTextAnswerChange = (questionId: string, value: string) => {
+    setSelectedAnswers(prev => ({...prev, [questionId]: value }));
+  };
+
   const handleSingleChoiceSelect = (questionId: string, optionId: string) => {
     setSelectedAnswers(prev => ({ ...prev, [questionId]: optionId }));
   };
@@ -65,13 +68,13 @@ export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
   const handleSubmit = () => {
     startTransition(async () => {
       try {
-        const response = await axios.post(`/api/courses/${learningPathId}/quiz/${quiz.id}/submit`, {
+        await axios.post(`/api/courses/${learningPathId}/quiz/${quiz.id}/submit`, {
           answers: selectedAnswers,
         });
         toast.success("آزمون با موفقیت ثبت شد!");
         router.push(`/courses/${learningPathId}/quiz/${quiz.id}`);
         router.refresh();
-      } catch (ـerror) {
+      } catch (_error) {
         toast.error("مشکلی در ثبت آزمون پیش آمد.");
       }
     });
@@ -90,7 +93,15 @@ export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
         <CardContent className="min-h-[250px]">
           <p className="text-lg font-semibold mb-6">{currentQuestion.text}</p>
           
-          {/* ۶. رندر شرطی بر اساس نوع سوال */}
+          {/* ۳. یک بلاک جدید برای FILL_IN_THE_BLANK اضافه می‌کنیم */}
+          {currentQuestion.type === QuestionType.FILL_IN_THE_BLANK && (
+             <Input
+                placeholder="پاسخ خود را اینجا تایپ کنید..."
+                value={(selectedAnswers[currentQuestion.id] as string) || ""}
+                onChange={(e) => handleTextAnswerChange(currentQuestion.id, e.target.value)}
+             />
+          )}
+          
           {currentQuestion.type === QuestionType.SINGLE_CHOICE && (
             <RadioGroup
               value={(selectedAnswers[currentQuestion.id] as string) || ""}

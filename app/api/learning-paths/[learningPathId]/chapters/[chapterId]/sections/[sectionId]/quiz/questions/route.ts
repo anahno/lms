@@ -18,7 +18,6 @@ export async function POST(
     }
 
     const { learningPathId, sectionId } = await context.params;
-    // --- ۱. type را از body درخواست دریافت می‌کنیم ---
     const { text, type = QuestionType.SINGLE_CHOICE } = await req.json();
 
     const courseOwner = await db.learningPath.findUnique({
@@ -39,18 +38,26 @@ export async function POST(
     });
 
     const newPosition = lastQuestion ? lastQuestion.position + 1 : 1;
+    
+    // --- شروع تغییر کلیدی ---
+    // نوع متغیر را به صراحت تعریف می‌کنیم
+    let optionsToCreate: { text: string; isCorrect?: boolean }[] = [];
+    // --- پایان تغییر کلیدی ---
+
+    if (type === QuestionType.SINGLE_CHOICE || type === QuestionType.MULTIPLE_CHOICE) {
+      optionsToCreate = [{ text: "گزینه ۱" }, { text: "گزینه ۲" }];
+    } else if (type === QuestionType.FILL_IN_THE_BLANK) {
+      optionsToCreate = [{ text: "", isCorrect: true }];
+    }
 
     const question = await db.question.create({
       data: {
         text,
         quizId: quiz.id,
         position: newPosition,
-        type: type, // <-- ۲. از type دریافت شده استفاده می‌کنیم
+        type: type,
         options: {
-          create: [
-            { text: "گزینه ۱" },
-            { text: "گزینه ۲" },
-          ],
+          create: optionsToCreate,
         },
       },
     });

@@ -1,4 +1,4 @@
-// فایل: app/(public)/courses/[learningPathId]/quiz/[quizId]/page.tsx (نسخه اصلاح شده)
+// فایل: app/(public)/courses/[learningPathId]/quiz/[quizId]/page.tsx
 "use server";
 
 import { db } from "@/lib/db";
@@ -9,11 +9,37 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle, HelpCircle, FileText } from "lucide-react";
+import { QuestionType } from "@prisma/client"; // ۱. ایمپورت کردن QuestionType
+
+// ۲. یک تابع کمکی برای ترجمه نوع سوال
+const getQuestionTypeDisplay = (types: QuestionType[]): string => {
+  if (types.length === 0) {
+    return "نامشخص";
+  }
+  const uniqueTypes = new Set(types);
+  if (uniqueTypes.size > 1) {
+    return "ترکیبی";
+  }
+  const type = uniqueTypes.values().next().value;
+  switch (type) {
+    case QuestionType.SINGLE_CHOICE:
+      return "تک گزینه‌ای";
+    case QuestionType.MULTIPLE_CHOICE:
+      return "چند گزینه‌ای";
+    case QuestionType.FILL_IN_THE_BLANK:
+      return "جای خالی";
+    case QuestionType.ESSAY:
+      return "تشریحی";
+    case QuestionType.AUDIO_RESPONSE:
+        return "پاسخ صوتی";
+    default:
+      return "استاندارد";
+  }
+};
 
 export default async function QuizStartPage({
   params,
 }: {
-  // --- ۱. تایپ params را به Promise تغییر می‌دهیم ---
   params: Promise<{ learningPathId: string; quizId: string }>;
 }) {
   const session = await getServerSession(authOptions);
@@ -22,36 +48,31 @@ export default async function QuizStartPage({
   }
   const userId = session.user.id;
 
-  // --- ۲. در ابتدای کامپوننت، params را await می‌کنیم ---
   const { learningPathId, quizId } = await params;
 
-  // ۱. بررسی اینکه آیا دانشجو در این دوره ثبت‌نام کرده است
   const enrollment = await db.enrollment.findUnique({
-    where: {
-      userId_learningPathId: {
-        userId,
-        learningPathId: learningPathId, // <-- از متغیر جدید استفاده می‌کنیم
-      },
-    },
+    where: { userId_learningPathId: { userId, learningPathId } },
   });
   if (!enrollment) {
-    return redirect(`/courses/${learningPathId}`); // <-- از متغیر جدید استفاده می‌کنیم
+    return redirect(`/courses/${learningPathId}`);
   }
 
-  // ۲. واکشی اطلاعات آزمون و بررسی اینکه آیا دانشجو قبلا این آزمون را انجام داده
   const quiz = await db.quiz.findUnique({
-    where: { id: quizId }, // <-- از متغیر جدید استفاده می‌کنیم
+    where: { id: quizId },
     include: {
-      questions: { select: { id: true } },
-      submissions: {
-        where: { userId },
-      },
+      // ۳. علاوه بر id، نوع (type) هر سوال را هم واکشی می‌کنیم
+      questions: { select: { id: true, type: true } },
+      submissions: { where: { userId } },
     },
   });
 
   if (!quiz) {
-    return redirect(`/courses/${learningPathId}`); // <-- از متغیر جدید استفاده می‌کنیم
+    return redirect(`/courses/${learningPathId}`);
   }
+  
+  // ۴. از تابع کمکی برای تعیین متن نمایشی استفاده می‌کنیم
+  const questionTypes = quiz.questions.map(q => q.type);
+  const questionTypeDisplay = getQuestionTypeDisplay(questionTypes);
 
   const hasSubmitted = quiz.submissions.length > 0;
   const submission = hasSubmitted ? quiz.submissions[0] : null;
@@ -66,7 +87,6 @@ export default async function QuizStartPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* ... (بقیه JSX بدون تغییر، چون از متغیرهای local استفاده می‌کند) ... */}
           <div className="flex justify-around items-center p-4 my-6 bg-slate-100 rounded-lg">
             <div className="flex flex-col items-center gap-2">
               <HelpCircle className="h-8 w-8 text-sky-600" />
@@ -75,7 +95,8 @@ export default async function QuizStartPage({
             </div>
             <div className="flex flex-col items-center gap-2">
               <FileText className="h-8 w-8 text-amber-600" />
-              <span className="font-bold">تک گزینه‌ای</span>
+              {/* ۵. متن دینامیک را اینجا نمایش می‌دهیم */}
+              <span className="font-bold">{questionTypeDisplay}</span>
               <span className="text-sm text-slate-600">نوع سوالات</span>
             </div>
             {hasSubmitted && (
@@ -91,16 +112,14 @@ export default async function QuizStartPage({
             {hasSubmitted ? (
               <div className="space-y-4">
                  <p className="text-lg font-semibold text-emerald-700">شما قبلاً در این آزمون شرکت کرده‌اید!</p>
-<Link href={`/courses/${learningPathId}`}>
-  <Button className="w-full">بازگشت به دوره</Button>
-</Link>
-
+                <Link href={`/courses/${learningPathId}`}>
+                  <Button className="w-full">بازگشت به دوره</Button>
+                </Link>
               </div>
             ) : (
-<Link href={`/courses/${learningPathId}/quiz/${quizId}/play`}>
-  <Button className="w-full" size="lg">شروع آزمون</Button>
-</Link>
-
+              <Link href={`/courses/${learningPathId}/quiz/${quizId}/play`}>
+                <Button className="w-full" size="lg">شروع آزمون</Button>
+              </Link>
             )}
           </div>
         </CardContent>
