@@ -11,6 +11,8 @@ import { SectionVideoForm } from "./_components/SectionVideoForm";
 import { SectionActions } from "./_components/SectionActions";
 // --- ۱. کامپوننت جدید را وارد کنید ---
 import { SectionAudioForm } from "./_components/SectionAudioForm";
+import { SectionQuizForm } from "./_components/SectionQuizForm";
+
 
 export default async function SectionIdPage({
   params,
@@ -23,6 +25,10 @@ export default async function SectionIdPage({
     where: {
       id: sectionId,
       chapterId: chapterId,
+    },
+    // --- ۲. اطلاعات آزمون را هم واکشی کنید ---
+    include: {
+      quiz: true,
     },
   });
 
@@ -79,6 +85,7 @@ export default async function SectionIdPage({
         <div className="space-y-4">
           <div>
             <div className="flex items-center gap-x-2 mb-4">
+
               <h2 className="text-xl">سفارشی‌سازی بخش</h2>
             </div>
             <SectionTitleForm
@@ -88,6 +95,13 @@ export default async function SectionIdPage({
               sectionId={sectionId}
             />
             <SectionDescriptionForm
+              initialData={section}
+              learningPathId={learningPathId}
+              chapterId={chapterId}
+              sectionId={sectionId}
+            />
+                        {/* --- ۳. کامپوننت فرم آزمون را اینجا اضافه کنید --- */}
+            <SectionQuizForm
               initialData={section}
               learningPathId={learningPathId}
               chapterId={chapterId}

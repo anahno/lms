@@ -10,7 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- مدل‌های استاندارد Next-Auth (بدون تغییر) ---
+// --- مدل‌های استاندارد Next-Auth ---
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -46,42 +46,52 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// --- تعریف Enum ها برای نقش‌ها و وضعیت دوره ---
+// --- تعریف Enum ها برای کل برنامه ---
 
-// ۱. تعریف نقش‌های سه‌گانه: دانشجو، استاد، ادمین
 enum Role {
   USER
   INSTRUCTOR
   ADMIN
 }
 
-// ۲. تعریف وضعیت‌های مختلف دوره برای مدیریت فرآیند تایید و انتشار
 enum CourseStatus {
-  DRAFT     // پیش‌نویس: فقط استاد و ادمین می‌بینند
-  PENDING   // در انتظار تایید: استاد ارسال کرده، منتظر تایید ادمین است
-  PUBLISHED // منتشر شده: برای همه در کاتالوگ قابل مشاهده است
+  DRAFT
+  PENDING
+  PUBLISHED
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  FILL_IN_THE_BLANK
+  ESSAY
+  AUDIO_RESPONSE
+}
+
+enum SubmissionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
 }
 
 
 // --- مدل‌های اصلی برنامه ---
 
 model User {
-  id            String         @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String?        @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
   password      String?
-  
-  // ۳. اضافه کردن فیلد نقش به کاربر (مهم: پیش‌فرض USER است)
-  // این تضمین می‌کند هر کاربر جدیدی که ثبت‌نام می‌کند، دانشجو باشد.
-  role          Role           @default(USER)
+  role          Role      @default(USER)
 
-  accounts      Account[]
-  sessions      Session[]
+  accounts    Account[]
+  sessions    Session[]
   learningPaths LearningPath[]
-  progress      UserProgress[]
-  enrollments   Enrollment[]   // رابطه جدید برای ثبت‌نام‌ها
+  progress    UserProgress[]
+  enrollments Enrollment[]
+  submissions QuizSubmission[]
 }
 
 model LearningPath {
@@ -90,29 +100,26 @@ model LearningPath {
   subtitle         String?      @db.Text
   description      String?      @db.Text
   imageUrl         String?
-  whatYouWillLearn String[]     @default([]) 
+  whatYouWillLearn String[]     @default([])
   requirements     String[]     @default([])
-  
-  // --- فیلد جدید در اینجا اضافه می‌شود ---
-  price            Float?       // قیمت دوره، می‌تواند null باشد (برای دوره‌های رایگان)
-    introAudioUrl    String?      @db.Text // فایل صوتی معرفی کل دوره
-
+  price            Float?
+  introAudioUrl    String?      @db.Text
   status           CourseStatus @default(DRAFT)
   
   categoryId       String?
   category         Category?    @relation(fields: [categoryId], references: [id])
   
-  userId           String       
+  userId           String
   user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   
   levels           Level[]
-  enrollments      Enrollment[] 
+  enrollments      Enrollment[]
+  quiz             Quiz?
 }
 
-// ۵. مدل جدید برای مدیریت ثبت‌نام دانشجو در دوره
 model Enrollment {
   id             String       @id @default(cuid())
   userId         String
@@ -124,10 +131,8 @@ model Enrollment {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  // این خط تضمین می‌کند که یک دانشجو نمی‌تواند بیش از یک بار در یک دوره ثبت‌نام کند
   @@unique([userId, learningPathId])
 }
-
 
 model Category {
   id            String         @id @default(cuid())
@@ -147,6 +152,7 @@ model Level {
   chapters       Chapter[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  quiz           Quiz?
 }
 
 model Chapter {
@@ -159,20 +165,16 @@ model Chapter {
   sections    Section[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  quiz        Quiz?
 }
-
-// فایل: prisma/schema.prisma
 
 model Section {
   id          String         @id @default(cuid())
   title       String
   description String?        @db.Text
   videoUrl    String?        @db.Text
-  
-  // --- فیلد جدید در اینجا اضافه می‌شود ---
   audioUrl    String?        @db.Text
-
-  duration    Int?           
+  duration    Int?
   position    Int
   isPublished Boolean        @default(false)
   isFree      Boolean        @default(false)
@@ -181,6 +183,7 @@ model Section {
   progress    UserProgress[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+  quiz        Quiz?
 }
 
 model UserProgress {
@@ -194,4 +197,102 @@ model UserProgress {
   updatedAt   DateTime @updatedAt
 
   @@unique([userId, sectionId])
+}
+
+
+// --- مدل‌های جدید و انعطاف‌پذیر برای سیستم آزمون ---
+
+model Quiz {
+  id    String @id @default(cuid())
+  title String
+
+  learningPathId String?  @unique
+  levelId        String?  @unique
+  chapterId      String?  @unique
+  sectionId      String?  @unique
+
+  learningPath LearningPath? @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  level        Level?        @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  chapter      Chapter?      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  section      Section?      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  
+  questions    Question[]
+  submissions  QuizSubmission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Question {
+  id        String       @id @default(cuid())
+  text      String       @db.Text
+  position  Int
+  points    Int          @default(1)
+  type      QuestionType
+  mediaUrl  String?
+
+  quizId    String
+  quiz      Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  
+  options   Option[]
+  answers   UserAnswer[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Option {
+  id         String   @id @default(cuid())
+  text       String
+  isCorrect  Boolean  @default(false)
+  
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // --- این خط جدید برای رفع خطا اضافه شده است ---
+  // این فیلد می‌گوید که یک گزینه می‌تواند در پاسخ‌های چندین کاربر انتخاب شده باشد
+  userAnswers UserAnswer[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model QuizSubmission {
+  id        String           @id @default(cuid())
+  userId    String
+  quizId    String
+  
+  score     Float?
+  status    SubmissionStatus @default(IN_PROGRESS)
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz      Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  
+  answers   UserAnswer[]
+
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  
+  @@unique([userId, quizId])
+}
+
+model UserAnswer {
+  id                String @id @default(cuid())
+  submissionId      String
+  questionId        String
+  
+  selectedOptionId  String?
+  selectedOptionIds String[]
+  textAnswer        String?  @db.Text
+  fileUrl           String?
+  
+  isCorrect         Boolean?
+  score             Float?
+  feedback          String?  @db.Text
+
+  submission QuizSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   Question       @relation(fields: [questionId], references: [id], onDelete: NoAction)
+  option     Option?        @relation(fields: [selectedOptionId], references: [id], onDelete: NoAction)
+
+  @@unique([submissionId, questionId])
 }
