@@ -42,6 +42,8 @@ export default async function CourseSectionLayout({
                 orderBy: { position: "asc" },
                 include: {
                   progress: { where: { userId: userId } },
+                                    quiz: true, // <-- این خط را اضافه کنید تا اطلاعات آزمون واکشی شود
+
                 },
               },
             },

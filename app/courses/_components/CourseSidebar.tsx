@@ -105,6 +105,8 @@ export const CourseSidebar = ({ learningPath, progressCount, onClose }: CourseSi
                           duration={section.duration}
                           learningPathId={learningPath.id}
                           isCompleted={!!section.progress?.[0]?.isCompleted}
+                              quizId={section.quiz?.id} // <-- این پراپرتی جدید را پاس دهید
+
                         />
                       ))}
                     </div>

@@ -1,4 +1,4 @@
-// فایل: app/(dashboard)/.../quiz/_components/QuestionCard.tsx (نسخه اصلاح شده)
+// فایل: app/(dashboard)/.../quiz/_components/QuestionCard.tsx (نسخه نهایی با اصلاح رنگ چک‌باکس)
 "use client";
 
 import { useState } from "react";
@@ -12,28 +12,27 @@ import { Question, Option } from "@prisma/client";
 import { Grip, Pencil, Trash, PlusCircle, Save, X } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { cn } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
-import { Label } from "@/components/ui/label"; // <-- ایمپورت جدید
+import { Label } from "@/components/ui/label";
 
-// --- شروع تغییر ۱: اصلاح Schema ---
 const formSchema = z.object({
   text: z.string().min(1, { message: "متن سوال الزامی است" }),
-  // z.coerce.number() به z.number() تغییر کرد
   points: z.number().min(1, { message: "امتیاز باید حداقل ۱ باشد" }),
   options: z.array(z.object({
     text: z.string().min(1, { message: "متن گزینه الزامی است" }),
     isCorrect: z.boolean(),
-  })).min(2, { message: "حداقل دو گزینه لازم است" })
-   .refine(options => options.some(opt => opt.isCorrect), {
-     message: "حداقل یک گزینه باید به عنوان پاسخ صحیح انتخاب شود",
-   }),
+  }))
+  .min(2, { message: "حداقل دو گزینه لازم است" })
+  .refine(options => options.some(opt => opt.isCorrect), {
+    message: "حداقل یک گزینه باید به عنوان پاسخ صحیح انتخاب شود",
+  }),
 });
-// --- پایان تغییر ۱ ---
 
 type QuestionWithWithOptions = Question & { options: Option[] };
 
@@ -74,7 +73,13 @@ export const QuestionCard = ({
 
   const toggleEdit = () => {
     setIsEditing(prev => !prev);
-    if (isEditing) form.reset();
+    if (!isEditing) {
+        form.reset({
+            text: question.text,
+            points: question.points,
+            options: question.options.map(o => ({ text: o.text, isCorrect: o.isCorrect })),
+        });
+    }
   };
   
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -84,7 +89,7 @@ export const QuestionCard = ({
       toggleEdit();
       router.refresh();
     } catch {
-      toast.error("مشکلی پیش آمد.");
+      toast.error("مشکلی در ذخیره سوال پیش آمد.");
     }
   };
   
@@ -127,20 +132,17 @@ export const QuestionCard = ({
                   <Textarea id={`text-${question.id}`} {...form.register("text")} disabled={isSubmitting} className="mt-1 bg-white" />
                   {form.formState.errors.text && <p className="text-red-500 text-xs mt-1">{form.formState.errors.text.message}</p>}
                 </div>
-                {/* --- شروع تغییر ۲: اضافه کردن فیلد امتیاز --- */}
                 <div>
                   <Label htmlFor={`points-${question.id}`}>امتیاز</Label>
                   <Input
                     id={`points-${question.id}`}
                     type="number"
-                    // valueAsNumber: true تضمین می‌کند که یک عدد به Zod ارسال شود
                     {...form.register("points", { valueAsNumber: true })}
                     disabled={isSubmitting}
                     className="mt-1 bg-white"
                   />
                   {form.formState.errors.points && <p className="text-red-500 text-xs mt-1">{form.formState.errors.points.message}</p>}
                 </div>
-                {/* --- پایان تغییر ۲ --- */}
               </div>
               
               <div>
@@ -156,6 +158,7 @@ export const QuestionCard = ({
                             checked={checkboxField.value}
                             onCheckedChange={checkboxField.onChange}
                             disabled={isSubmitting}
+                            className="bg-white" 
                           />
                         )}
                       />
@@ -166,7 +169,11 @@ export const QuestionCard = ({
                     </div>
                   ))}
                 </div>
-                {form.formState.errors.options && <p className="text-red-500 text-xs mt-1">{form.formState.errors.options.message || form.formState.errors.options.root?.message}</p>}
+                {form.formState.errors.options && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {form.formState.errors.options.message || form.formState.errors.options.root?.message}
+                  </p>
+                )}
                 <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => append({ text: "", isCorrect: false })}>
                   <PlusCircle className="h-4 w-4 ml-2" /> افزودن گزینه
                 </Button>
@@ -185,7 +192,7 @@ export const QuestionCard = ({
               <p className="text-xs text-slate-500">امتیاز: {question.points}</p>
               <ul className="list-disc pr-5 space-y-1">
                 {question.options.map(opt => (
-                  <li key={opt.id} className={opt.isCorrect ? "font-bold text-emerald-700" : ""}>
+                  <li key={opt.id} className={cn("text-sm", opt.isCorrect && "font-bold text-emerald-700")}>
                     {opt.text}
                   </li>
                 ))}
