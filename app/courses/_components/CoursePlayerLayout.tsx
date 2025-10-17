@@ -1,4 +1,4 @@
-// فایل: app/courses/[learningPathId]/sections/[sectionId]/_components/CoursePlayerLayout.tsx
+// فایل: app/courses/_components/CoursePlayerLayout.tsx
 "use client";
 
 import { useState } from "react";

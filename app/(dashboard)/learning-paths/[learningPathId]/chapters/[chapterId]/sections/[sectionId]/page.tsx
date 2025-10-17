@@ -9,14 +9,14 @@ import { SectionTitleForm } from "./_components/SectionTitleForm";
 import { SectionDescriptionForm } from "./_components/SectionDescriptionForm";
 import { SectionVideoForm } from "./_components/SectionVideoForm";
 import { SectionActions } from "./_components/SectionActions";
+// --- ۱. کامپوننت جدید را وارد کنید ---
+import { SectionAudioForm } from "./_components/SectionAudioForm";
 
 export default async function SectionIdPage({
   params,
 }: {
-  // --- تغییر کلیدی ۱: اضافه کردن Promise به تایپ ---
   params: Promise<{ learningPathId: string; chapterId: string; sectionId: string }>;
 }) {
-  // --- تغییر کلیدی ۲: اضافه کردن await ---
   const { learningPathId, chapterId, sectionId } = await params;
 
   const section = await db.section.findUnique({
@@ -30,11 +30,16 @@ export default async function SectionIdPage({
     return redirect(`/learning-paths/${learningPathId}/edit`);
   }
   
+  // --- ۲. شروع تغییر منطق تکمیل بودن بخش ---
+  // بررسی می‌کنیم که حداقل یک محتوا (ویدیو یا صوت) وجود داشته باشد
+  const hasContent = !!section.videoUrl || !!section.audioUrl;
+
   const requiredFields = [
     section.title,
     section.description,
-    section.videoUrl,
+    hasContent, // از نتیجه بررسی بالا استفاده می‌کنیم
   ];
+  // --- پایان تغییر منطق ---
 
   const totalFields = requiredFields.length;
   const completedFields = requiredFields.filter(Boolean).length;
@@ -93,9 +98,16 @@ export default async function SectionIdPage({
         <div className="space-y-4">
           <div>
             <div className="flex items-center gap-x-2 mb-4">
-              <h2 className="text-xl">ویدیوی بخش</h2>
+              <h2 className="text-xl">محتوای بخش</h2>
             </div>
             <SectionVideoForm
+              initialData={section}
+              learningPathId={learningPathId}
+              chapterId={chapterId}
+              sectionId={sectionId}
+            />
+            {/* --- ۳. کامپوننت فرم صوت را اینجا اضافه کنید --- */}
+            <SectionAudioForm
               initialData={section}
               learningPathId={learningPathId}
               chapterId={chapterId}

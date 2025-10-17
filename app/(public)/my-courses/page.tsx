@@ -1,4 +1,5 @@
-// فایل: app/my-courses/page.tsx
+// فایل: app/(public)/my-courses/page.tsx  <-- کد صحیح برای این فایل
+
 "use server";
 
 import { db } from "@/lib/db";
@@ -7,7 +8,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getProgress } from "@/actions/get-progress";
 import { StudentCourseCard } from "@/components/StudentCourseCard";
-import Link from "next/link"; // <-- ایمپورت جدید
+import Link from "next/link";
 
 export default async function MyCoursesPage() {
   const session = await getServerSession(authOptions);
@@ -67,7 +68,6 @@ export default async function MyCoursesPage() {
       ) : (
         <div className="text-center text-md text-muted-foreground mt-10">
           <p>شما هنوز در هیچ دوره‌ای ثبت‌نام نکرده‌اید.</p>
-          {/* --- تغییر در اینجا --- */}
           <Link href="/courses" className="text-sky-600 hover:underline">مشاهده کاتالوگ دوره‌ها</Link>
         </div>
       )}

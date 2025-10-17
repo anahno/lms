@@ -10,6 +10,8 @@ import { TitleForm } from "./_components/TitleForm";
 import { DescriptionForm } from "./_components/DescriptionForm";
 import { ImageForm } from "./_components/ImageForm";
 import { CategoryForm } from "./_components/CategoryForm";
+import { IntroAudioForm } from "./_components/IntroAudioForm";
+
 import { LevelsForm } from "./_components/LevelsForm";
 import { CourseActions } from "./_components/CourseActions";
 import { WhatYouWillLearnForm } from "./_components/WhatYouWillLearnForm";
@@ -127,6 +129,10 @@ export default async function EditLearningPathPage({
             initialData={learningPath}
             learningPathId={learningPath.id}
             options={categories}
+          />
+                    <IntroAudioForm 
+            initialData={learningPath} 
+            learningPathId={learningPath.id} 
           />
         </div>
         <div className="space-y-6">

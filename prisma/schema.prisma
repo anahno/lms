@@ -93,20 +93,23 @@ model LearningPath {
   whatYouWillLearn String[]     @default([]) 
   requirements     String[]     @default([])
   
-  // ۴. جایگزینی isPublished با فیلد status جدید
+  // --- فیلد جدید در اینجا اضافه می‌شود ---
+  price            Float?       // قیمت دوره، می‌تواند null باشد (برای دوره‌های رایگان)
+    introAudioUrl    String?      @db.Text // فایل صوتی معرفی کل دوره
+
   status           CourseStatus @default(DRAFT)
   
   categoryId       String?
   category         Category?    @relation(fields: [categoryId], references: [id])
   
-  userId           String       // این ID مشخص می‌کند کدام استاد دوره را ساخته
+  userId           String       
   user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   
   levels           Level[]
-  enrollments      Enrollment[] // رابطه جدید برای ثبت‌نام‌ها
+  enrollments      Enrollment[] 
 }
 
 // ۵. مدل جدید برای مدیریت ثبت‌نام دانشجو در دوره
@@ -158,11 +161,17 @@ model Chapter {
   updatedAt   DateTime  @updatedAt
 }
 
+// فایل: prisma/schema.prisma
+
 model Section {
   id          String         @id @default(cuid())
   title       String
   description String?        @db.Text
   videoUrl    String?        @db.Text
+  
+  // --- فیلد جدید در اینجا اضافه می‌شود ---
+  audioUrl    String?        @db.Text
+
   duration    Int?           
   position    Int
   isPublished Boolean        @default(false)
