@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { Section, Quiz } from "@prisma/client";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, HelpCircle } from "lucide-react";
+import { PlusCircle, Pencil } from "lucide-react";
 
 interface SectionQuizFormProps {
   initialData: Section & { quiz: Quiz | null };

@@ -5,12 +5,17 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import { Quiz, Question, Option } from "@prisma/client";
+import { Quiz, Question, Option, QuestionType } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-// --- ۱. کامپوننت کارت سوال را وارد کنید ---
 import { QuestionCard } from "./QuestionCard";
 
 type QuizWithQuestions = Quiz & {
@@ -38,11 +43,14 @@ export const QuizQuestionsForm = ({
     setQuestions(initialData.questions);
   }, [initialData.questions]);
   
-  const onAddQuestion = async () => {
+  // --- ۱. تابع افزودن سوال را تغییر می‌دهیم تا نوع سوال را به عنوان ورودی بگیرد ---
+  const onAddQuestion = async (type: QuestionType) => {
     try {
       setIsCreating(true);
+      const text = type === QuestionType.SINGLE_CHOICE ? "سوال تک‌گزینه‌ای جدید" : "سوال چندگزینه‌ای جدید";
       await axios.post(`/api/learning-paths/${learningPathId}/chapters/${chapterId}/sections/${sectionId}/quiz/questions`, {
-        text: "سوال جدید",
+        text,
+        type, // <-- نوع سوال را به API ارسال می‌کنیم
       });
       toast.success("سوال جدید اضافه شد.");
       router.refresh();
@@ -67,9 +75,6 @@ export const QuizQuestionsForm = ({
       const updatedQuestions = arrayMove(questions, oldIndex, newIndex);
       setQuestions(updatedQuestions);
 
-      // TODO: API call to update question positions on the server
-      // const bulkUpdateData = updatedQuestions.map((q, index) => ({ id: q.id, position: index + 1 }));
-      // await axios.put(`/api/.../quiz/questions/reorder`, { list: bulkUpdateData });
       toast("قابلیت ذخیره ترتیب جدید در حال توسعه است.");
     }
   };
@@ -78,10 +83,23 @@ export const QuizQuestionsForm = ({
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
         سوالات آزمون
-        <Button onClick={onAddQuestion} variant="ghost" disabled={isCreating}>
-          <PlusCircle className="h-4 w-4 ml-2" />
-          افزودن سوال
-        </Button>
+        {/* --- ۲. دکمه را به یک DropdownMenu تبدیل می‌کنیم --- */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" disabled={isCreating}>
+              <PlusCircle className="h-4 w-4 ml-2" />
+              افزودن سوال
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => onAddQuestion(QuestionType.SINGLE_CHOICE)}>
+              تک گزینه‌ای
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAddQuestion(QuestionType.MULTIPLE_CHOICE)}>
+              چند گزینه‌ای
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       
       {questions.length === 0 && (
@@ -90,7 +108,6 @@ export const QuizQuestionsForm = ({
         </p>
       )}
 
-      {/* --- ۲. بخش نمایش کارت‌های سوال را با منطق Drag and Drop تکمیل کنید --- */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4 mt-4">

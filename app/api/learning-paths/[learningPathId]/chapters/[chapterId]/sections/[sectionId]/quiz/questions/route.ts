@@ -18,9 +18,9 @@ export async function POST(
     }
 
     const { learningPathId, sectionId } = await context.params;
-    const { text } = await req.json();
+    // --- ۱. type را از body درخواست دریافت می‌کنیم ---
+    const { text, type = QuestionType.SINGLE_CHOICE } = await req.json();
 
-    // بررسی مالکیت
     const courseOwner = await db.learningPath.findUnique({
       where: { id: learningPathId, userId: session.user.id },
     });
@@ -40,14 +40,12 @@ export async function POST(
 
     const newPosition = lastQuestion ? lastQuestion.position + 1 : 1;
 
-    // ایجاد سوال جدید
     const question = await db.question.create({
       data: {
         text,
         quizId: quiz.id,
         position: newPosition,
-        type: QuestionType.SINGLE_CHOICE, // فعلا فقط تک‌گزینه‌ای
-        // به طور خودکار ۲ گزینه خالی هم برایش می‌سازیم
+        type: type, // <-- ۲. از type دریافت شده استفاده می‌کنیم
         options: {
           create: [
             { text: "گزینه ۱" },
