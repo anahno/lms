@@ -1,4 +1,4 @@
-// فایل: app/(public)/courses/[learningPathId]/quiz/[quizId]/page.tsx
+// فایل: app/(public)/courses/[learningPathId]/quiz/[quizId]/page.tsx (نسخه اصلاح شده)
 "use server";
 
 import { db } from "@/lib/db";
@@ -13,7 +13,8 @@ import { CheckCircle, HelpCircle, FileText } from "lucide-react";
 export default async function QuizStartPage({
   params,
 }: {
-  params: { learningPathId: string; quizId: string };
+  // --- ۱. تایپ params را به Promise تغییر می‌دهیم ---
+  params: Promise<{ learningPathId: string; quizId: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -21,24 +22,27 @@ export default async function QuizStartPage({
   }
   const userId = session.user.id;
 
+  // --- ۲. در ابتدای کامپوننت، params را await می‌کنیم ---
+  const { learningPathId, quizId } = await params;
+
   // ۱. بررسی اینکه آیا دانشجو در این دوره ثبت‌نام کرده است
   const enrollment = await db.enrollment.findUnique({
     where: {
       userId_learningPathId: {
         userId,
-        learningPathId: params.learningPathId,
+        learningPathId: learningPathId, // <-- از متغیر جدید استفاده می‌کنیم
       },
     },
   });
   if (!enrollment) {
-    return redirect(`/courses/${params.learningPathId}`);
+    return redirect(`/courses/${learningPathId}`); // <-- از متغیر جدید استفاده می‌کنیم
   }
 
   // ۲. واکشی اطلاعات آزمون و بررسی اینکه آیا دانشجو قبلا این آزمون را انجام داده
   const quiz = await db.quiz.findUnique({
-    where: { id: params.quizId },
+    where: { id: quizId }, // <-- از متغیر جدید استفاده می‌کنیم
     include: {
-      questions: { select: { id: true } }, // فقط تعداد سوالات را لازم داریم
+      questions: { select: { id: true } },
       submissions: {
         where: { userId },
       },
@@ -46,7 +50,7 @@ export default async function QuizStartPage({
   });
 
   if (!quiz) {
-    return redirect(`/courses/${params.learningPathId}`);
+    return redirect(`/courses/${learningPathId}`); // <-- از متغیر جدید استفاده می‌کنیم
   }
 
   const hasSubmitted = quiz.submissions.length > 0;
@@ -62,6 +66,7 @@ export default async function QuizStartPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* ... (بقیه JSX بدون تغییر، چون از متغیرهای local استفاده می‌کند) ... */}
           <div className="flex justify-around items-center p-4 my-6 bg-slate-100 rounded-lg">
             <div className="flex flex-col items-center gap-2">
               <HelpCircle className="h-8 w-8 text-sky-600" />
@@ -86,18 +91,16 @@ export default async function QuizStartPage({
             {hasSubmitted ? (
               <div className="space-y-4">
                  <p className="text-lg font-semibold text-emerald-700">شما قبلاً در این آزمون شرکت کرده‌اید!</p>
-                 <Button className="w-full" asChild>
-                   {/* در آینده این لینک به صفحه نتایج دقیق خواهد رفت */}
-                   <Link href={`/courses/${params.learningPathId}`}>بازگشت به دوره</Link>
-                 </Button>
+<Link href={`/courses/${learningPathId}`}>
+  <Button className="w-full">بازگشت به دوره</Button>
+</Link>
+
               </div>
             ) : (
-              <Button className="w-full" size="lg" asChild>
-                {/* این لینک کاربر را به صفحه انجام آزمون می‌برد که در مرحله بعد می‌سازیم */}
-                <Link href={`/courses/${params.learningPathId}/quiz/${params.quizId}/play`}>
-                  شروع آزمون
-                </Link>
-              </Button>
+<Link href={`/courses/${learningPathId}/quiz/${quizId}/play`}>
+  <Button className="w-full" size="lg">شروع آزمون</Button>
+</Link>
+
             )}
           </div>
         </CardContent>

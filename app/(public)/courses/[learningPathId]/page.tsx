@@ -21,15 +21,17 @@ export default async function CourseLandingPage({
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 
-  // ۱. واکشی تمام اطلاعات مورد نیاز دوره با یک کوئری
+   // --- ۲. در ابتدای کامپوننت، params را await می‌کنیم ---
+  const { learningPathId } = await params;
+
   const course = await db.learningPath.findUnique({
     where: {
-      id: params.learningPathId,
-      status: "PUBLISHED", // فقط دوره‌های منتشر شده قابل مشاهده هستند
+      id: learningPathId, // <-- از متغیر جدید استفاده می‌کنیم
+      status: "PUBLISHED",
     },
     include: {
       category: true,
-      user: true, // اطلاعات مدرس (استاد)
+      user: true,
       levels: {
         orderBy: { position: "asc" },
         include: {
@@ -40,10 +42,14 @@ export default async function CourseLandingPage({
         },
       },
       enrollments: {
-        where: { userId: userId }, // بررسی اینکه آیا کاربر فعلی ثبت‌نام کرده
+        where: { userId: userId },
       },
     },
   });
+
+  if (!course) {
+    return redirect("/courses");
+  }
 
   // اگر دوره وجود نداشت یا منتشر نشده بود، کاربر را به صفحه اصلی دوره‌ها هدایت کن
   if (!course) {

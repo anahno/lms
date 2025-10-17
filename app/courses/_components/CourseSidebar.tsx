@@ -1,8 +1,9 @@
-// فایل: app/courses/_components/CourseSidebar.tsx
+// ✅ فایل نهایی: app/courses/_components/CourseSidebar.tsx
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { CourseSidebarItem } from "./CourseSidebarItem";
+import { CourseQuizItem } from "./CourseQuizItem";
 import { Progress } from "@/components/ui/progress";
 import type { LearningPathWithStructure } from "@/lib/types";
 import { ChevronDown, X } from "lucide-react";
@@ -15,16 +16,20 @@ interface CourseSidebarProps {
 }
 
 const formatDuration = (totalSeconds: number | null) => {
-    if (totalSeconds === null || isNaN(totalSeconds)) return "N/A";
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    let result = "";
-    if (hours > 0) result += `${hours} ساعت `;
-    if (minutes > 0) result += `${minutes} دقیقه`;
-    return result.trim() || "کمتر از ۱ دقیقه";
+  if (totalSeconds === null || isNaN(totalSeconds)) return "N/A";
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  let result = "";
+  if (hours > 0) result += `${hours} ساعت `;
+  if (minutes > 0) result += `${minutes} دقیقه`;
+  return result.trim() || "کمتر از ۱ دقیقه";
 };
 
-export const CourseSidebar = ({ learningPath, progressCount, onClose }: CourseSidebarProps) => {
+export const CourseSidebar = ({
+  learningPath,
+  progressCount,
+  onClose,
+}: CourseSidebarProps) => {
   const [expandedChapters, setExpandedChapters] = useState<string[]>(
     [learningPath.levels[0]?.chapters[0]?.id].filter(Boolean)
   );
@@ -41,10 +46,9 @@ export const CourseSidebar = ({ learningPath, progressCount, onClose }: CourseSi
     <div className="h-full border-l flex flex-col bg-white shadow-lg">
       <div className="p-4 flex items-center justify-between border-b">
         <h2 className="text-lg font-bold">محتوای دوره</h2>
-        {/* --- دکمه بستن جدید --- */}
         <button
           onClick={onClose}
-          className="p-1 hover:bg-slate-100 rounded-md md:block hidden" // فقط در دسکتاپ نمایش داده می‌شود
+          className="p-1 hover:bg-slate-100 rounded-md md:block hidden"
         >
           <X className="h-5 w-5" />
         </button>
@@ -95,20 +99,31 @@ export const CourseSidebar = ({ learningPath, progressCount, onClose }: CourseSi
                       )}
                     />
                   </button>
+
                   {isExpanded && (
                     <div className="bg-white border-t">
-                      {chapter.sections.map((section) => (
-                        <CourseSidebarItem
-                          key={section.id}
-                          id={section.id}
-                          label={section.title}
-                          duration={section.duration}
-                          learningPathId={learningPath.id}
-                          isCompleted={!!section.progress?.[0]?.isCompleted}
-                              quizId={section.quiz?.id} // <-- این پراپرتی جدید را پاس دهید
-
-                        />
-                      ))}
+                      {chapter.sections.map((section) => {
+                        const hasQuiz = !!section.quiz;
+                        return (
+                          <React.Fragment key={section.id}>
+                            <CourseSidebarItem
+                              id={section.id}
+                              label={section.title}
+                              duration={section.duration}
+                              learningPathId={learningPath.id}
+                              isCompleted={
+                                !!section.progress?.[0]?.isCompleted
+                              }
+                            />
+                            {hasQuiz ? (
+                              <CourseQuizItem
+                                quizId={section.quiz!.id}
+                                learningPathId={learningPath.id}
+                              />
+                            ) : null}
+                          </React.Fragment>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

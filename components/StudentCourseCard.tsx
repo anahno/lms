@@ -2,9 +2,11 @@
 "use client";
 
 import Image from "next/image";
-import { Book } from "lucide-react";
+import Link from "next/link"; // ایمپورت کردن Link
+import { Book, BarChart2 } from "lucide-react"; // اضافه کردن آیکون نمودار
 import { ViewCourseButton } from "./ViewCourseButton";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "./ui/button"; // ایمپورت کردن Button
 
 interface StudentCourseCardProps {
   id: string;
@@ -25,6 +27,7 @@ export const StudentCourseCard = ({
     <div className="relative group h-full">
       <div className="inner-curve h-full rounded-2xl p-6 flex flex-col drop-shadow-lg transition-all duration-300 hover:drop-shadow-xl">
         <div className="flex flex-col items-center text-center flex-grow">
+          {/* بخش تصویر و عنوان بدون تغییر */}
           <div className="w-full aspect-video relative mb-4">
             {imageUrl ? (
               <Image fill className="object-contain" alt={title} src={imageUrl} />
@@ -42,7 +45,7 @@ export const StudentCourseCard = ({
             {category}
           </p>
           
-          {/* نمایش نوار پیشرفت */}
+          {/* نوار پیشرفت بدون تغییر */}
           <div className="mt-auto pt-6 w-full space-y-2">
               <Progress value={progress} className="h-2" />
               <p className="text-xs text-slate-500 font-semibold">
@@ -51,11 +54,27 @@ export const StudentCourseCard = ({
           </div>
         </div>
 
+        {/* ==================== شروع تغییرات ==================== */}
+        
+        {/* یک بخش جداگانه برای دکمه آمار اضافه می‌کنیم تا در چیدمان کارت قرار بگیرد */}
+        <div className="mt-4 flex justify-center border-t pt-4">
+            <Link href={`/my-courses/${id}/results`} legacyBehavior>
+                <a className="w-full">
+                    <Button variant="outline" size="sm" className="w-full">
+                        <BarChart2 className="h-4 w-4 ml-2" />
+                        مشاهده نمرات و آمار
+                    </Button>
+                </a>
+            </Link>
+        </div>
+        
+        {/* ===================== پایان تغییرات ===================== */}
+
+        {/* این بخش برای دکمه شناور "مشاهده دوره" است و بدون تغییر باقی می‌ماند */}
         <div className="h-10 w-full shrink-0"></div>
       </div>
       
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 transform transition-all duration-300 ease-in-out opacity-0 translate-y-[-1rem] group-hover:opacity-100 group-hover:translate-y-[1.25rem]">
-        {/* با کلیک روی این دکمه، کاربر به اولین بخش دوره هدایت می‌شود */}
         <ViewCourseButton learningPathId={id} />
       </div>
     </div>

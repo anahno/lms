@@ -190,6 +190,8 @@ model UserProgress {
   id          String   @id @default(cuid())
   userId      String
   isCompleted Boolean  @default(false)
+  score       Float?  
+
   sectionId   String
   section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
