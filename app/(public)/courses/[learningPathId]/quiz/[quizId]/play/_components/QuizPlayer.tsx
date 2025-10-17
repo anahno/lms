@@ -1,4 +1,4 @@
-// فایل: app/(public)/.../play/_components/QuizPlayer.tsx
+// فایل: app/(public)/courses/[learningPathId]/quiz/[quizId]/play/_components/QuizPlayer.tsx
 "use client";
 
 import { useState, useTransition } from "react";
@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input"; // ۱. Input را وارد می‌کنیم
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { TiptapEditor } from "@/components/tiptap/TiptapEditor";
 
 type EnrichedQuestion = Question & {
   options: Pick<Option, "id" | "text">[];
@@ -27,7 +28,6 @@ interface QuizPlayerProps {
   learningPathId: string;
 }
 
-// این نوع بدون تغییر باقی می‌ماند چون پاسخ متنی هم یک رشته است
 type AnswersState = Record<string, string | string[]>;
 
 export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
@@ -50,7 +50,6 @@ export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
     });
   };
 
-  // ۲. یک تابع جدید برای مدیریت ورودی متنی اضافه می‌کنیم
   const handleTextAnswerChange = (questionId: string, value: string) => {
     setSelectedAnswers(prev => ({...prev, [questionId]: value }));
   };
@@ -71,9 +70,11 @@ export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
         await axios.post(`/api/courses/${learningPathId}/quiz/${quiz.id}/submit`, {
           answers: selectedAnswers,
         });
-        toast.success("آزمون با موفقیت ثبت شد!");
+        toast.success("آزمون شما برای بررسی ثبت شد!");
         router.push(`/courses/${learningPathId}/quiz/${quiz.id}`);
         router.refresh();
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       } catch (_error) {
         toast.error("مشکلی در ثبت آزمون پیش آمد.");
       }
@@ -90,10 +91,17 @@ export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
           <Progress value={progressPercentage} />
           <p className="text-center text-sm text-slate-500 mt-2">سوال {currentQuestionIndex + 1} از {totalQuestions}</p>
         </CardHeader>
-        <CardContent className="min-h-[250px]">
+        <CardContent className="min-h-[350px]">
           <p className="text-lg font-semibold mb-6">{currentQuestion.text}</p>
           
-          {/* ۳. یک بلاک جدید برای FILL_IN_THE_BLANK اضافه می‌کنیم */}
+          {currentQuestion.type === QuestionType.ESSAY && (
+            <TiptapEditor
+                value={(selectedAnswers[currentQuestion.id] as string) || ""}
+                onChange={(value) => handleTextAnswerChange(currentQuestion.id, value)}
+                characterLimit={5000}
+            />
+          )}
+
           {currentQuestion.type === QuestionType.FILL_IN_THE_BLANK && (
              <Input
                 placeholder="پاسخ خود را اینجا تایپ کنید..."

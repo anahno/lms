@@ -5,13 +5,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { QuestionType } from "@prisma/client";
+import { QuestionType, SubmissionStatus } from "@prisma/client";
 
 type SubmissionPayload = {
   questionId: string;
   selectedOptionId?: string;
   selectedOptionIds?: string[];
-  textAnswer?: string; // ۱. فیلد پاسخ متنی را اضافه می‌کنیم
+  textAnswer?: string;
 };
 
 export async function POST(
@@ -41,18 +41,28 @@ export async function POST(
       return new NextResponse("آزمون یافت نشد", { status: 404 });
     }
 
+    const hasManualGrading = quiz.questions.some(
+      q => q.type === QuestionType.ESSAY || q.type === QuestionType.AUDIO_RESPONSE
+    );
+
     let totalPoints = 0;
     let earnedPoints = 0;
-    const userAnswersToCreate: (SubmissionPayload & { isCorrect: boolean; score: number })[] = [];
+    const userAnswersToCreate: (SubmissionPayload & { isCorrect: boolean | null; score: number | null })[] = [];
 
     for (const question of quiz.questions) {
       totalPoints += question.points;
       const userAnswer = answers[question.id];
-      let isCorrect = false;
+      let isCorrect: boolean | null = false;
+      let score: number | null = 0;
       
       const submissionPayload: SubmissionPayload = { questionId: question.id };
 
-      if (question.type === QuestionType.SINGLE_CHOICE) {
+      if (question.type === QuestionType.ESSAY) {
+        isCorrect = null; 
+        score = null;     
+        if (typeof userAnswer === 'string') submissionPayload.textAnswer = userAnswer;
+      }
+      else if (question.type === QuestionType.SINGLE_CHOICE) {
         const correctOption = question.options.find(opt => opt.isCorrect);
         isCorrect = correctOption?.id === userAnswer;
         if (userAnswer) submissionPayload.selectedOptionId = userAnswer;
@@ -65,39 +75,40 @@ export async function POST(
         }
         if (userAnswersArray.length > 0) submissionPayload.selectedOptionIds = userAnswersArray;
       }
-      // ۲. منطق جدید برای تصحیح سوالات جای خالی
       else if (question.type === QuestionType.FILL_IN_THE_BLANK) {
         const correctAnswer = question.options.find(opt => opt.isCorrect)?.text;
         if (typeof userAnswer === 'string' && correctAnswer) {
-            // مقایسه با حذف فاصله‌های اضافی و تبدیل به حروف کوچک
             isCorrect = userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
         }
         if (typeof userAnswer === 'string') submissionPayload.textAnswer = userAnswer;
       }
-
-      if (isCorrect) {
+      
+      if (isCorrect === true) {
         earnedPoints += question.points;
+        score = question.points;
       }
       
-      // پاسخ‌های خالی یا تعریف نشده را ثبت نمی‌کنیم
       if (userAnswer && ( (Array.isArray(userAnswer) && userAnswer.length > 0) || !Array.isArray(userAnswer) )) {
-          userAnswersToCreate.push({
-              ...submissionPayload,
-              isCorrect: isCorrect,
-              score: isCorrect ? question.points : 0,
-          });
+          userAnswersToCreate.push({ ...submissionPayload, isCorrect, score });
       }
     }
 
-    const finalScore = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
+    let finalScore: number | null = null;
+    let finalStatus: SubmissionStatus = SubmissionStatus.GRADED;
 
-    // قبلا یک باگ در اینجا وجود داشت که نتیجه را برنمی‌گرداندیم، اصلاح شد
+    if (hasManualGrading) {
+        finalStatus = SubmissionStatus.SUBMITTED;
+        finalScore = null; 
+    } else {
+        finalScore = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
+    }
+
     const submission = await db.quizSubmission.create({
       data: {
         userId,
         quizId,
         score: finalScore,
-        status: "GRADED",
+        status: finalStatus,
         answers: {
           create: userAnswersToCreate,
         },

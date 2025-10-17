@@ -1,4 +1,4 @@
-// فایل: app/(dashboard)/.../quiz/_components/QuizQuestionsForm.tsx
+// فایل: app/(dashboard)/learning-paths/[learningPathId]/chapters/[chapterId]/sections/[sectionId]/quiz/_components/QuizQuestionsForm.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -43,14 +43,21 @@ export const QuizQuestionsForm = ({
     setQuestions(initialData.questions);
   }, [initialData.questions]);
   
-  // --- ۱. تابع افزودن سوال را تغییر می‌دهیم تا نوع سوال را به عنوان ورودی بگیرد ---
   const onAddQuestion = async (type: QuestionType) => {
     try {
       setIsCreating(true);
-      const text = type === QuestionType.SINGLE_CHOICE ? "سوال تک‌گزینه‌ای جدید" : "سوال چندگزینه‌ای جدید";
+      
+      let text = "سوال جدید";
+      switch(type) {
+        case QuestionType.SINGLE_CHOICE: text = "سوال تک‌گزینه‌ای جدید"; break;
+        case QuestionType.MULTIPLE_CHOICE: text = "سوال چندگزینه‌ای جدید"; break;
+        case QuestionType.FILL_IN_THE_BLANK: text = "سوال جای خالی جدید"; break;
+        case QuestionType.ESSAY: text = "سوال تشریحی جدید"; break;
+      }
+
       await axios.post(`/api/learning-paths/${learningPathId}/chapters/${chapterId}/sections/${sectionId}/quiz/questions`, {
         text,
-        type, // <-- نوع سوال را به API ارسال می‌کنیم
+        type,
       });
       toast.success("سوال جدید اضافه شد.");
       router.refresh();
@@ -83,7 +90,6 @@ export const QuizQuestionsForm = ({
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
         سوالات آزمون
-        {/* --- ۲. دکمه را به یک DropdownMenu تبدیل می‌کنیم --- */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" disabled={isCreating}>
@@ -100,6 +106,9 @@ export const QuizQuestionsForm = ({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAddQuestion(QuestionType.FILL_IN_THE_BLANK)}>
               جای خالی
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAddQuestion(QuestionType.ESSAY)}>
+              تشریحی
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -3,10 +3,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookCopy, List } from "lucide-react";
+import { BookCopy, List, Edit } from "lucide-react"; // ۱. آیکون Edit را اضافه می‌کنیم
 import { cn } from "@/lib/utils";
 
-// آرایه‌ای از مسیرها برای ناوبری
 const routes = [
   {
     icon: BookCopy,
@@ -15,8 +14,14 @@ const routes = [
   },
   {
     icon: List,
-    href: "/categories", // مسیر جدید ما
+    href: "/categories",
     label: "دسته‌بندی‌ها",
+  },
+  // ۲. آیتم جدید برای مرکز نمره‌دهی
+  {
+    icon: Edit,
+    href: "/grading",
+    label: "مرکز نمره‌دهی",
   },
 ];
 
@@ -35,7 +40,7 @@ export default function Sidebar() {
             href={route.href}
             className={cn(
               "flex items-center p-3 my-1 rounded-lg text-slate-700 hover:bg-slate-200 transition",
-              (pathname === route.href || (route.href !== "/" && pathname.startsWith(route.href))) && "bg-sky-200/50 text-sky-700"
+              (pathname.startsWith(route.href) && (route.href !== "/" || pathname === "/")) && "bg-sky-200/50 text-sky-700"
             )}
           >
             <route.icon className="h-5 w-5 ml-3" />

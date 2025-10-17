@@ -1,4 +1,4 @@
-// فایل: app/api/.../quiz/questions/route.ts
+// فایل: app/api/learning-paths/[learningPathId]/chapters/[chapterId]/sections/[sectionId]/quiz/questions/route.ts
 "use server";
 
 import { NextRequest, NextResponse } from "next/server";
@@ -39,16 +39,14 @@ export async function POST(
 
     const newPosition = lastQuestion ? lastQuestion.position + 1 : 1;
     
-    // --- شروع تغییر کلیدی ---
-    // نوع متغیر را به صراحت تعریف می‌کنیم
     let optionsToCreate: { text: string; isCorrect?: boolean }[] = [];
-    // --- پایان تغییر کلیدی ---
 
     if (type === QuestionType.SINGLE_CHOICE || type === QuestionType.MULTIPLE_CHOICE) {
       optionsToCreate = [{ text: "گزینه ۱" }, { text: "گزینه ۲" }];
     } else if (type === QuestionType.FILL_IN_THE_BLANK) {
       optionsToCreate = [{ text: "", isCorrect: true }];
     }
+    // برای سوال تشریحی (ESSAY) یا پاسخ صوتی (AUDIO_RESPONSE)، آرایه optionsToCreate خالی می‌ماند.
 
     const question = await db.question.create({
       data: {
