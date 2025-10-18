@@ -2,11 +2,11 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link"; // ایمپورت کردن Link
-import { Book, BarChart2 } from "lucide-react"; // اضافه کردن آیکون نمودار
+import Link from "next/link";
+import { Book, BarChart2 } from "lucide-react";
 import { ViewCourseButton } from "./ViewCourseButton";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "./ui/button"; // ایمپورت کردن Button
+import { Button } from "./ui/button";
 
 interface StudentCourseCardProps {
   id: string;
@@ -25,9 +25,9 @@ export const StudentCourseCard = ({
 }: StudentCourseCardProps) => {
   return (
     <div className="relative group h-full">
-      <div className="inner-curve h-full rounded-2xl p-6 flex flex-col drop-shadow-lg transition-all duration-300 hover:drop-shadow-xl">
+      {/* --- تغییر در اینجا: کلاس‌های border و border-slate-200 اضافه شد --- */}
+      <div className="inner-curve h-full rounded-2xl p-6 flex flex-col drop-shadow-lg transition-all duration-300 hover:drop-shadow-xl border border-slate-200">
         <div className="flex flex-col items-center text-center flex-grow">
-          {/* بخش تصویر و عنوان بدون تغییر */}
           <div className="w-full aspect-video relative mb-4">
             {imageUrl ? (
               <Image fill className="object-contain" alt={title} src={imageUrl} />
@@ -45,7 +45,6 @@ export const StudentCourseCard = ({
             {category}
           </p>
           
-          {/* نوار پیشرفت بدون تغییر */}
           <div className="mt-auto pt-6 w-full space-y-2">
               <Progress value={progress} className="h-2" />
               <p className="text-xs text-slate-500 font-semibold">
@@ -53,10 +52,7 @@ export const StudentCourseCard = ({
               </p>
           </div>
         </div>
-
-        {/* ==================== شروع تغییرات ==================== */}
         
-        {/* یک بخش جداگانه برای دکمه آمار اضافه می‌کنیم تا در چیدمان کارت قرار بگیرد */}
         <div className="mt-4 flex justify-center border-t pt-4">
             <Link href={`/my-courses/${id}/results`} legacyBehavior>
                 <a className="w-full">
@@ -67,10 +63,7 @@ export const StudentCourseCard = ({
                 </a>
             </Link>
         </div>
-        
-        {/* ===================== پایان تغییرات ===================== */}
 
-        {/* این بخش برای دکمه شناور "مشاهده دوره" است و بدون تغییر باقی می‌ماند */}
         <div className="h-10 w-full shrink-0"></div>
       </div>
       

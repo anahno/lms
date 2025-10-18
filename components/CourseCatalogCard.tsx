@@ -4,7 +4,7 @@
 import Image from "next/image";
 import { Book, Layers } from "lucide-react";
 import { ViewCourseButton } from "./ViewCourseButton";
-import { EnrollButton } from "./EnrollButton"; // <-- ایمپورت جدید
+import { EnrollButton } from "./EnrollButton";
 
 interface CourseCatalogCardProps {
   id: string;
@@ -12,7 +12,7 @@ interface CourseCatalogCardProps {
   imageUrl: string | null;
   chaptersLength: number;
   category: string | null;
-  isEnrolled: boolean; // <-- پراپرتی جدید را اینجا تعریف می‌کنیم
+  isEnrolled: boolean;
 }
 
 export const CourseCatalogCard = ({
@@ -21,11 +21,12 @@ export const CourseCatalogCard = ({
   imageUrl,
   chaptersLength,
   category,
-  isEnrolled, // <-- پراپرتی جدید را اینجا دریافت می‌کنیم
+  isEnrolled,
 }: CourseCatalogCardProps) => {
   return (
     <div className="relative group h-full">
-      <div className="inner-curve h-full rounded-2xl p-6 flex flex-col drop-shadow-lg transition-all duration-300 hover:drop-shadow-xl">
+      {/* --- تغییر در اینجا: کلاس‌های border و border-slate-200 اضافه شد --- */}
+      <div className="inner-curve h-full rounded-2xl p-6 flex flex-col drop-shadow-lg transition-all duration-300 hover:drop-shadow-xl border border-slate-200">
         <div className="flex flex-col items-center text-center flex-grow">
           <div className="w-full aspect-video relative mb-4">
             {imageUrl ? (
@@ -53,13 +54,10 @@ export const CourseCatalogCard = ({
         <div className="h-10 w-full shrink-0"></div>
       </div>
       
-      {/* --- تغییر کلیدی در اینجا --- */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 transform transition-all duration-300 ease-in-out opacity-0 translate-y-[-1rem] group-hover:opacity-100 group-hover:translate-y-[1.25rem]">
         {isEnrolled ? (
-          // اگر ثبت‌نام کرده، دکمه مشاهده را نشان بده
           <ViewCourseButton learningPathId={id} />
         ) : (
-          // در غیر این صورت، دکمه ثبت‌نام را نشان بده
           <EnrollButton learningPathId={id} />
         )}
       </div>

@@ -34,14 +34,14 @@ export const CourseCard = ({
 
   return (
     <div className="relative group h-full">
-      <div className="inner-curve h-full rounded-2xl p-6 flex flex-col drop-shadow-lg transition-all duration-300 hover:drop-shadow-xl">
+      {/* --- تغییر در اینجا: کلاس‌های border و border-slate-200 اضافه شد --- */}
+      <div className="inner-curve h-full rounded-2xl p-6 flex flex-col drop-shadow-lg transition-all duration-300 hover:drop-shadow-xl border border-slate-200">
         
         <div className="flex justify-between items-start">
             <Badge variant={statusInfo[status].variant}>
                 {status === "PENDING" && <Clock className="h-3 w-3" />}
                 {statusInfo[status].text}
             </Badge>
-            {/* Dropdown Menu برای ویرایش و حذف در اینجا قرار خواهد گرفت */}
         </div>
 
         <div className="flex flex-col items-center text-center flex-grow mt-4">
