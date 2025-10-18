@@ -11,30 +11,39 @@ export const PublicNavbar = () => {
 
   return (
     <header className="flex items-center justify-between h-20 px-6 md:px-12 bg-white/80 backdrop-blur-lg sticky top-0 z-50 border-b">
-      <Link href="/courses">
+      {/* --- تغییر کلیدی: لینک به صفحه اصلی جدید --- */}
+      <Link href="/">
         <h1 className="text-2xl font-bold text-slate-800">LMS پلتفرم</h1>
       </Link>
 
       <div className="flex items-center gap-4">
         {status === "authenticated" ? (
           <>
+            <Link href="/courses">
+              <Button variant="ghost">کاتالوگ دوره‌ها</Button>
+            </Link>
             <Link href="/my-courses">
               <Button>دوره‌های من</Button>
             </Link>
-            {/* --- تغییر کلیدی: این دکمه فقط برای استاد و ادمین است --- */}
             {(session.user.role === "ADMIN" || session.user.role === "INSTRUCTOR") && (
-              <Link href="/">
+              // --- تغییر کلیدی: آدرس به داشبورد ---
+              <Link href="/dashboard">
                 <Button variant="outline">پنل مدیریت</Button>
               </Link>
             )}
           </>
         ) : (
-          <Link href="/login">
-            <Button>
-              <LogIn className="h-4 w-4 ml-2" />
-              ورود | ثبت‌نام
-            </Button>
-          </Link>
+          <>
+            <Link href="/courses">
+                <Button variant="ghost">دوره‌ها</Button>
+            </Link>
+            <Link href="/login">
+                <Button>
+                <LogIn className="h-4 w-4 ml-2" />
+                ورود | ثبت‌نام
+                </Button>
+            </Link>
+          </>
         )}
       </div>
     </header>
