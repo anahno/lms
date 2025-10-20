@@ -26,10 +26,19 @@ export const EnrollButton = ({ learningPathId }: EnrollButtonProps) => {
         toast.success(result.success);
         router.refresh(); // برای به‌روزرسانی UI و نمایش دکمه "مشاهده"
       } else if (result.error) {
-        toast.error(result.error);
+        // --- شروع تغییر کلیدی ---
+        // بررسی می‌کنیم که آیا خطا مربوط به عدم ورود کاربر است یا نه
+        if (result.error === "برای ثبت‌نام ابتدا باید وارد شوید.") {
+          toast.error(result.error); // پیام را نمایش می‌دهیم
+          router.push("/login"); // و کاربر را به صفحه ورود هدایت می‌کنیم
+        } else {
+          // برای سایر خطاها، فقط پیام را نمایش می‌دهیم
+          toast.error(result.error);
+        }
+        // --- پایان تغییر کلیدی ---
       }
-    } catch (_error) {
-      toast.error("یک خطای ناشناخته رخ داد.");
+    } catch {
+      toast.error("یک خطای ناشناخته در سرور رخ داد.");
     } finally {
       setIsLoading(false);
     }
