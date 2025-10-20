@@ -35,7 +35,7 @@ export default function LoginPage() {
         router.push("/"); 
         router.refresh();
       }
-    } catch (_err) { // <--- تغییر کلیدی در اینجا: err به _err تغییر کرد
+    } catch{ // <--- تغییر کلیدی در اینجا: err به _err تغییر کرد
       // این تغییر هشدار مربوط به "متغیر استفاده نشده" را رفع می‌کند.
       setError("خطایی رخ داد. لطفاً دوباره تلاش کنید.");
     } finally {

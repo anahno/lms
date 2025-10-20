@@ -75,7 +75,7 @@ export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
         router.refresh();
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
 
-      } catch (_error) {
+      } catch  {
         toast.error("مشکلی در ثبت آزمون پیش آمد.");
       }
     });

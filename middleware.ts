@@ -19,10 +19,11 @@ export default withAuth(
     }
     
     // ۲. اگر کاربر یک دانشجو (USER) است و تلاش می‌کند به هرکدام از صفحات مدیریتی برود
-    if (userRole === "USER" && (pathname.startsWith("/dashboard") || pathname.startsWith("/learning-paths") || pathname.startsWith("/categories") || pathname.startsWith("/grading"))) {
-      // او را به داشبورد دانشجو هدایت کن
-      return NextResponse.redirect(new URL("/my-courses", req.url));
-    }
+    const protectedPaths = ["/dashboard", "/learning-paths", "/categories", "/grading", "/browse-courses"];
+    if (userRole === "USER" && protectedPaths.some(p => pathname.startsWith(p))) {
+       // او را به داشبورد دانشجو هدایت کن
+       return NextResponse.redirect(new URL("/my-courses", req.url));
+     }
 
     // در غیر این صورت، اجازه دسترسی بده
     return NextResponse.next();
@@ -41,5 +42,8 @@ export const config = {
     "/learning-paths/:path*",
     "/categories/:path*",
     "/grading/:path*",
+    "/browse-courses/:path*",
+        "/qa-center/:path*", // <-- مسیر جدید را اضافه کنید
+
   ],
 };

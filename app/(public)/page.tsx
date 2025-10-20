@@ -9,7 +9,7 @@ import { CourseCatalogCard } from "@/components/CourseCatalogCard";
 import { BookOpen, School, Users, Clapperboard, TrendingUp, Clock, Award, Target, LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Category, Chapter, Enrollment, LearningPath, Level } from "@prisma/client";
+import { Category, Enrollment, LearningPath, Level } from "@prisma/client";
 import { HomePageSearch } from "@/components/HomePageSearch"; // --- ۲. کامپوننت جستجوی جدید را وارد کنید ---
 
 // --- شروع رفع خطا: تعریف یک نوع مشخص برای دوره‌ها ---

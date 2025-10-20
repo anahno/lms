@@ -1,6 +1,6 @@
 // فایل: app/api/learning-paths/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import {  NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth"; // <-- از مسیر جدید import می‌کنیم
 import { db } from "@/lib/db";
@@ -37,7 +37,7 @@ export async function POST(_req: Request) {
 }
 
 // تابع GET برای دریافت لیست تمام مسیرهای یادگیری کاربر
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

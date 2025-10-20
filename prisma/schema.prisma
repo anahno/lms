@@ -92,6 +92,8 @@ model User {
   progress    UserProgress[]
   enrollments Enrollment[]
   submissions QuizSubmission[]
+    discussions Discussion[] 
+
 }
 
 model LearningPath {
@@ -184,6 +186,8 @@ model Section {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   quiz        Quiz?
+    discussions Discussion[] 
+
 }
 
 model UserProgress {
@@ -297,4 +301,25 @@ model UserAnswer {
   option     Option?        @relation(fields: [selectedOptionId], references: [id], onDelete: NoAction)
 
   @@unique([submissionId, questionId])
+}
+
+// +++ مدل جدید برای سیستم پرسش و پاسخ +++
+model Discussion {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ارتباط با کاربر (نویسنده)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // ارتباط با بخش (درس)
+  sectionId String
+  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  // برای ساختار درختی (پاسخ به یک نظر دیگر)
+  parentId  String?
+  parent    Discussion?  @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Discussion[] @relation("Replies")
 }

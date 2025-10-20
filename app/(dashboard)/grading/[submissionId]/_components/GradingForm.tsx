@@ -49,7 +49,7 @@ export const GradingForm = ({ initialData }: GradingFormProps) => {
             toast.success("نمرات با موفقیت ثبت و نهایی شد.");
             router.push("/grading");
             router.refresh();
-        } catch (_error) {
+        } catch {
             toast.error("مشکلی در ثبت نمرات پیش آمد.");
         }
     });

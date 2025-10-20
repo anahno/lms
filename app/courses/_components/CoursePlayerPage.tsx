@@ -1,10 +1,11 @@
-// فایل: app/courses/[learningPathId]/sections/[sectionId]/_components/CoursePlayerPage.tsx
+// فایل: app/courses/_components/CoursePlayerPage.tsx
 "use client";
 
 import { useState } from "react";
 import type { LearningPath, Section, UserProgress } from "@prisma/client";
 import { CheckCircle } from "lucide-react";
 import { CourseProgressButton } from "../_components/CourseProgressButton";
+import { DiscussionSection } from "./DiscussionSection"; // <-- خطای شما با اضافه کردن این خط برطرف می‌شود
 
 // تایپ‌ها را برای خوانایی بیشتر اصلاح می‌کنیم
 type EnrichedLearningPath = Pick<
@@ -33,7 +34,7 @@ export function CoursePlayerPage({
 
   return (
     <div className="bg-white flex flex-col h-full">
-      {/* ... بخش ویدیو پلیر و تب‌ها (بدون تغییر) ... */}
+      {/* ... بخش ویدیو پلیر و تب‌ها ... */}
       <div className="bg-black">
         <div className="relative aspect-video">
           {section.videoUrl ? (
@@ -68,6 +69,19 @@ export function CoursePlayerPage({
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />
               )}
             </button>
+            <button
+              onClick={() => setActiveTab("qna")}
+              className={`py-4 font-medium text-sm relative transition-colors ${
+                activeTab === "qna"
+                  ? "text-gray-900"
+                  : "text-gray-600 hover:text-gray-800"
+              }`}
+            >
+              پرسش و پاسخ
+              {activeTab === "qna" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />
+              )}
+            </button>
           </div>
         </div>
 
@@ -82,15 +96,12 @@ export function CoursePlayerPage({
               <section>
                 <h2 className="text-2xl font-bold mb-4">آنچه خواهید آموخت</h2>
                 <div className="grid md:grid-cols-2 gap-x-8 gap-y-3">
-                  {/* --- شروع تغییر ایمن‌سازی --- */}
-                  {/* اگر whatYouWillLearn وجود نداشت، یک آرایه خالی را map می‌کنیم */}
                   {(learningPath.whatYouWillLearn || []).map((item, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <CheckCircle className="w-5 h-5 text-gray-700 flex-shrink-0 mt-0.5" />
                       <span className="text-gray-700 text-sm">{item}</span>
                     </div>
                   ))}
-                  {/* --- پایان تغییر ایمن‌سازی --- */}
                 </div>
               </section>
 
@@ -105,21 +116,22 @@ export function CoursePlayerPage({
               <section>
                 <h2 className="text-2xl font-bold mb-4">پیش‌نیازها</h2>
                 <ul className="space-y-2 list-disc pr-5">
-                  {/* --- شروع تغییر ایمن‌سازی --- */}
                   {(learningPath.requirements || []).map((item, i) => (
                     <li key={i} className="text-gray-700 text-sm">
                       {item}
                     </li>
                   ))}
-                  {/* --- پایان تغییر ایمن‌سازی --- */}
                 </ul>
               </section>
             </div>
           )}
+          {activeTab === "qna" && (
+            <DiscussionSection sectionId={section.id} />
+          )}
         </div>
       </div>
 
-      {/* ... بخش دکمه پیشرفت (بدون تغییر) ... */}
+      {/* ... بخش دکمه پیشرفت ... */}
       <div className="mt-auto border-t p-4 bg-white sticky bottom-0">
         <CourseProgressButton
           sectionId={section.id}

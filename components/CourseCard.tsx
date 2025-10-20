@@ -3,10 +3,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Book, Layers, Lock, Clock } from "lucide-react";
-import { CourseStatus } from "@prisma/client";
+import { Book, Layers, Lock, Clock, User } from "lucide-react";
+import { CourseStatus, User as Instructor } from "@prisma/client";
 import { ViewCourseButton } from "./ViewCourseButton";
-import { Badge } from "./ui/badge";
 
 interface CourseCardProps {
   id: string;
@@ -15,6 +14,7 @@ interface CourseCardProps {
   chaptersLength: number;
   category: string | null;
   status: CourseStatus;
+  instructor: Instructor;
 }
 
 export const CourseCard = ({
@@ -24,27 +24,40 @@ export const CourseCard = ({
   chaptersLength,
   category,
   status,
+  instructor,
 }: CourseCardProps) => {
   
   const statusInfo = {
-    [CourseStatus.DRAFT]: { text: "پیش‌نویس", variant: "secondary" as const },
-    [CourseStatus.PENDING]: { text: "در انتظار تایید", variant: "outline" as const },
-    [CourseStatus.PUBLISHED]: { text: "منتشر شده", variant: "success" as const },
+    [CourseStatus.DRAFT]: { text: "پیش‌نویس", variant: "secondary", className: "bg-slate-500" as const },
+    [CourseStatus.PENDING]: { text: "در انتظار تایید", variant: "outline", className: "bg-amber-500" as const },
+    [CourseStatus.PUBLISHED]: { text: "منتشر شده", variant: "success", className: "bg-emerald-600" as const },
   };
 
   return (
+    // ۱. از این div بیرونی، کلاس overflow-hidden حذف شد تا دکمه پایین بریده نشود
     <div className="relative group h-full">
-      {/* --- تغییر در اینجا: کلاس‌های border و border-slate-200 اضافه شد --- */}
       <div className="inner-curve h-full rounded-2xl p-6 flex flex-col drop-shadow-lg transition-all duration-300 hover:drop-shadow-xl border border-slate-200">
         
-        <div className="flex justify-between items-start">
-            <Badge variant={statusInfo[status].variant}>
+        {/* ۲. روبان استاد (بدون تغییر) */}
+        {instructor && (
+           <div className="absolute top-0 -right-1 bg-sky-600 text-white text-xs font-bold px-4 py-1 rounded-bl-lg shadow-md z-10">
+              <span className="flex items-center gap-1">
+                <User className="w-3 h-3" />
+                {instructor.name || "استاد نامشخص"}
+              </span>
+            </div>
+        )}
+
+        {/* ۳. روبان جدید برای وضعیت دوره در بالا-چپ برای ایجاد تقارن */}
+        <div className={`absolute top-0 -left-1 text-white text-xs font-bold px-4 py-1 rounded-br-lg shadow-md z-10 ${statusInfo[status].className}`}>
+            <span className="flex items-center gap-1">
                 {status === "PENDING" && <Clock className="h-3 w-3" />}
                 {statusInfo[status].text}
-            </Badge>
+            </span>
         </div>
 
-        <div className="flex flex-col items-center text-center flex-grow mt-4">
+        {/* ۴. به این بخش یک padding-top اضافه شد تا محتوا زیر روبان‌ها قرار نگیرد */}
+        <div className="flex flex-col items-center text-center flex-grow pt-8">
           <Link href={`/learning-paths/${id}/edit`} className="w-full flex flex-col items-center">
             <div className="w-full aspect-video relative mb-4">
               {imageUrl ? (
@@ -73,6 +86,7 @@ export const CourseCard = ({
         <div className="h-10 w-full shrink-0"></div>
       </div>
       
+      {/* ۵. این دکمه اکنون به درستی و به صورت کامل نمایش داده می‌شود */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 transform transition-all duration-300 ease-in-out opacity-0 translate-y-[-1rem] group-hover:opacity-100 group-hover:translate-y-[1.25rem]">
         {status === "PUBLISHED" ? (
           <ViewCourseButton learningPathId={id} />

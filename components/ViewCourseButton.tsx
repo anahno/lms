@@ -27,7 +27,7 @@ export const ViewCourseButton = ({ learningPathId }: ViewCourseButtonProps) => {
       } else if (result.error) {
         toast.error(result.error);
       }
-    } catch (_error) {
+    } catch  {
       toast.error("یک خطای ناشناخته رخ داد.");
     } finally {
       setIsLoading(false);
