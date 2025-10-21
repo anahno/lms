@@ -4,24 +4,14 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-
-import { TitleForm } from "./_components/TitleForm";
-import { DescriptionForm } from "./_components/DescriptionForm";
-import { ImageForm } from "./_components/ImageForm";
-import { CategoryForm } from "./_components/CategoryForm";
-import { IntroAudioForm } from "./_components/IntroAudioForm";
-import { LevelsForm } from "./_components/LevelsForm";
-import { CourseActions } from "./_components/CourseActions";
-import { WhatYouWillLearnForm } from "./_components/WhatYouWillLearnForm";
 import { Role } from "@prisma/client";
+import { EditPageClient } from "./_components/EditPageClient"; // کامپوننت کلاینت را وارد می‌کنیم
 
 export default async function EditLearningPathPage({
   params,
 }: {
-  // ۱. تایپ params را به Promise تغییر می‌دهیم (اختیاری ولی برای خوانایی بهتر است)
   params: Promise<{ learningPathId: string }>; 
 }) {
-  // ۲. در اینجا params را await می‌کنیم تا به مقدار واقعی آن دسترسی پیدا کنیم
   const { learningPathId } = await params;
 
   const session = await getServerSession(authOptions);
@@ -48,6 +38,9 @@ export default async function EditLearningPathPage({
           include: {
             chapters: {
               orderBy: { position: "asc" },
+               include: {
+                sections: true
+              }
             },
           },
         },
@@ -86,43 +79,15 @@ export default async function EditLearningPathPage({
   const completedFields = requiredFields.filter(Boolean).length;
   const isComplete = requiredFields.every(Boolean);
 
+  // تمام داده‌های واکشی شده را به عنوان props به کامپوننت کلاینت پاس می‌دهیم
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-y-2">
-          <h1 className="text-2xl font-bold">تنظیمات مسیر یادگیری</h1>
-          <span className="text-sm text-slate-700">
-            فیلدهای تکمیل شده ({completedFields}/{totalFields})
-          </span>
-        </div>
-        <CourseActions
-          initialData={learningPath}
-          learningPathId={learningPath.id}
-          isComplete={isComplete}
-          userRole={userRole} 
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16">
-        <div className="space-y-6">
-          <TitleForm initialData={learningPath} learningPathId={learningPath.id} />
-          <DescriptionForm initialData={learningPath} learningPathId={learningPath.id} />
-          <WhatYouWillLearnForm initialData={learningPath} learningPathId={learningPath.id} />
-          <CategoryForm
-            initialData={learningPath}
-            learningPathId={learningPath.id}
-            options={categories}
-          />
-          <IntroAudioForm 
-            initialData={learningPath} 
-            learningPathId={learningPath.id} 
-          />
-        </div>
-        <div className="space-y-6">
-          <ImageForm initialData={learningPath} learningPathId={learningPath.id} />
-          <LevelsForm initialData={{ levels: learningPath.levels }} learningPathId={learningPath.id} />
-        </div>
-      </div>
-    </div>
+    <EditPageClient
+      learningPath={learningPath}
+      categories={categories}
+      completedFields={completedFields}
+      totalFields={totalFields}
+      isComplete={isComplete}
+      userRole={userRole}
+    />
   );
 }

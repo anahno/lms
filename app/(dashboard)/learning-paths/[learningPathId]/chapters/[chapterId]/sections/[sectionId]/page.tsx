@@ -5,11 +5,14 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+
+// ۱. کامپوننت Breadcrumbs را وارد می‌کنیم
+import { Breadcrumbs, BreadcrumbItem } from "@/components/Breadcrumbs";
+
 import { SectionTitleForm } from "./_components/SectionTitleForm";
 import { SectionDescriptionForm } from "./_components/SectionDescriptionForm";
 import { SectionVideoForm } from "./_components/SectionVideoForm";
 import { SectionActions } from "./_components/SectionActions";
-// --- ۱. کامپوننت جدید را وارد کنید ---
 import { SectionAudioForm } from "./_components/SectionAudioForm";
 import { SectionQuizForm } from "./_components/SectionQuizForm";
 
@@ -21,39 +24,62 @@ export default async function SectionIdPage({
 }) {
   const { learningPathId, chapterId, sectionId } = await params;
 
+  // ۲. کوئری را اصلاح می‌کنیم تا کل مسیر (دوره، فصل) را دریافت کند
   const section = await db.section.findUnique({
     where: {
       id: sectionId,
       chapterId: chapterId,
     },
-    // --- ۲. اطلاعات آزمون را هم واکشی کنید ---
     include: {
       quiz: true,
+      // این بخش برای دریافت نام‌ها برای Breadcrumbs اضافه شده است
+      chapter: {
+        include: {
+          level: {
+            include: {
+              learningPath: {
+                select: {
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
 
-  if (!section) {
+  if (!section || !section.chapter.level.learningPath) {
     return redirect(`/learning-paths/${learningPathId}/edit`);
   }
   
-  // --- ۲. شروع تغییر منطق تکمیل بودن بخش ---
-  // بررسی می‌کنیم که حداقل یک محتوا (ویدیو یا صوت) وجود داشته باشد
   const hasContent = !!section.videoUrl || !!section.audioUrl;
 
   const requiredFields = [
     section.title,
     section.description,
-    hasContent, // از نتیجه بررسی بالا استفاده می‌کنیم
+    hasContent,
   ];
-  // --- پایان تغییر منطق ---
 
   const totalFields = requiredFields.length;
   const completedFields = requiredFields.filter(Boolean).length;
   const isComplete = requiredFields.every(Boolean);
   const completionText = `(${completedFields}/${totalFields})`;
 
+  // ۳. آیتم‌های Breadcrumb را با داده‌های جدید تعریف می‌کنیم
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { label: "مسیرهای یادگیری", href: "/dashboard" },
+    { label: section.chapter.level.learningPath.title, href: `/learning-paths/${learningPathId}/edit` },
+    { label: section.chapter.title, href: `/learning-paths/${learningPathId}/chapters/${chapterId}` },
+    { label: section.title, href: `/learning-paths/${learningPathId}/chapters/${chapterId}/sections/${sectionId}` },
+  ];
+
+
   return (
     <div className="p-6">
+      {/* ۴. کامپوننت Breadcrumbs را در بالای صفحه قرار می‌دهیم */}
+      <Breadcrumbs items={breadcrumbItems} />
+
       <div className="flex items-center justify-between mb-6">
         <div className="w-full">
           <Link
@@ -85,7 +111,6 @@ export default async function SectionIdPage({
         <div className="space-y-4">
           <div>
             <div className="flex items-center gap-x-2 mb-4">
-
               <h2 className="text-xl">سفارشی‌سازی بخش</h2>
             </div>
             <SectionTitleForm
@@ -100,7 +125,6 @@ export default async function SectionIdPage({
               chapterId={chapterId}
               sectionId={sectionId}
             />
-                        {/* --- ۳. کامپوننت فرم آزمون را اینجا اضافه کنید --- */}
             <SectionQuizForm
               initialData={section}
               learningPathId={learningPathId}
@@ -120,7 +144,6 @@ export default async function SectionIdPage({
               chapterId={chapterId}
               sectionId={sectionId}
             />
-            {/* --- ۳. کامپوننت فرم صوت را اینجا اضافه کنید --- */}
             <SectionAudioForm
               initialData={section}
               learningPathId={learningPathId}

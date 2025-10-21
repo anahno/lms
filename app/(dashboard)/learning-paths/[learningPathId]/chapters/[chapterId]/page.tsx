@@ -3,6 +3,10 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+
+// ۱. کامپوننت Breadcrumbs را وارد می‌کنیم
+import { Breadcrumbs, BreadcrumbItem } from "@/components/Breadcrumbs";
+
 import { ChapterTitleForm } from "./_components/ChapterTitleForm";
 import { ChapterActions } from "./_components/ChapterActions";
 import { SectionsForm } from "./sections/[sectionId]/_components/SectionsForm";
@@ -10,12 +14,11 @@ import { SectionsForm } from "./sections/[sectionId]/_components/SectionsForm";
 export default async function ChapterIdPage({
   params,
 }: {
-  // --- تغییر کلیدی ۱: اضافه کردن Promise به تایپ ---
   params: Promise<{ learningPathId: string; chapterId: string }>;
 }) {
-  // --- تغییر کلیدی ۲: اضافه کردن await ---
   const { learningPathId, chapterId } = await params;
 
+  // ۲. کوئری را اصلاح می‌کنیم تا نام دوره والد را هم دریافت کند
   const chapter = await db.chapter.findUnique({
     where: {
       id: chapterId,
@@ -29,10 +32,20 @@ export default async function ChapterIdPage({
           position: "asc",
         },
       },
+      // این بخش برای دریافت نام دوره برای Breadcrumbs اضافه شده است
+      level: {
+        include: {
+          learningPath: {
+            select: {
+              title: true,
+            },
+          },
+        },
+      },
     },
   });
 
-  if (!chapter) {
+  if (!chapter || !chapter.level.learningPath) {
     return redirect("/");
   }
 
@@ -43,8 +56,18 @@ export default async function ChapterIdPage({
   const completedFields = requiredFields.filter(Boolean).length;
   const completionText = `(${completedFields}/${totalFields})`;
 
+  // ۳. آیتم‌های Breadcrumb را با داده‌های جدید تعریف می‌کنیم
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { label: "مسیرهای یادگیری", href: "/dashboard" },
+    { label: chapter.level.learningPath.title, href: `/learning-paths/${learningPathId}/edit` },
+    { label: chapter.title, href: `/learning-paths/${learningPathId}/chapters/${chapterId}` },
+  ];
+
   return (
     <div className="p-6">
+      {/* ۴. کامپوننت Breadcrumbs را در بالای صفحه قرار می‌دهیم */}
+      <Breadcrumbs items={breadcrumbItems} />
+
       <div className="flex items-center justify-between mb-6">
         <div className="w-full">
           <Link
