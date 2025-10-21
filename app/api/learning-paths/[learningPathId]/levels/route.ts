@@ -5,10 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Role } from "@prisma/client"; // ۱. Role را وارد کنید
 
 export async function POST(
   req: NextRequest,
-  // --- تغییر در اینجا ---
   context: { params: Promise<{ learningPathId: string }> }
 ) {
   try {
@@ -17,7 +17,6 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // --- و تغییر در اینجا (اضافه شدن await) ---
     const { learningPathId } = await context.params;
     const { title } = await req.json();
 
@@ -25,17 +24,20 @@ export async function POST(
         return new NextResponse("Title is required", { status: 400 });
     }
 
-    // بررسی مالکیت مسیر یادگیری
-    const learningPathOwner = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-        userId: session.user.id,
-      },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
+    if (!learningPath) {
+      return new NextResponse("Learning Path not found", { status: 404 });
+    }
 
-    if (!learningPathOwner) {
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
+    // ===== پایان الگوی جدید بررسی دسترسی =====
 
     // پیدا کردن آخرین سطح برای تعیین position جدید
     const lastLevel = await db.level.findFirst({

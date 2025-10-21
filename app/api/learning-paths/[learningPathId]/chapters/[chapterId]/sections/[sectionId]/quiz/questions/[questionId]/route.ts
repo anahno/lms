@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Role } from "@prisma/client"; // ۱. Role را وارد کنید
 
 export async function PATCH(
   req: NextRequest,
@@ -17,11 +18,16 @@ export async function PATCH(
     const { learningPathId, questionId } = await context.params;
     const values = await req.json();
 
-    // بررسی مالکیت
-    const courseOwner = await db.learningPath.findUnique({
-      where: { id: learningPathId, userId: session.user.id },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
-    if (!courseOwner) return new NextResponse("Forbidden", { status: 403 });
+    if (!learningPath) return new NextResponse("Not Found", { status: 404 });
+
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
+    // ===== پایان الگوی جدید بررسی دسترسی =====
 
     // به‌روزرسانی سوال و گزینه‌های آن در یک تراکنش
     const updatedQuestion = await db.$transaction(async (prisma) => {
@@ -67,11 +73,16 @@ export async function DELETE(
 
     const { learningPathId, questionId } = await context.params;
     
-    // بررسی مالکیت
-    const courseOwner = await db.learningPath.findUnique({
-      where: { id: learningPathId, userId: session.user.id },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
-    if (!courseOwner) return new NextResponse("Forbidden", { status: 403 });
+    if (!learningPath) return new NextResponse("Not Found", { status: 404 });
+
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
+    // ===== پایان الگوی جدید بررسی دسترسی =====
 
     const deletedQuestion = await db.question.delete({
       where: { id: questionId },

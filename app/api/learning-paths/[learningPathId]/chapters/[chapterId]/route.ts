@@ -5,10 +5,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Role } from "@prisma/client";
 
+// تابع ویرایش
 export async function PATCH(
   req: NextRequest,
-  // --- ۱. اصلاح تایپ context ---
   context: { params: Promise<{ learningPathId: string; chapterId: string }> }
 ) {
   try {
@@ -17,31 +18,23 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // --- ۲. اضافه کردن await ---
     const { learningPathId, chapterId } = await context.params;
     const values = await req.json();
 
-    // بررسی مالکیت مسیر یادگیری والد
-    const courseOwner = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-        userId: session.user.id,
-      },
+    // الگوی جدید بررسی دسترسی
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
-    if (!courseOwner) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
+    if (!learningPath) return new NextResponse("Not Found", { status: 404 });
 
-    // --- ۳. اصلاح query برای به‌روزرسانی فصل ---
-    // ما فقط به chapterId برای پیدا کردن رکورد نیاز داریم.
-    // شرط تعلق به learningPath به صورت ضمنی در بررسی مالکیت بالا انجام شده.
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
+
+    // اجرای عملیات
     const chapter = await db.chapter.update({
-      where: {
-        id: chapterId,
-      },
-      data: {
-        ...values,
-      },
+      where: { id: chapterId, level: { learningPathId: learningPathId } }, // اطمینان از اینکه فصل متعلق به همین دوره است
+      data: { ...values },
     });
 
     return NextResponse.json(chapter);
@@ -52,30 +45,28 @@ export async function PATCH(
   }
 }
 
+// تابع حذف
 export async function DELETE(
   req: NextRequest,
-  // --- ۴. اصلاح تایپ context ---
   context: { params: Promise<{ learningPathId: string; chapterId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
 
-    // --- ۵. اضافه کردن await ---
     const { learningPathId, chapterId } = await context.params;
     
-    // بررسی مالکیت
-    const courseOwner = await db.learningPath.findUnique({
-      where: { id: learningPathId, userId: session.user.id },
+    // الگوی جدید بررسی دسترسی
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
-    if (!courseOwner) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
-    
-    // --- ۶. اصلاح query برای حذف فصل ---
-    // فقط به chapterId برای حذف نیاز داریم.
+    if (!learningPath) return new NextResponse("Not Found", { status: 404 });
+
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
+
+    // اجرای عملیات
     const deletedChapter = await db.chapter.delete({
       where: { id: chapterId },
     });

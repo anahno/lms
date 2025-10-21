@@ -2,9 +2,12 @@
 "use server";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+// ===== شروع تغییر =====
+import { getServerSession } from "next-auth/next"; // از 'next-auth/next' استفاده کنید
+// ===== پایان تغییر =====
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Role } from "@prisma/client";
 
 export async function PUT(
   req: NextRequest,
@@ -19,18 +22,19 @@ export async function PUT(
     const { learningPathId } = await context.params;
     const { list } = await req.json();
 
-    // بررسی مالکیت
-    const learningPathOwner = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-        userId: session.user.id,
-      },
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
-    if (!learningPathOwner) {
+    if (!learningPath) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
-    
-    // استفاده از تراکنش برای به‌روزرسانی همزمان همه position ها
+
     const transaction = list.map((item: { id: string; position: number }) =>
       db.level.update({
         where: { id: item.id },

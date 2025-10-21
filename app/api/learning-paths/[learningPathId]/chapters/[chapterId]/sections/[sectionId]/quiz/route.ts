@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Role } from "@prisma/client"; // ۱. Role را وارد کنید
 
 export async function POST(
   req: NextRequest,
@@ -19,13 +20,20 @@ export async function POST(
     const { learningPathId, sectionId } = await context.params;
     const { title } = await req.json();
 
-    // بررسی مالکیت دوره
-    const courseOwner = await db.learningPath.findUnique({
-      where: { id: learningPathId, userId: session.user.id },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
-    if (!courseOwner) {
+    if (!learningPath) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
+    // ===== پایان الگوی جدید بررسی دسترسی =====
 
     // بررسی اینکه آیا این بخش قبلا آزمون داشته یا نه
     const existingQuiz = await db.quiz.findUnique({

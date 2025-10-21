@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { QuestionType } from "@prisma/client";
+import { QuestionType, Role } from "@prisma/client"; // ۱. Role را وارد کنید
 
 export async function POST(
   req: NextRequest,
@@ -20,12 +20,20 @@ export async function POST(
     const { learningPathId, sectionId } = await context.params;
     const { text, type = QuestionType.SINGLE_CHOICE } = await req.json();
 
-    const courseOwner = await db.learningPath.findUnique({
-      where: { id: learningPathId, userId: session.user.id },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
-    if (!courseOwner) {
+    if (!learningPath) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
+    // ===== پایان الگوی جدید بررسی دسترسی =====
 
     const quiz = await db.quiz.findUnique({ where: { sectionId } });
     if (!quiz) {
@@ -46,8 +54,7 @@ export async function POST(
     } else if (type === QuestionType.FILL_IN_THE_BLANK) {
       optionsToCreate = [{ text: "", isCorrect: true }];
     }
-    // برای سوال تشریحی (ESSAY) یا پاسخ صوتی (AUDIO_RESPONSE)، آرایه optionsToCreate خالی می‌ماند.
-
+    
     const question = await db.question.create({
       data: {
         text,

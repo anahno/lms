@@ -5,10 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Role } from "@prisma/client"; // ۱. Role را وارد کنید
 
 export async function POST(
   req: NextRequest,
-  // --- تغییر در اینجا ---
   context: { params: Promise<{ learningPathId: string }> }
 ) {
   try {
@@ -17,37 +17,35 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // --- و تغییر در اینجا (اضافه شدن await) ---
     const { learningPathId } = await context.params;
     const { title, levelId } = await req.json();
 
-    if (!title) {
-        return new NextResponse("Title is required", { status: 400 });
-    }
-    if (!levelId) {
-        return new NextResponse("Level ID is required", { status: 400 });
+    if (!title || !levelId) {
+        return new NextResponse("Title and Level ID are required", { status: 400 });
     }
 
-    // بررسی مالکیت مسیر یادگیری والد
-    const courseOwner = await db.learningPath.findUnique({
-      where: { id: learningPathId, userId: session.user.id },
+    // ===== شروع تغییرات کلیدی =====
+
+    // مرحله ۱: دوره را بدون چک کردن مالکیت پیدا کن
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
-    if (!courseOwner) {
+    if (!learningPath) {
+        return new NextResponse("Not Found", { status: 404 });
+    }
+
+    // مرحله ۲: دسترسی را چک کن (مالک یا ادمین)
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+
+    if (!isOwner && !isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
+    
+    // ===== پایان تغییرات کلیدی =====
 
-    // بررسی اضافه: اطمینان از اینکه levelId متعلق به همین مسیر یادگیری است
-    const levelOwner = await db.level.findUnique({
-        where: {
-            id: levelId,
-            learningPathId: learningPathId,
-        }
-    });
-    if (!levelOwner) {
-        return new NextResponse("Level not found in this learning path", { status: 404 });
-    }
 
-    // آخرین فصل را در *سطح مشخص شده* پیدا می‌کنیم
+    // مرحله ۳: اگر دسترسی مجاز بود، عملیات را ادامه بده
     const lastChapter = await db.chapter.findFirst({
       where: { levelId: levelId }, 
       orderBy: { position: "desc" },
@@ -55,7 +53,6 @@ export async function POST(
     
     const newPosition = lastChapter ? lastChapter.position + 1 : 1;
 
-    // فصل را با levelId ایجاد می‌کنیم
     const chapter = await db.chapter.create({
       data: {
         title,

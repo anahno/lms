@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Role } from "@prisma/client"; // ۱. Role را وارد کنید
 
 // تابع برای ویرایش (مثلا تغییر عنوان)
 export async function PATCH(
@@ -20,17 +21,18 @@ export async function PATCH(
     const { learningPathId, levelId } = await context.params;
     const values = await req.json();
 
-    // بررسی مالکیت
-    const learningPathOwner = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-        userId: session.user.id,
-      },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+        where: { id: learningPathId },
     });
-    if (!learningPathOwner) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
+    if (!learningPath) return new NextResponse("Not Found", { status: 404 });
 
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
+    // ===== پایان الگوی جدید بررسی دسترسی =====
+
+    // اجرای عملیات ویرایش
     const updatedLevel = await db.level.update({
       where: {
         id: levelId,
@@ -62,18 +64,18 @@ export async function DELETE(
 
     const { learningPathId, levelId } = await context.params;
     
-    // بررسی مالکیت
-    const learningPathOwner = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-        userId: session.user.id
-      },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+        where: { id: learningPathId },
     });
-    if (!learningPathOwner) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
+    if (!learningPath) return new NextResponse("Not Found", { status: 404 });
+
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
+    // ===== پایان الگوی جدید بررسی دسترسی =====
     
-    // حذف سطح
+    // اجرای عملیات حذف
     const deletedLevel = await db.level.delete({
       where: {
         id: levelId,

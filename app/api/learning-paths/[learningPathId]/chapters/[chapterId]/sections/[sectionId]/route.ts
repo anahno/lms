@@ -5,11 +5,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Role } from "@prisma/client"; // ۱. Role را وارد کنید
 
 // تابع برای ویرایش جزئیات بخش
 export async function PATCH(
   req: NextRequest,
-  // --- تغییر در اینجا ---
   context: { params: Promise<{ learningPathId: string; chapterId: string; sectionId: string }> }
 ) {
   try {
@@ -18,21 +18,22 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // --- و تغییر در اینجا (اضافه شدن await) ---
     const { learningPathId, chapterId, sectionId } = await context.params;
     const values = await req.json();
 
-    // بقیه کد بدون تغییر
-    const learningPathOwner = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-        userId: session.user.id,
-      },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+        where: { id: learningPathId },
     });
-    if (!learningPathOwner) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
+    if (!learningPath) return new NextResponse("Not Found", { status: 404 });
 
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
+    // ===== پایان الگوی جدید بررسی دسترسی =====
+
+
+    // اجرای عملیات ویرایش
     const updatedSection = await db.section.update({
       where: {
         id: sectionId,
@@ -54,7 +55,6 @@ export async function PATCH(
 // تابع برای حذف بخش
 export async function DELETE(
   req: NextRequest,
-  // --- تغییر در اینجا ---
   context: { params: Promise<{ learningPathId: string; chapterId: string; sectionId: string }> }
 ) {
   try {
@@ -63,20 +63,20 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // --- و تغییر در اینجا (اضافه شدن await) ---
     const { learningPathId, chapterId, sectionId } = await context.params;
     
-    // بقیه کد بدون تغییر
-    const learningPathOwner = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-        userId: session.user.id
-      },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+        where: { id: learningPathId },
     });
-    if (!learningPathOwner) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
+    if (!learningPath) return new NextResponse("Not Found", { status: 404 });
+
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
+    // ===== پایان الگوی جدید بررسی دسترسی =====
     
+    // اجرای عملیات حذف
     const deletedSection = await db.section.delete({
       where: {
         id: sectionId,

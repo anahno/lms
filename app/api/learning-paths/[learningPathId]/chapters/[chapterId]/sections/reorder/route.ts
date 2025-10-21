@@ -5,10 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Role } from "@prisma/client"; // ۱. Role را وارد کنید
 
 export async function PUT(
   req: NextRequest,
-  // --- تغییر در اینجا ---
   context: { params: Promise<{ learningPathId: string; chapterId: string }> }
 ) {
   try {
@@ -17,21 +17,23 @@ export async function PUT(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // --- و تغییر در اینجا (اضافه شدن await) ---
-    // chapterId برای احراز هویت لازم نیست، فقط learningPathId کافی است
     const { learningPathId } = await context.params; 
     const { list } = await req.json();
 
-    // بررسی مالکیت
-    const learningPathOwner = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-        userId: session.user.id,
-      },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
-    if (!learningPathOwner) {
+    if (!learningPath) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+    if (!isOwner && !isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
+    // ===== پایان الگوی جدید بررسی دسترسی =====
     
     // به‌روزرسانی همزمان همه position ها در یک تراکنش
     const transaction = list.map((item: { id: string; position: number }) =>

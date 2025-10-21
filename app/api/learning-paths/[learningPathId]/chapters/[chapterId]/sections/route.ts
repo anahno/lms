@@ -5,10 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Role } from "@prisma/client"; // ۱. Role را وارد کنید
 
 export async function POST(
   req: NextRequest,
-  // --- تغییر در اینجا ---
   context: { params: Promise<{ learningPathId: string; chapterId: string }> }
 ) {
   try {
@@ -17,7 +17,6 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // --- و تغییر در اینجا (اضافه شدن await) ---
     const { learningPathId, chapterId } = await context.params;
     const { title } = await req.json();
 
@@ -25,35 +24,41 @@ export async function POST(
         return new NextResponse("Title is required", { status: 400 });
     }
 
-    // بررسی مالکیت مسیر یادگیری
-    const learningPathOwner = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-        userId: session.user.id,
-      },
+    // ===== شروع الگوی جدید بررسی دسترسی =====
+    const learningPath = await db.learningPath.findUnique({
+      where: { id: learningPathId },
     });
-    if (!learningPathOwner) {
+
+    if (!learningPath) {
+      return new NextResponse("Learning Path not found", { status: 404 });
+    }
+
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+
+    if (!isOwner && !isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
+    // ===== پایان الگوی جدید بررسی دسترسی =====
+
     
-    // اطمینان از اینکه فصل مورد نظر وجود دارد
+    // اطمینان از اینکه فصل مورد نظر وجود دارد و متعلق به همین دوره است
     const chapter = await db.chapter.findUnique({
         where: {
             id: chapterId,
+            level: {
+                learningPathId: learningPathId,
+            }
         }
     });
     if (!chapter) {
-        return new NextResponse("Chapter not found", { status: 404 });
+        return new NextResponse("Chapter not found in this course", { status: 404 });
     }
 
     // پیدا کردن آخرین بخش برای تعیین position جدید
     const lastSection = await db.section.findFirst({
-      where: {
-        chapterId: chapterId,
-      },
-      orderBy: {
-        position: "desc",
-      },
+      where: { chapterId: chapterId },
+      orderBy: { position: "desc" },
     });
 
     const newPosition = lastSection ? lastSection.position + 1 : 1;
