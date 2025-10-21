@@ -1,12 +1,12 @@
 // فایل: app/api/learning-paths/[learningPathId]/route.ts
 
 import { db } from "@/lib/db";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth"; // <-- مطمئن شوید مسیر درست است
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { Role } from "@prisma/client"; // ۱. Role را ایمپورت کنید
+import { Role } from "@prisma/client";
 
-// تابع DELETE (این تابع از قبل صحیح بود، اما برای کامل بودن اینجا آورده شده)
+// تابع DELETE (برای یکپارچگی، این را هم اصلاح می‌کنیم)
 export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ learningPathId: string }> }
@@ -19,22 +19,24 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // بررسی مالکیت برای حذف
     const learningPath = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-        userId: session.user.id,
-      },
+      where: { id: learningPathId },
     });
 
     if (!learningPath) {
-      return new NextResponse("Not found or Forbidden", { status: 404 });
+      return new NextResponse("Not found", { status: 404 });
+    }
+
+    // منطق دسترسی جدید: یا مالک باش یا ادمین
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = session.user.role === Role.ADMIN;
+
+    if (!isOwner && !isAdmin) {
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     const deletedLearningPath = await db.learningPath.delete({
-      where: {
-        id: learningPathId,
-      },
+      where: { id: learningPathId },
     });
 
     return NextResponse.json(deletedLearningPath);
@@ -45,7 +47,7 @@ export async function DELETE(
 }
 
 
-// --- تابع PATCH (این بخش اصلی مشکل است و اصلاح شده) ---
+// تابع PATCH (این بخش اصلی مشکل است و اصلاح شده)
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ learningPathId: string }> }
@@ -59,35 +61,27 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // ۲. ابتدا دوره مورد نظر را پیدا می‌کنیم
     const learningPath = await db.learningPath.findUnique({
-      where: {
-        id: learningPathId,
-      },
+      where: { id: learningPathId },
     });
 
     if (!learningPath) {
       return new NextResponse("Not Found", { status: 404 });
     }
 
-    // ۳. منطق دسترسی جدید:
-    // کاربر یا باید ادمین باشد، یا باید مالک (استاد) این دوره باشد.
-    const userRole = (session.user as { role: Role }).role;
+    // ===== شروع تغییرات کلیدی در منطق دسترسی =====
     const isOwner = learningPath.userId === session.user.id;
-    const isAdmin = userRole === Role.ADMIN;
+    const isAdmin = session.user.role === Role.ADMIN;
 
+    // اگر کاربر نه مالک دوره بود و نه ادمین، دسترسی را رد کن
     if (!isOwner && !isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
+    // ===== پایان تغییرات کلیدی =====
 
-    // ۴. اگر دسترسی مجاز بود، دوره را به‌روزرسانی کن
     const updatedLearningPath = await db.learningPath.update({
-      where: {
-        id: learningPathId,
-      },
-      data: {
-        ...values,
-      },
+      where: { id: learningPathId },
+      data: { ...values },
     });
 
     return NextResponse.json(updatedLearningPath);

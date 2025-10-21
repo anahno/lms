@@ -2,7 +2,6 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { redirect } from "next/navigation";
 import {
   Table,
   TableBody,

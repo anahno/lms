@@ -85,6 +85,8 @@ model User {
   image         String?
   password      String?
   role          Role      @default(USER)
+  bio           String?   @db.Text // <-- این فیلد جدید را اضافه کنید
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

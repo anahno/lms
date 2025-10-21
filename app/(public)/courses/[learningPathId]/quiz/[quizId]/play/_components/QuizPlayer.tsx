@@ -73,7 +73,6 @@ export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
         toast.success("آزمون شما برای بررسی ثبت شد!");
         router.push(`/courses/${learningPathId}/quiz/${quiz.id}`);
         router.refresh();
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
 
       } catch  {
         toast.error("مشکلی در ثبت آزمون پیش آمد.");

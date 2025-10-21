@@ -70,16 +70,20 @@ export default async function CourseLandingPage({
           )}
 
           {/* اطلاعات مدرس و دسته‌بندی */}
-          <div className="flex items-center gap-x-6 text-sm text-slate-700">
-            <div className="flex items-center gap-x-2">
-              <User className="h-5 w-5" />
-              <span>مدرس: {course.user.name || "ناشناس"}</span>
-            </div>
-            <div className="flex items-center gap-x-2">
-              <Layers className="h-5 w-5" />
-              <span>دسته‌بندی: {course.category?.name || "عمومی"}</span>
-            </div>
-          </div>
+<div className="flex items-center gap-x-6 text-sm text-slate-700">
+  <div className="flex items-center gap-x-2">
+    <User className="h-5 w-5" />
+    {/* --- شروع تغییر --- */}
+    <Link href={`/instructors/${course.user.id}`} className="hover:underline hover:text-sky-700">
+        <span>مدرس: {course.user.name || "ناشناس"}</span>
+    </Link>
+    {/* --- پایان تغییر --- */}
+  </div>
+  <div className="flex items-center gap-x-2">
+    <Layers className="h-5 w-5" />
+    <span>دسته‌بندی: {course.category?.name || "عمومی"}</span>
+  </div>
+</div>
           {/* --- بخش جدید: نمایش فایل صوتی معرفی --- */}
           {course.introAudioUrl && (
             <section>
