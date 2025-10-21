@@ -1,31 +1,30 @@
 // فایل: middleware.ts
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { Role } from "@prisma/client"; // ۱. Role را از پریزما ایمپورت کنید
 
 export default withAuth(
   function middleware(req) {
     const { token } = req.nextauth;
     const { pathname } = req.nextUrl;
 
-    const userRole = token?.role;
+    const userRole = token?.role as Role; // ۲. نقش کاربر را با تایپ مشخص دریافت کنید
 
     // مسیرهایی که فقط ادمین به آنها دسترسی دارد
-    const adminOnlyPaths = ["/categories"];
+    const adminOnlyPaths = ["/categories", "/admin"]; // ۳. مسیر /admin را اضافه کنید
     
-    // ۱. اگر کاربر یک استاد است و تلاش می‌کند به مسیرهای فقط-ادمین برود
-    if (userRole === "INSTRUCTOR" && adminOnlyPaths.some(p => pathname.startsWith(p))) {
+    // اگر کاربر ادمین نیست و تلاش می‌کند به مسیرهای ادمین برود
+    if (userRole !== "ADMIN" && adminOnlyPaths.some(p => pathname.startsWith(p))) {
       // او را به داشبورد خودش هدایت کن
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
     
-    // ۲. اگر کاربر یک دانشجو (USER) است و تلاش می‌کند به هرکدام از صفحات مدیریتی برود
-    const protectedPaths = ["/dashboard", "/learning-paths", "/categories", "/grading", "/browse-courses"];
+    // اگر کاربر یک دانشجو (USER) است و تلاش می‌کند به هرکدام از صفحات مدیریتی برود
+    const protectedPaths = ["/dashboard", "/learning-paths", "/categories", "/grading", "/browse-courses", "/admin"];
     if (userRole === "USER" && protectedPaths.some(p => pathname.startsWith(p))) {
-       // او را به داشبورد دانشجو هدایت کن
        return NextResponse.redirect(new URL("/my-courses", req.url));
      }
 
-    // در غیر این صورت، اجازه دسترسی بده
     return NextResponse.next();
   },
   {
@@ -36,14 +35,13 @@ export default withAuth(
 );
 
 export const config = {
-  // --- matcher جدید و دقیق‌تر برای محافظت از مسیرهای پنل مدیریت ---
   matcher: [
     "/dashboard/:path*",
     "/learning-paths/:path*",
     "/categories/:path*",
     "/grading/:path*",
     "/browse-courses/:path*",
-        "/qa-center/:path*", // <-- مسیر جدید را اضافه کنید
-
+    "/qa-center/:path*",
+    "/admin/:path*", // ۴. مسیر جدید را به matcher اضافه کنید
   ],
 };
