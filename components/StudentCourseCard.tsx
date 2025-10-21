@@ -25,7 +25,6 @@ export const StudentCourseCard = ({
 }: StudentCourseCardProps) => {
   return (
     <div className="relative group h-full">
-      {/* --- تغییر در اینجا: کلاس‌های border و border-slate-200 اضافه شد --- */}
       <div className="inner-curve h-full rounded-2xl p-6 flex flex-col drop-shadow-lg transition-all duration-300 hover:drop-shadow-xl border border-slate-200">
         <div className="flex flex-col items-center text-center flex-grow">
           <div className="w-full aspect-video relative mb-4">
@@ -53,16 +52,18 @@ export const StudentCourseCard = ({
           </div>
         </div>
         
+        {/* +++ شروع اصلاح خطا +++ */}
+        {/* تگ a داخلی حذف شده و Button مستقیماً داخل Link قرار گرفته است */}
         <div className="mt-4 flex justify-center border-t pt-4">
-            <Link href={`/my-courses/${id}/results`} legacyBehavior>
-                <a className="w-full">
-                    <Button variant="outline" size="sm" className="w-full">
-                        <BarChart2 className="h-4 w-4 ml-2" />
-                        مشاهده نمرات و آمار
-                    </Button>
-                </a>
+            <Link href={`/my-courses/${id}/results`} className="w-full">
+                <Button variant="outline" size="sm" className="w-full">
+                    <BarChart2 className="h-4 w-4 ml-2" />
+                    مشاهده نمرات و آمار
+                </Button>
             </Link>
         </div>
+        {/* +++ پایان اصلاح خطا +++ */}
+
 
         <div className="h-10 w-full shrink-0"></div>
       </div>

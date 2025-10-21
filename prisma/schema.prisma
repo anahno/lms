@@ -85,8 +85,12 @@ model User {
   image         String?
   password      String?
   role          Role      @default(USER)
-  bio           String?   @db.Text // <-- این فیلد جدید را اضافه کنید
-
+  bio           String?   @db.Text 
+    // +++ شروع تغییرات جدید برای گیمیفیکیشن +++
+  experiencePoints Int    @default(0) // امتیاز تجربه (XP)
+  level            Int    @default(1) // سطح کاربر
+  badges           UserBadge[] // لیستی از نشان‌هایی که کاربر دریافت کرده
+  // +++ پایان تغییرات جدید +++
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -335,3 +339,29 @@ model Discussion {
   parent    Discussion?  @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Discussion[] @relation("Replies")
 }
+// +++ شروع مدل‌های جدید برای گیمیفیکیشن +++
+
+// مدل اصلی برای تعریف هر نشان
+model Badge {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  imageUrl    String   // آدرس تصویر یا آیکون نشان
+
+  users       UserBadge[] // کاربرانی که این نشان را دارند
+  createdAt   DateTime @default(now())
+}
+
+// مدل واسط برای اتصال کاربر و نشان
+model UserBadge {
+  userId    String
+  badgeId   String
+  awardedAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeId]) // کلید اصلی ترکیبی
+}
+
+// +++ پایان مدل‌های جدید +++

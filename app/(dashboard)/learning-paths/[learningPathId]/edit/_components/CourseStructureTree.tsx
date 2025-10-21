@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import { Layers, FolderOpen, FileText, Circle } from "lucide-react";
 
 type LearningPathWithFullStructure = Prisma.LearningPathGetPayload<{

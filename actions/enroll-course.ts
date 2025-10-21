@@ -6,6 +6,9 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
+// +++ ۱. اکشن بررسی نشان‌ها را وارد می‌کنیم +++
+import { checkAndAwardBadges } from "./gamification-actions";
+
 export const enrollInCourse = async (learningPathId: string) => {
   try {
     const session = await getServerSession(authOptions);
@@ -18,9 +21,6 @@ export const enrollInCourse = async (learningPathId: string) => {
     const learningPath = await db.learningPath.findUnique({
       where: {
         id: learningPathId,
-        // --- تغییر کلیدی در اینجا ---
-        // ما دیگر نمی‌توانیم isPublished را در where یک findUnique استفاده کنیم.
-        // ابتدا دوره را پیدا می‌کنیم و سپس وضعیت آن را چک می‌کنیم.
       },
     });
 
@@ -50,6 +50,9 @@ export const enrollInCourse = async (learningPathId: string) => {
         learningPathId,
       },
     });
+
+    // +++ ۲. پس از ثبت‌نام موفق، شرایط دریافت نشان‌ها را بررسی می‌کنیم +++
+    await checkAndAwardBadges(userId);
 
     // ۵. revalidate کردن صفحات مرتبط برای نمایش تغییرات
     revalidatePath(`/courses`);

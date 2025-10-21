@@ -6,12 +6,15 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-// ۱. --- تغییر نام تابع و پارامترها ---
-// chapterId به sectionId تغییر کرده است
+import { grantExperiencePoints } from "./gamification-actions";
+import { XP_EVENTS } from "@/lib/gamification-rules";
+
+
 export const toggleSectionCompletion = async (
   sectionId: string,
-  learningPathId: string, // این را برای revalidate کردن مسیر نیاز داریم
-  isCompleted: boolean
+  learningPathId: string,
+  // این پراپرتی به ما وضعیت "قبل" از کلیک را می‌دهد
+  isCompleted: boolean 
 ) => {
   try {
     const session = await getServerSession(authOptions);
@@ -20,12 +23,20 @@ export const toggleSectionCompletion = async (
     }
     const userId = session.user.id;
 
-    // ۲. --- تغییر کلیدی در اینجا ---
-    // از upsert برای ایجاد یا به‌روزرسانی پیشرفت "بخش" استفاده می‌کنیم.
-    // کلید منحصر به فرد حالا userId_sectionId است.
+    // +++ شروع تغییر اصلی +++
+
+    // ما فقط زمانی امتیاز می‌دهیم که کاربر در حال تغییر وضعیت از "تکمیل نشده" به "تکمیل شده" باشد.
+    // یعنی isCompleted (وضعیت قبلی) باید false باشد.
+    if (!isCompleted) {
+      // این تابع را به صورت async فراخوانی می‌کنیم ولی منتظر جوابش نمی‌مانیم
+      // تا کاربر منتظر پردازش امتیازدهی نماند.
+      grantExperiencePoints(userId, XP_EVENTS.COMPLETE_SECTION);
+    }
+
+    // عملیات دیتابیس برای تغییر وضعیت همیشه انجام می‌شود
     await db.userProgress.upsert({
       where: {
-        userId_sectionId: { // استفاده از کلید ترکیبی جدید
+        userId_sectionId: {
           userId,
           sectionId,
         },
@@ -35,18 +46,14 @@ export const toggleSectionCompletion = async (
       },
       create: {
         userId,
-        sectionId, // ذخیره sectionId به جای chapterId
-        isCompleted: true,
+        sectionId,
+        isCompleted: true, // در زمان ایجاد، همیشه true است
       },
     });
-
-    // ۳. --- به‌روزرسانی revalidatePath ---
-    // باید مسیر صفحه دوره دانشجو را revalidate کنیم تا پیشرفت جدید نمایش داده شود.
-    // آدرس این صفحه را باید متناسب با ساختار جدیدتان تنظیم کنید.
-    // فرض می‌کنیم که ساختار URL برای مشاهده دوره به شکل زیر است:
-    // /courses/[learningPathId]/sections/[sectionId]
-    // اگر ساختار دیگری دارید، این آدرس را تغییر دهید.
-    revalidatePath(`/courses/${learningPathId}`); // revalidate کردن کل دوره
+    
+    // +++ پایان تغییر اصلی +++
+    
+    revalidatePath(`/courses/${learningPathId}`);
     
     return { success: true };
 

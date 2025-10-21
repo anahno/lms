@@ -6,6 +6,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+// +++ ۱. اکشن‌های گیمیفیکیشن و قوانین را وارد می‌کنیم +++
+import { grantExperiencePoints, checkAndAwardBadges } from "./gamification-actions";
+import { XP_EVENTS } from "@/lib/gamification-rules";
+
 // نوع داده خروجی برای استفاده در کلاینت
 export type DiscussionWithReplies = Awaited<ReturnType<typeof getDiscussionsForSection>>[0];
 
@@ -21,6 +25,7 @@ export const postQuestionOrReply = async (
   if (!session?.user?.id) {
     return { error: "برای ارسال پیام باید وارد شوید." };
   }
+  const userId = session.user.id;
 
   if (!content.trim()) {
     return { error: "متن پیام نمی‌تواند خالی باشد." };
@@ -32,9 +37,15 @@ export const postQuestionOrReply = async (
         content,
         sectionId,
         parentId,
-        userId: session.user.id,
+        userId: userId,
       },
     });
+
+    // +++ ۲. اگر این یک سوال جدید بود (نه پاسخ)، امتیاز می‌دهیم و نشان‌ها را چک می‌کنیم +++
+    if (!parentId) {
+      await grantExperiencePoints(userId, XP_EVENTS.ASK_QUESTION); // امتیاز برای پرسیدن سوال
+      await checkAndAwardBadges(userId); // بررسی شرایط برای نشان "کنجکاو"
+    }
 
     // Revalidate صفحه دوره برای نمایش فوری پیام جدید
     const section = await db.section.findUnique({

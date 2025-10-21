@@ -9,6 +9,9 @@ import { ProfileForm } from "./_components/ProfileForm";
 import { PasswordForm } from "./_components/PasswordForm";
 import { Role } from "@prisma/client";
 
+// +++ ۱. کامپوننت جدید را وارد کنید +++
+import { GamificationCard } from "./_components/GamificationCard";
+
 export default async function MyAccountPage() {
   const session = await getServerSession(authOptions);
 
@@ -16,17 +19,27 @@ export default async function MyAccountPage() {
     return redirect("/login");
   }
 
+  // +++ ۲. کوئری را برای دریافت اطلاعات نشان‌ها به‌روز کنید +++
   const user = await db.user.findUnique({
     where: {
       id: session.user.id,
     },
+    include: {
+        badges: {
+            include: {
+                badge: true,
+            },
+            orderBy: {
+                awardedAt: 'desc'
+            }
+        }
+    }
   });
 
   if (!user) {
     return redirect("/login");
   }
   
-  // بررسی می‌کنیم که آیا کاربر رمز عبور دارد (یعنی با گوگل وارد نشده)
   const isCredentialsUser = !!user.password;
   const isInstructor = user.role === Role.INSTRUCTOR;
 
@@ -35,10 +48,11 @@ export default async function MyAccountPage() {
       <h1 className="text-3xl font-bold mb-8">مدیریت حساب کاربری</h1>
       
       <div className="space-y-8">
-        {/* کامپوننت فرم پروفایل */}
+        {/* +++ ۳. کامپوننت گیمیفیکیشن را اینجا اضافه کنید +++ */}
+        <GamificationCard user={user} />
+        
         <ProfileForm initialData={user} isInstructor={isInstructor} />
         
-        {/* فرم تغییر رمز عبور فقط برای کاربرانی که رمز عبور دارند نمایش داده می‌شود */}
         {isCredentialsUser && <PasswordForm />}
       </div>
     </div>

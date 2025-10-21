@@ -55,7 +55,39 @@ async function main() {
       ],
     });
     console.log("زیرمجموعه‌های نرم‌افزار ایجاد شدند.");
-
+ // +++ شروع کد جدید برای ایجاد نشان‌ها +++
+    await db.badge.createMany({
+      data: [
+        {
+          name: "دانشجوی تازه‌وارد",
+          description: "برای ثبت‌نام در اولین دوره خود",
+          imageUrl: "/badges/first-enrollment.png", // <--- تغییر به .png
+        },
+        {
+          name: "شروع قدرتمند",
+          description: "برای تکمیل اولین درس خود",
+          imageUrl: "/badges/first-section.png", // <--- تغییر به .png
+        },
+        {
+          name: "کنجکاو",
+          description: "برای پرسیدن اولین سوال خود",
+          imageUrl: "/badges/first-question.png", // <--- تغییر به .png
+        },
+        {
+          name: "کوشا",
+          description: "برای تکمیل ۱۰ درس",
+          imageUrl: "/badges/ten-sections.png", // <--- تغییر به .png
+        },
+        {
+          name: "فارغ‌التحصیل",
+          description: "برای تکمیل اولین دوره خود به طور کامل",
+          imageUrl: "/badges/first-course.png", // <--- تغییر به .png
+        },
+      ],
+      skipDuplicates: true,
+    });
+    console.log("نشان‌های اولیه با موفقیت ایجاد شدند.");
+    // +++ پایان کد جدید +++
     console.log("عملیات Seed با موفقیت به پایان رسید.");
 
   } catch (error) {
