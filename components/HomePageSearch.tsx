@@ -13,6 +13,7 @@ export const HomePageSearch = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
+      // این خط به درستی کار می‌کند
       router.push(`/courses?search=${searchTerm.trim()}`);
     }
   };

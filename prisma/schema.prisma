@@ -95,7 +95,12 @@ model User {
     discussions Discussion[] 
 
 }
-
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ALL_LEVELS
+}
 model LearningPath {
   id               String       @id @default(cuid())
   title            String
@@ -105,6 +110,8 @@ model LearningPath {
   whatYouWillLearn String[]     @default([])
   requirements     String[]     @default([])
   price            Float?
+  level            CourseLevel? @default(ALL_LEVELS)
+
   introAudioUrl    String?      @db.Text
   status           CourseStatus @default(DRAFT)
   

@@ -3,49 +3,12 @@
 import { db } from "@/lib/db";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getServerSession } from "next-auth";
-// --- ۱. ایمپورت NextRequest و NextResponse ---
 import { NextRequest, NextResponse } from "next/server";
+import { Role } from "@prisma/client"; // ۱. Role را ایمپورت کنید
 
-// ... (تابع DELETE شما اگر وجود دارد، می‌تواند به همین شکل اصلاح شود) ...
-
-export async function PATCH(
-  // --- ۲. استفاده از NextRequest و context ---
-  req: NextRequest,
-  context: { params: Promise<{ learningPathId: string }> }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    // --- ۳. Await کردن params برای استخراج مقادیر ---
-    const { learningPathId } = await context.params;
-    const values = await req.json();
-
-    if (!session?.user?.id || session.user.role !== "ADMIN") {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
-
-    const learningPath = await db.learningPath.update({
-      where: {
-        id: learningPathId,
-        //userId: session.user.id, // می‌توانید این شرط را برای امنیت بیشتر فعال نگه دارید
-      },
-      data: {
-        ...values,
-      },
-      // این include برای اطمینان از صحت ساختار است
-      include: {
-        levels: true,
-      }
-    });
-
-    return NextResponse.json(learningPath);
-  } catch (error) {
-    console.log("[LEARNING_PATH_ID_PATCH]", error);
-    return new NextResponse("Internal Error", { status: 500 });
-  }
-}
-
+// تابع DELETE (این تابع از قبل صحیح بود، اما برای کامل بودن اینجا آورده شده)
 export async function DELETE(
-  req: NextRequest, // برای هماهنگی، این را هم اصلاح کنید
+  req: NextRequest,
   context: { params: Promise<{ learningPathId: string }> }
 ) {
   try {
@@ -56,6 +19,7 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    // بررسی مالکیت برای حذف
     const learningPath = await db.learningPath.findUnique({
       where: {
         id: learningPathId,
@@ -64,10 +28,8 @@ export async function DELETE(
     });
 
     if (!learningPath) {
-      return new NextResponse("Not found", { status: 404 });
+      return new NextResponse("Not found or Forbidden", { status: 404 });
     }
-
-    // اینجا می‌توانید منطق مربوط به حذف فایل‌ها از S3 یا فضاهای دیگر را اضافه کنید
 
     const deletedLearningPath = await db.learningPath.delete({
       where: {
@@ -78,6 +40,59 @@ export async function DELETE(
     return NextResponse.json(deletedLearningPath);
   } catch (error) {
     console.log("[LEARNING_PATH_ID_DELETE]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}
+
+
+// --- تابع PATCH (این بخش اصلی مشکل است و اصلاح شده) ---
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ learningPathId: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const { learningPathId } = await context.params;
+    const values = await req.json();
+
+    if (!session?.user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    // ۲. ابتدا دوره مورد نظر را پیدا می‌کنیم
+    const learningPath = await db.learningPath.findUnique({
+      where: {
+        id: learningPathId,
+      },
+    });
+
+    if (!learningPath) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+
+    // ۳. منطق دسترسی جدید:
+    // کاربر یا باید ادمین باشد، یا باید مالک (استاد) این دوره باشد.
+    const userRole = (session.user as { role: Role }).role;
+    const isOwner = learningPath.userId === session.user.id;
+    const isAdmin = userRole === Role.ADMIN;
+
+    if (!isOwner && !isAdmin) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    // ۴. اگر دسترسی مجاز بود، دوره را به‌روزرسانی کن
+    const updatedLearningPath = await db.learningPath.update({
+      where: {
+        id: learningPathId,
+      },
+      data: {
+        ...values,
+      },
+    });
+
+    return NextResponse.json(updatedLearningPath);
+  } catch (error) {
+    console.log("[LEARNING_PATH_ID_PATCH]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
