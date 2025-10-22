@@ -8,6 +8,13 @@ import { authOptions } from "@/lib/auth";
 import { getProgress } from "@/actions/get-progress";
 import { CoursePlayerLayout } from "../../../_components/CoursePlayerLayout";
 
+// +++ ۱. یک تایپ جدید برای داده‌های Breadcrumb تعریف می‌کنیم +++
+export type BreadcrumbData = {
+  courseTitle: string;
+  chapterTitle: string;
+  sectionTitle: string;
+};
+
 export default async function CourseSectionLayout({
   children,
   params,
@@ -19,12 +26,9 @@ export default async function CourseSectionLayout({
   if (!session?.user?.id) return redirect("/login");
 
   const resolvedParams = await params;
-  const { learningPathId } = resolvedParams;
+  const { learningPathId, sectionId } = resolvedParams; // sectionId را اینجا نیاز داریم
   const userId = session.user.id;
 
-  // --- شروع تغییرات کلیدی برای دسترسی ادمین ---
-
-  // ۱. ابتدا خود دوره را واکشی می‌کنیم تا مالک آن را پیدا کنیم
   const learningPathData = await db.learningPath.findUnique({
     where: { 
       id: learningPathId 
@@ -42,8 +46,7 @@ export default async function CourseSectionLayout({
                 orderBy: { position: "asc" },
                 include: {
                   progress: { where: { userId: userId } },
-                                    quiz: true, // <-- این خط را اضافه کنید تا اطلاعات آزمون واکشی شود
-
+                  quiz: true,
                 },
               },
             },
@@ -55,34 +58,48 @@ export default async function CourseSectionLayout({
 
   if (!learningPathData) return redirect("/");
 
-  // ۲. بررسی می‌کنیم که آیا کاربر فعلی، مالک دوره است؟
+  // ... (کد بررسی مالکیت و ثبت‌نام بدون تغییر باقی می‌ماند) ...
   const isOwner = learningPathData.userId === userId;
-
-  // ۳. اگر مالک نبود، آنگاه وضعیت ثبت‌نام را بررسی می‌کنیم
   if (!isOwner) {
     const enrollment = await db.enrollment.findUnique({
-      where: {
-        userId_learningPathId: {
-          userId,
-          learningPathId,
-        },
-      },
+      where: { userId_learningPathId: { userId, learningPathId } },
     });
-
-    // ۴. اگر مالک نبود و ثبت‌نام هم نکرده بود، او را هدایت می‌کنیم
-    if (!enrollment) {
-      return redirect("/courses");
-    }
+    if (!enrollment) return redirect("/courses");
   }
-  // --- پایان تغییرات کلیدی ---
 
-  // اگر کاربر مالک باشد یا ثبت‌نام کرده باشد، به اینجا می‌رسد
   const progressCount = await getProgress(userId, learningPathData.id);
 
+  // +++ ۲. داده‌های لازم برای Breadcrumb را پیدا می‌کنیم +++
+  let chapterTitle = "";
+  let sectionTitle = "";
+
+  // حلقه‌ای برای پیدا کردن فصل و بخش فعلی
+  for (const level of learningPathData.levels) {
+    for (const chapter of level.chapters) {
+      const section = chapter.sections.find(s => s.id === sectionId);
+      if (section) {
+        chapterTitle = chapter.title;
+        sectionTitle = section.title;
+        break; // بعد از پیدا شدن، از حلقه خارج شو
+      }
+    }
+    if (sectionTitle) break;
+  }
+  
+  const breadcrumbData: BreadcrumbData = {
+    courseTitle: learningPathData.title,
+    chapterTitle,
+    sectionTitle
+  };
+  // +++ پایان بخش واکشی داده‌ها +++
+
+
   return (
+    // +++ ۳. داده‌های Breadcrumb را به CoursePlayerLayout پاس می‌دهیم +++
     <CoursePlayerLayout
       learningPath={learningPathData}
       progressCount={progressCount}
+      breadcrumbData={breadcrumbData} // پراپ جدید
     >
       {children}
     </CoursePlayerLayout>
