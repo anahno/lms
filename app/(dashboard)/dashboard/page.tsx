@@ -1,26 +1,21 @@
 // فایل: app/(dashboard)/dashboard/page.tsx
-import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
+import { Prisma, Role } from "@prisma/client";
+import { 
+    BookCopy, 
+    Activity,
+    MessageSquareWarning
+} from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { db } from "@/lib/db";
+
+import { getDashboardStats } from "@/actions/get-dashboard-stats";
+import { StatCard } from "./_components/StatCard";
+import { CoursesByCategoryChart } from "./_components/CoursesByCategoryChart";
 import { CourseCard } from "@/components/CourseCard";
-import { Prisma, Role, CourseStatus } from "@prisma/client";
-
-// یک دیکشنری برای نمایش عناوین فارسی هر وضعیت
-const statusTitles: Record<CourseStatus, string> = {
-  [CourseStatus.DRAFT]: "پیش‌نویس‌ها",
-  [CourseStatus.PENDING]: "در انتظار تایید",
-  [CourseStatus.PUBLISHED]: "منتشر شده",
-};
-
-// ترتیب نمایش گروه‌ها
-const statusOrder: CourseStatus[] = [
-  CourseStatus.DRAFT,
-  CourseStatus.PENDING,
-  CourseStatus.PUBLISHED,
-];
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -29,100 +24,98 @@ export default async function DashboardPage() {
     return redirect("/login");
   }
 
-  const userRole = (session.user as unknown as { role: Role }).role;
   const userId = session.user.id;
+  const userRole = (session.user as unknown as { role: Role }).role;
+  const isAdmin = userRole === "ADMIN";
 
-  const whereClause: Prisma.LearningPathWhereInput = {};
+  const courseWhereClause: Prisma.LearningPathWhereInput = isAdmin ? {} : { userId };
 
-  // اگر کاربر استاد است، فقط دوره‌های خودش را نشان بده
-  if (userRole === "INSTRUCTOR") {
-    whereClause.userId = userId;
-  }
-  // برای ادمین، whereClause خالی می‌ماند تا همه دوره‌ها نمایش داده شود
-
-  const learningPaths = await db.learningPath.findMany({
-    where: whereClause,
-    include: {
-      user: true, // ۱. اطلاعات استاد (User) را واکشی می‌کنیم
-      category: true, // ۲. اطلاعات دسته‌بندی را برای مرتب‌سازی نیاز داریم
-      levels: {
+  const [stats, learningPaths] = await Promise.all([
+    getDashboardStats(userId, isAdmin),
+    db.learningPath.findMany({
+        where: courseWhereClause,
         include: {
-          chapters: {
-            select: { id: true }
-          }
-        }
-      },
-    },
-    // ۳. دیگر در کوئری مرتب‌سازی نمی‌کنیم، چون منطق پیچیده‌تر است
-  });
-
-  // ۴. گروه‌بندی و مرتب‌سازی دوره‌ها در کد
-  const groupedAndSortedCourses: { [key in CourseStatus]?: typeof learningPaths } = {};
-
-  learningPaths.forEach(path => {
-    if (!groupedAndSortedCourses[path.status]) {
-      groupedAndSortedCourses[path.status] = [];
-    }
-    groupedAndSortedCourses[path.status]!.push(path);
-  });
-
-  // مرتب‌سازی هر گروه بر اساس نام دسته‌بندی
-  for (const status in groupedAndSortedCourses) {
-    groupedAndSortedCourses[status as CourseStatus]?.sort((a, b) => {
-      const categoryA = a.category?.name || "zzzz"; // اگر دسته‌بندی نداشت در آخر قرار بگیرد
-      const categoryB = b.category?.name || "zzzz";
-      return categoryA.localeCompare(categoryB);
-    });
-  }
+          user: true,
+          category: true,
+          levels: {
+            include: { chapters: { select: { id: true } } }
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+    })
+  ]);
 
   const hasAnyCourse = learningPaths.length > 0;
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">مسیرهای یادگیری</h1>
-        <Link href="/learning-paths/create">
-          <Button>+ مسیر یادگیری جدید</Button>
-        </Link>
+    <div className="p-6 space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold">داشبورد</h1>
+        <p className="text-muted-foreground">نمای کلی از وضعیت پلتفرم و فعالیت‌های اخیر</p>
       </div>
 
-      {hasAnyCourse ? (
-        <div className="space-y-10 mt-6">
-          {/* ۵. به ترتیب وضعیت‌ها، گروه‌ها را رندر می‌کنیم */}
-          {statusOrder.map(status => (
-            groupedAndSortedCourses[status] && groupedAndSortedCourses[status]!.length > 0 && (
-              <section key={status}>
-                <h2 className="text-xl font-semibold mb-4 border-r-4 border-sky-500 pr-3">
-                  {statusTitles[status]}
-                </h2>
-                <div className="grid sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-4">
-                  {groupedAndSortedCourses[status]!.map((path) => {
-                    const totalChapters = path.levels.reduce((acc, level) => acc + level.chapters.length, 0);
+      {/* بخش کارت‌های آماری و نمودار در کنار هم */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 flex flex-col gap-y-6">
+            <StatCard 
+                title="نرخ تعامل (هفته گذشته)"
+                value={`${stats.engagementRate.toFixed(1)}%`}
+                icon={Activity}
+                description={`${stats.activeUsersLastWeek.toLocaleString('fa-IR')} کاربر فعال`}
+                variant={stats.engagementRate > 50 ? "success" : (stats.engagementRate > 20 ? "warning" : "danger")}
+            />
+            <StatCard 
+                title="سوالات بی‌پاسخ"
+                value={stats.unansweredQuestions.toLocaleString('fa-IR')}
+                icon={MessageSquareWarning}
+                description="سوالات منتظر پاسخ"
+                variant={stats.unansweredQuestions > 10 ? "danger" : (stats.unansweredQuestions > 0 ? "warning" : "success")}
+            />
+            <StatCard 
+                title="تعداد کل دوره‌ها"
+                value={stats.totalCourses.toLocaleString('fa-IR')}
+                icon={BookCopy}
+                description={`${stats.publishedCourses.toLocaleString('fa-IR')} دوره منتشر شده`}
+            />
+        </div>
+        <div className="lg:col-span-2">
+            <CoursesByCategoryChart data={stats.coursesByCategory} />
+        </div>
+      </div>
 
-                    return (
-                      <CourseCard
-                        key={path.id}
-                        id={path.id}
-                        title={path.title}
-                        imageUrl={path.imageUrl}
-                        chaptersLength={totalChapters}
-                        category={path.category?.name || "بدون دسته‌بندی"}
-                        status={path.status}
-                        // ۶. اطلاعات کامل استاد را به کامپوننت پاس می‌دهیم
-                        instructor={path.user}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
-            )
-          ))}
+      {/* +++ بخش جدید: آخرین دوره‌ها به صورت افقی در پایین صفحه +++ */}
+      <div>
+        <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold">آخرین دوره‌ها</h2>
+            <Link href={isAdmin ? "/browse-courses" : "/dashboard"}>
+                <Button variant="outline">مشاهده همه</Button>
+            </Link>
         </div>
-      ) : (
-        <div className="text-center text-sm text-muted-foreground mt-10">
-          <p>شما هنوز هیچ مسیر یادگیری ایجاد نکرده‌اید.</p>
-        </div>
-      )}
+        {hasAnyCourse ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {learningPaths.slice(0, 3).map(path => {
+                    const totalChapters = path.levels.reduce((acc, level) => acc + level.chapters.length, 0);
+                    return <CourseCard 
+                                key={path.id}
+                                id={path.id}
+                                title={path.title}
+                                imageUrl={path.imageUrl}
+                                chaptersLength={totalChapters}
+                                category={path.category?.name || "بدون دسته‌بندی"}
+                                status={path.status}
+                                instructor={path.user}
+                            />
+                })}
+            </div>
+        ) : (
+            <div className="text-center text-sm text-muted-foreground mt-4 p-12 border-2 border-dashed rounded-lg bg-slate-50">
+                <p>هنوز دوره‌ای ایجاد نکرده‌اید.</p>
+                <Link href="/learning-paths/create">
+                  <Button size="sm" className="mt-4">+ دوره جدید بسازید</Button>
+                </Link>
+            </div>
+        )}
+      </div>
     </div>
   );
 }
