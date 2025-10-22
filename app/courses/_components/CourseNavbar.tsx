@@ -45,7 +45,6 @@ export const CourseNavbar = ({
   };
 
   return (
-    // +++ ۱. ساختار این هدر را دقیقاً شبیه PublicNavbar می‌کنیم +++
     <div className="border-b h-full flex flex-col justify-center bg-white shadow-sm px-4 py-3">
       <div className="flex items-center">
         {children}
@@ -104,8 +103,8 @@ export const CourseNavbar = ({
         </div>
       </div>
       
-      {/* +++ ۲. Breadcrumb با margin-top در زیر بخش اصلی هدر قرار می‌گیرد +++ */}
       <div className="hidden md:flex items-center gap-1 text-xs text-slate-500 mt-2">
+        {/* +++ در اینجا از breadcrumbData.courseId استفاده می‌کنیم +++ */}
         <Link href={`/courses/${breadcrumbData.courseId}`} className="hover:underline">
             {breadcrumbData.courseTitle}
         </Link>
