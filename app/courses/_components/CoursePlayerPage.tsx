@@ -5,9 +5,9 @@ import { useState } from "react";
 import type { LearningPath, Section, UserProgress } from "@prisma/client";
 import { CheckCircle } from "lucide-react";
 import { CourseProgressButton } from "../_components/CourseProgressButton";
-import { DiscussionSection } from "./DiscussionSection"; // <-- خطای شما با اضافه کردن این خط برطرف می‌شود
+import { DiscussionSection } from "./DiscussionSection";
+import { InlineRating } from "./InlineRating";
 
-// تایپ‌ها را برای خوانایی بیشتر اصلاح می‌کنیم
 type EnrichedLearningPath = Pick<
   LearningPath,
   'id' | 'title' | 'subtitle' | 'description' | 'whatYouWillLearn' | 'requirements'
@@ -31,10 +31,10 @@ export function CoursePlayerPage({
   isCompleted,
 }: CoursePlayerPageProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const initialRating = section.progress?.[0]?.rating ?? null;
 
   return (
     <div className="bg-white flex flex-col h-full">
-      {/* ... بخش ویدیو پلیر و تب‌ها ... */}
       <div className="bg-black">
         <div className="relative aspect-video">
           {section.videoUrl ? (
@@ -55,33 +55,46 @@ export function CoursePlayerPage({
 
       <div className="flex-grow overflow-y-auto">
         <div className="border-b border-gray-200 sticky top-0 bg-white z-10">
-          <div className="flex gap-8 px-6">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`py-4 font-medium text-sm relative transition-colors ${
-                activeTab === "overview"
-                  ? "text-gray-900"
-                  : "text-gray-600 hover:text-gray-800"
-              }`}
-            >
-              Overview
-              {activeTab === "overview" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab("qna")}
-              className={`py-4 font-medium text-sm relative transition-colors ${
-                activeTab === "qna"
-                  ? "text-gray-900"
-                  : "text-gray-600 hover:text-gray-800"
-              }`}
-            >
-              پرسش و پاسخ
-              {activeTab === "qna" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />
-              )}
-            </button>
+          <div className="flex justify-between items-center px-6">
+            {/* بخش تب‌ها */}
+            <div className="flex gap-8">
+              <button
+                onClick={() => setActiveTab("overview")}
+                className={`py-4 font-medium text-sm relative transition-colors ${
+                  activeTab === "overview"
+                    ? "text-gray-900"
+                    : "text-gray-600 hover:text-gray-800"
+                }`}
+              >
+                Overview
+                {activeTab === "overview" && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab("qna")}
+                className={`py-4 font-medium text-sm relative transition-colors ${
+                  activeTab === "qna"
+                    ? "text-gray-900"
+                    : "text-gray-600 hover:text-gray-800"
+                }`}
+              >
+                پرسش و پاسخ
+                {activeTab === "qna" && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />
+                )}
+              </button>
+            </div>
+            
+            {/* بخش امتیازدهی (فقط در تب Overview نمایش داده می‌شود) */}
+            {activeTab === "overview" && (
+              <InlineRating 
+                sectionId={section.id}
+                learningPathId={learningPath.id}
+                initialRating={initialRating}
+                isCompleted={isCompleted}
+              />
+            )}
           </div>
         </div>
 
@@ -131,7 +144,6 @@ export function CoursePlayerPage({
         </div>
       </div>
 
-      {/* ... بخش دکمه پیشرفت ... */}
       <div className="mt-auto border-t p-4 bg-white sticky bottom-0">
         <CourseProgressButton
           sectionId={section.id}

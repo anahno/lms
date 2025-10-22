@@ -4,12 +4,14 @@
 import Image from "next/image";
 import { useState } from "react";
 import { Users, Clock, Star, ChevronDown, Loader2 } from "lucide-react";
- import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { getStudentPerformance, StudentPerformance } from "@/actions/get-student-performance";
 import { StudentPerformanceList } from "./StudentPerformanceList";
 import { cn } from "@/lib/utils";
+// +++ ۱. کامپوننت Rating را وارد می‌کنیم +++
+import { Rating } from "@/components/ui/rating";
 
-// تعریف یک نوع دقیق برای پراپس کامپوننت
+// +++ ۲. تایپ را برای شامل شدن امتیازات به‌روز می‌کنیم +++
 type CourseWithDetails = Prisma.LearningPathGetPayload<{
     include: {
         user: true,
@@ -18,7 +20,13 @@ type CourseWithDetails = Prisma.LearningPathGetPayload<{
             include: {
                 chapters: {
                     include: {
-                        sections: { select: { duration: true } }
+                        sections: {
+                            include: {
+                                progress: {
+                                    select: { rating: true }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -36,27 +44,49 @@ const calculateTotalHours = (levels: CourseWithDetails["levels"]): string => {
     const totalSeconds = levels.reduce((total, level) => {
         return total + level.chapters.reduce((chapterTotal, chapter) => {
             return chapterTotal + chapter.sections.reduce((sectionTotal, section) => {
+                // اینجا باید بررسی کنیم که duration وجود دارد یا نه
                 return sectionTotal + (section.duration || 0);
             }, 0);
         }, 0);
     }, 0);
 
     if (totalSeconds === 0) return "۰";
-   // ۱. ابتدا عدد را محاسبه می‌کنیم
    const hoursNumber = totalSeconds / 3600;
-   // ۲. سپس عدد را با فرمت فارسی و یک رقم اعشار به رشته تبدیل می‌کنیم
    return hoursNumber.toLocaleString("fa-IR", {
        minimumFractionDigits: 1,
        maximumFractionDigits: 1,
    });
 };
 
+// +++ ۳. تابع جدید برای محاسبه میانگین امتیاز دوره +++
+const calculateAverageRating = (levels: CourseWithDetails["levels"]): { average: number; count: number } => {
+    const allRatings = levels.flatMap(level =>
+        level.chapters.flatMap(chapter =>
+            chapter.sections.flatMap(section =>
+                section.progress.map(p => p.rating)
+            )
+        )
+    ).filter((r): r is number => r !== null);
+
+    if (allRatings.length === 0) {
+        return { average: 0, count: 0 };
+    }
+
+    const sum = allRatings.reduce((a, b) => a + b, 0);
+    return {
+        average: sum / allRatings.length,
+        count: allRatings.length,
+    };
+};
+
+
 export const CourseListItem = ({ course }: CourseListItemProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
-   const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [studentData, setStudentData] = useState<StudentPerformance[] | null>(null);
 
     const totalHours = calculateTotalHours(course.levels);
+    const { average: averageRating, count: ratingCount } = calculateAverageRating(course.levels);
     const studentCount = course._count.enrollments;
     const instructor = course.user;
 
@@ -66,7 +96,6 @@ export const CourseListItem = ({ course }: CourseListItemProps) => {
            return;
        }
 
-       // اگر برای اولین بار است که باز می‌شود، داده‌ها را واکشی کن
         if (!studentData) {
             setIsLoading(true);
             const data = await getStudentPerformance(course.id);
@@ -127,10 +156,19 @@ export const CourseListItem = ({ course }: CourseListItemProps) => {
                     />
                 </div>
                 <p className="font-bold text-slate-900">{instructor.name || "نامشخص"}</p>
-                <div className="flex items-center gap-x-0.5 mt-1" title="امتیاز استاد (نمایشی)">
-                    {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="h-4 w-4 text-amber-400 fill-amber-400" />
-                    ))}
+                
+                {/* +++ نمایش ستاره‌های واقعی به جای ستاره‌های نمایشی +++ */}
+                <div className="flex flex-col items-center gap-y-1 mt-2" title={`میانگین امتیاز: ${averageRating.toFixed(1)} از ${ratingCount} رای`}>
+                    {ratingCount > 0 ? (
+                        <>
+                            <Rating rating={averageRating} size={20} />
+                            <span className="text-xs text-muted-foreground">
+                                ({ratingCount.toLocaleString('fa-IR')} رای)
+                            </span>
+                        </>
+                    ) : (
+                        <span className="text-xs text-muted-foreground italic">هنوز امتیازی ثبت نشده</span>
+                    )}
                 </div>
             </div>
         </div>

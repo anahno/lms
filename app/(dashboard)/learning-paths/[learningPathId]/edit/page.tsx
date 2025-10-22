@@ -1,11 +1,10 @@
 // فایل: app/(dashboard)/learning-paths/[learningPathId]/edit/page.tsx
-
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Role } from "@prisma/client";
-import { EditPageClient } from "./_components/EditPageClient"; // کامپوننت کلاینت را وارد می‌کنیم
+import { EditPageClient } from "./_components/EditPageClient";
 
 export default async function EditLearningPathPage({
   params,
@@ -32,19 +31,27 @@ export default async function EditLearningPathPage({
       where: {
         id: learningPathId,
       },
+      // +++ شروع تغییر اصلی: واکشی عمیق امتیازات +++
       include: {
         levels: {
           orderBy: { position: "asc" },
           include: {
             chapters: {
               orderBy: { position: "asc" },
-               include: {
-                sections: true
-              }
+              include: {
+                sections: {
+                  include: {
+                    progress: {
+                      select: { rating: true },
+                    },
+                  },
+                },
+              },
             },
           },
         },
       },
+      // +++ پایان تغییر اصلی +++
     }),
     db.category.findMany({
       where: { parentId: null },
@@ -63,6 +70,7 @@ export default async function EditLearningPathPage({
     return redirect("/");
   }
 
+  // ... (بقیه منطق محاسبه فیلدهای تکمیل شده بدون تغییر)
   const hasPublishedChapter = learningPath.levels.some(level => 
     level.chapters.some(chapter => chapter.isPublished)
   );
@@ -79,7 +87,15 @@ export default async function EditLearningPathPage({
   const completedFields = requiredFields.filter(Boolean).length;
   const isComplete = requiredFields.every(Boolean);
 
-  // تمام داده‌های واکشی شده را به عنوان props به کامپوننت کلاینت پاس می‌دهیم
+  // +++ استخراج تمام امتیازات دوره +++
+  const allRatings = learningPath.levels.flatMap(level => 
+    level.chapters.flatMap(chapter => 
+      chapter.sections.flatMap(section => 
+        section.progress.map(p => p.rating)
+      )
+    )
+  );
+  
   return (
     <EditPageClient
       learningPath={learningPath}
@@ -88,6 +104,7 @@ export default async function EditLearningPathPage({
       totalFields={totalFields}
       isComplete={isComplete}
       userRole={userRole}
+      allRatings={allRatings} // +++ پاس دادن امتیازات به کامپوننت کلاینت +++
     />
   );
 }

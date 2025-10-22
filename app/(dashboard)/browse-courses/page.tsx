@@ -17,28 +17,37 @@ export default async function BrowseCoursesPage() {
     const userId = session.user.id;
     const userRole = (session.user as { role: Role }).role;
 
-    // اگر کاربر استاد باشد، فقط دوره‌های خودش را نشان بده
     const whereClause: Prisma.LearningPathWhereInput = 
         userRole === "INSTRUCTOR" ? { userId } : {};
 
     const courses = await db.learningPath.findMany({
         where: whereClause,
         include: {
-            user: true, // اطلاعات استاد
+            user: true,
             _count: {
-                select: { enrollments: true }, // تعداد دانشجویان
+                select: { enrollments: true },
             },
+            // +++ شروع تغییر اصلی: واکشی عمیق امتیازات +++
             levels: {
                 include: {
                     chapters: {
+                        where: { isPublished: true }, // فقط فصل‌های منتشر شده
                         include: {
                             sections: {
-                                select: { duration: true }, // برای محاسبه مجموع ساعات
-                            },
-                        },
-                    },
-                },
-            },
+                                where: { isPublished: true }, // فقط بخش‌های منتشر شده
+                                include: {
+                                    // امتیازات مربوط به هر بخش را واکشی کن
+                                    progress: {
+                                        where: { rating: { not: null } },
+                                        select: { rating: true },
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // +++ پایان تغییر اصلی +++
         },
         orderBy: {
             createdAt: "desc",

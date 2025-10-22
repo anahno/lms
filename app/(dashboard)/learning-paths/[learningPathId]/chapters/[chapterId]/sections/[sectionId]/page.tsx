@@ -6,15 +6,15 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-// ۱. کامپوننت Breadcrumbs را وارد می‌کنیم
 import { Breadcrumbs, BreadcrumbItem } from "@/components/Breadcrumbs";
-
 import { SectionTitleForm } from "./_components/SectionTitleForm";
 import { SectionDescriptionForm } from "./_components/SectionDescriptionForm";
 import { SectionVideoForm } from "./_components/SectionVideoForm";
 import { SectionActions } from "./_components/SectionActions";
 import { SectionAudioForm } from "./_components/SectionAudioForm";
 import { SectionQuizForm } from "./_components/SectionQuizForm";
+// +++ ۱. کامپوننت جدید تحلیل امتیازات را وارد می‌کنیم +++
+import { RatingAnalyticsCard } from "./_components/RatingAnalyticsCard";
 
 
 export default async function SectionIdPage({
@@ -24,7 +24,7 @@ export default async function SectionIdPage({
 }) {
   const { learningPathId, chapterId, sectionId } = await params;
 
-  // ۲. کوئری را اصلاح می‌کنیم تا کل مسیر (دوره، فصل) را دریافت کند
+  // +++ ۲. کوئری را برای دریافت تمام امتیازات این بخش اصلاح می‌کنیم +++
   const section = await db.section.findUnique({
     where: {
       id: sectionId,
@@ -32,18 +32,21 @@ export default async function SectionIdPage({
     },
     include: {
       quiz: true,
-      // این بخش برای دریافت نام‌ها برای Breadcrumbs اضافه شده است
       chapter: {
         include: {
           level: {
             include: {
               learningPath: {
-                select: {
-                  title: true,
-                },
+                select: { title: true },
               },
             },
           },
+        },
+      },
+      progress: {
+        // همه رکوردهای progress را می‌گیریم
+        select: {
+          rating: true, // فقط فیلد امتیاز را انتخاب می‌کنیم
         },
       },
     },
@@ -53,20 +56,20 @@ export default async function SectionIdPage({
     return redirect(`/learning-paths/${learningPathId}/edit`);
   }
   
+  // +++ ۳. لیست تمام امتیازات را استخراج می‌کنیم +++
+  const ratings = section.progress.map(p => p.rating);
+  
   const hasContent = !!section.videoUrl || !!section.audioUrl;
-
   const requiredFields = [
     section.title,
     section.description,
     hasContent,
   ];
-
   const totalFields = requiredFields.length;
   const completedFields = requiredFields.filter(Boolean).length;
   const isComplete = requiredFields.every(Boolean);
   const completionText = `(${completedFields}/${totalFields})`;
 
-  // ۳. آیتم‌های Breadcrumb را با داده‌های جدید تعریف می‌کنیم
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: "مسیرهای یادگیری", href: "/dashboard" },
     { label: section.chapter.level.learningPath.title, href: `/learning-paths/${learningPathId}/edit` },
@@ -74,10 +77,8 @@ export default async function SectionIdPage({
     { label: section.title, href: `/learning-paths/${learningPathId}/chapters/${chapterId}/sections/${sectionId}` },
   ];
 
-
   return (
     <div className="p-6">
-      {/* ۴. کامپوننت Breadcrumbs را در بالای صفحه قرار می‌دهیم */}
       <Breadcrumbs items={breadcrumbItems} />
 
       <div className="flex items-center justify-between mb-6">
@@ -150,6 +151,14 @@ export default async function SectionIdPage({
               chapterId={chapterId}
               sectionId={sectionId}
             />
+            
+            {/* +++ ۴. کامپوننت تحلیل امتیازات را اینجا اضافه می‌کنیم +++ */}
+            <div className="mt-6">
+              <div className="flex items-center gap-x-2 mb-4">
+                <h2 className="text-xl">آمار و تحلیل</h2>
+              </div>
+              <RatingAnalyticsCard ratings={ratings} />
+            </div>
           </div>
         </div>
       </div>

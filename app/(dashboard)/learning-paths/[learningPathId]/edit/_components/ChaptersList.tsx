@@ -1,4 +1,3 @@
-
 // فایل: app/(dashboard)/learning-paths/[learningPathId]/edit/_components/ChaptersList.tsx
 "use client";
 
@@ -9,7 +8,7 @@ import * as z from "zod";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import { Chapter } from "@prisma/client";
+import { Chapter, Section, UserProgress } from "@prisma/client";
 import Link from "next/link";
 import {
   DndContext,
@@ -31,19 +30,30 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Grip } from "lucide-react";
+import { PlusCircle, Pencil, Grip, Star } from "lucide-react"; // +++ Star اضافه شد +++
 import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   title: z.string().min(1, { message: "عنوان الزامی است" }),
 });
 
+// +++ شروع تعریف تایپ‌های جدید +++
+type SectionWithRating = Section & {
+    progress: Pick<UserProgress, "rating">[];
+};
+
+type ChapterWithSectionsAndRating = Chapter & {
+    sections: SectionWithRating[];
+};
+// +++ پایان تعریف تایپ‌ها +++
+
+
 // کامپوننت داخلی هر آیتم فصل
 function SortableChapterItem({
   chapter,
   learningPathId,
 }: {
-  chapter: Chapter;
+  chapter: ChapterWithSectionsAndRating; // +++ از تایپ جدید استفاده می‌کنیم +++
   learningPathId: string;
 }) {
   const {
@@ -59,6 +69,13 @@ function SortableChapterItem({
     transition,
   };
 
+  // +++ محاسبه میانگین امتیاز فصل +++
+  const allRatings = chapter.sections.flatMap(section => 
+    section.progress.map(p => p.rating)
+  ).filter(Boolean) as number[];
+
+  const averageRating = allRatings.length > 0 ? allRatings.reduce((a, b) => a + b, 0) / allRatings.length : 0;
+
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <div className="flex items-center gap-x-2 bg-white border-slate-300 border text-slate-700 rounded-md p-3">
@@ -67,10 +84,18 @@ function SortableChapterItem({
         </div>
         <p className="flex-1 font-medium">{chapter.title}</p>
         <div className="ml-auto flex items-center gap-x-2">
+
+          {/* +++ نمایش میانگین امتیاز فصل +++ */}
+          {allRatings.length > 0 && (
+            <div className="flex items-center gap-x-1 text-amber-500" title={`میانگین امتیاز: ${averageRating.toFixed(1)}`}>
+              <span className="text-sm font-bold">{averageRating.toFixed(1)}</span>
+              <Star className="h-4 w-4 fill-current" />
+            </div>
+          )}
+
           <Badge className={!chapter.isPublished ? "bg-slate-500" : "bg-sky-700"}>
             {chapter.isPublished ? "منتشر شده" : "پیش‌نویس"}
           </Badge>
-          {/* این لینک کاربر را به صفحه‌ای می‌برد که بخش‌های (Sections) این فصل را مدیریت کند */}
           <Link href={`/learning-paths/${learningPathId}/chapters/${chapter.id}`}>
             <Pencil className="h-4 w-4 hover:text-sky-700 transition" />
           </Link>
@@ -86,10 +111,18 @@ export const ChaptersList = ({
   learningPathId,
   levelId,
 }: {
-  initialChapters: Chapter[];
+  initialChapters: ChapterWithSectionsAndRating[]; // +++ از تایپ جدید استفاده می‌کنیم +++
   learningPathId: string;
   levelId: string;
 }) => {
+    // +++ شروع اصلاح برای خطای Hydration +++
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  // +++ پایان اصلاح +++
+
   const [chapters, setChapters] = useState(initialChapters);
   const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
@@ -108,8 +141,6 @@ export const ChaptersList = ({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      // API قدیمی را صدا می‌زنیم ولی levelId را در body ارسال می‌کنیم
-      // در مرحله بعد این API را اصلاح خواهیم کرد
       await axios.post(`/api/learning-paths/${learningPathId}/chapters`, { ...values, levelId });
       toast.success("فصل جدید ایجاد شد.");
       toggleCreating();
@@ -148,7 +179,7 @@ export const ChaptersList = ({
         toast.success("ترتیب فصل‌ها با موفقیت ذخیره شد.");
       } catch {
         toast.error("مشکلی در ذخیره ترتیب جدید پیش آمد.");
-        setChapters(initialChapters); // بازگرداندن به حالت اولیه
+        setChapters(initialChapters);
       }
     }
   };

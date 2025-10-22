@@ -8,7 +8,7 @@ import * as z from "zod";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import { Level, Chapter } from "@prisma/client";
+import { Level, Chapter, Section, UserProgress } from "@prisma/client";
 import {
   DndContext,
   closestCenter,
@@ -29,19 +29,29 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Grip, Trash } from "lucide-react";
+import { PlusCircle, Pencil, Grip, Trash, Star } from "lucide-react";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
-import { ChaptersList } from "./ChaptersList"; // این کامپوننت را در فایل بعدی می‌سازیم
+import { ChaptersList } from "./ChaptersList";
 
 const formSchema = z.object({
   title: z.string().min(1, { message: "عنوان الزامی است" }),
 });
 
-// تعریف یک تایپ برای Level که شامل Chapters هم باشد
-type LevelWithChapters = Level & { chapters: Chapter[] };
+// تعریف تایپ‌های جدید برای داده‌های پیچیده
+type SectionWithRating = Section & {
+    progress: Pick<UserProgress, "rating">[];
+};
+
+type ChapterWithSections = Chapter & {
+    sections: SectionWithRating[];
+};
+
+type LevelWithChaptersAndRatings = Level & {
+  chapters: ChapterWithSections[];
+};
 
 interface LevelsFormProps {
-  initialData: { levels: LevelWithChapters[] };
+  initialData: { levels: LevelWithChaptersAndRatings[] };
   learningPathId: string;
 }
 
@@ -52,7 +62,7 @@ function SortableLevelItem({
   onDelete,
   onUpdate,
 }: {
-  level: LevelWithChapters;
+  level: LevelWithChaptersAndRatings;
   learningPathId: string;
   onDelete: (levelId: string) => void;
   onUpdate: (levelId: string, newTitle: string) => void;
@@ -72,7 +82,7 @@ function SortableLevelItem({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 10 : "auto", // آیتم در حال جابجایی را روی بقیه نمایش بده
+    zIndex: isDragging ? 10 : "auto",
   };
 
   const handleTitleSave = () => {
@@ -81,11 +91,19 @@ function SortableLevelItem({
     }
     setIsEditing(false);
   };
+  
+  // محاسبه میانگین امتیاز کل فصل‌های این سطح
+  const allRatings = level.chapters.flatMap(chapter => 
+    chapter.sections.flatMap(section => 
+      section.progress.map(p => p.rating)
+    )
+  ).filter(Boolean) as number[];
+
+  const averageRating = allRatings.length > 0 ? allRatings.reduce((a, b) => a + b, 0) / allRatings.length : 0;
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <div className="flex flex-col gap-y-2 bg-slate-200 border-slate-300 border text-slate-700 rounded-md mb-4">
-        {/* هدر سطح: عنوان، دستگیره جابجایی و دکمه‌ها */}
         <div className="flex items-center gap-x-2 p-3 font-medium border-b bg-slate-200">
           <div {...listeners} className="cursor-grab p-1 rounded-sm hover:bg-slate-300 transition">
             <Grip className="h-5 w-5 text-slate-500" />
@@ -103,6 +121,15 @@ function SortableLevelItem({
             />
           )}
           <div className="ml-auto flex items-center gap-x-2">
+            
+            {/* نمایش میانگین امتیاز سطح */}
+            {allRatings.length > 0 && (
+                <div className="flex items-center gap-x-1 text-amber-500" title={`میانگین امتیاز فصل‌های این سطح: ${averageRating.toFixed(1)}`}>
+                    <span className="text-sm font-bold">{averageRating.toFixed(1)}</span>
+                    <Star className="h-4 w-4 fill-current" />
+                </div>
+            )}
+
             <Button variant="ghost" size="sm" onClick={() => setIsEditing((prev) => !prev)}>
               <Pencil className="h-4 w-4 hover:text-sky-700 transition" />
             </Button>
@@ -114,7 +141,6 @@ function SortableLevelItem({
           </div>
         </div>
         
-        {/* لیست فصل‌های مربوط به این سطح */}
         <div className="p-3">
           <ChaptersList
             levelId={level.id}
@@ -130,6 +156,14 @@ function SortableLevelItem({
 
 // کامپوننت اصلی فرم
 export const LevelsForm = ({ initialData, learningPathId }: LevelsFormProps) => {
+    // +++ شروع اصلاح برای خطای Hydration +++
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  // +++ پایان اصلاح +++
+
   const [levels, setLevels] = useState(initialData.levels);
   const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
@@ -206,10 +240,14 @@ export const LevelsForm = ({ initialData, learningPathId }: LevelsFormProps) => 
         toast.success("ترتیب سطح‌ها با موفقیت ذخیره شد.");
       } catch {
         toast.error("مشکلی در ذخیره ترتیب جدید پیش آمد.");
-        setLevels(initialData.levels); // بازگرداندن به حالت اولیه در صورت خطا
+        setLevels(initialData.levels);
       }
     }
   };
+ // +++ یک شرط رندر جدید اینجا اضافه می‌کنیم +++
+  if (!isMounted) {
+    return null; // یا یک اسکلت لودینگ نمایش دهید: <p>در حال بارگذاری لیست سطوح...</p>
+  }
 
   return (
     <div className="relative mt-6 border bg-slate-100 rounded-md p-4">

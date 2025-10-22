@@ -210,7 +210,10 @@ model UserProgress {
   id          String   @id @default(cuid())
   userId      String
   isCompleted Boolean  @default(false)
-  score       Float?  
+  score       Float?   // این برای نمره آزمون بود
+
+  // +++ فیلد جدید برای امتیازدهی به درس +++
+  rating      Int?     // امتیازی که کاربر به این بخش داده (مثلاً 1 تا 5)
 
   sectionId   String
   section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)

@@ -57,7 +57,8 @@ export default async function PublicLayout({
   const dynamicRoutes = await getDynamicRouteData();
 
   return (
-    <div className="min-h-screen bg-white">
+    // +++ کلاس bg-white از اینجا حذف شده است +++
+    <div className="min-h-screen">
       <PublicNavbar dynamicRoutes={dynamicRoutes} />
       <main className="pt-10 pb-20">
         {children}

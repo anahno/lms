@@ -1,18 +1,15 @@
 // فایل: app/(public)/page.tsx
-"use server";
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CourseCatalogCard } from "@/components/CourseCatalogCard";
-// --- رفع هشدار: ایمپورت Image حذف شد چون استفاده نشده بود ---
 import { BookOpen, School, Users, Clapperboard, TrendingUp, Clock, Award, Target, LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Category, Enrollment, LearningPath, Level } from "@prisma/client";
-import { HomePageSearch } from "@/components/HomePageSearch"; // --- ۲. کامپوننت جستجوی جدید را وارد کنید ---
+import { HomePageSearch } from "@/components/HomePageSearch";
 
-// --- شروع رفع خطا: تعریف یک نوع مشخص برای دوره‌ها ---
 type CourseForCard = (
   LearningPath & {
     category: Category | null;
@@ -22,7 +19,44 @@ type CourseForCard = (
     enrollments: Enrollment[];
   }
 );
-// --- پایان رفع خطا ---
+
+const CourseSection = ({ title, courses, icon: Icon }: { title: string, courses: CourseForCard[], icon?: LucideIcon }) => (
+  <section className="py-16">
+    <div className="flex justify-between items-center mb-10">
+      <div className="flex items-center gap-3">
+        {Icon && <Icon className="w-8 h-8 text-sky-600" />}
+        <h2 className="text-3xl font-bold text-slate-800">{title}</h2>
+      </div>
+      <Link href="/courses">
+        <Button variant="outline" size="lg" className="hover:bg-sky-50 hover:text-sky-700 hover:border-sky-300">
+          مشاهده همه دوره‌ها
+        </Button>
+      </Link>
+    </div>
+    {courses.length > 0 ? (
+      <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {courses.map((course) => {
+          const totalChapters = course.levels.reduce((acc: number, level: { chapters: unknown[] }) => acc + level.chapters.length, 0);
+          return (
+            <CourseCatalogCard
+              key={course.id}
+              id={course.id}
+              title={course.title}
+              imageUrl={course.imageUrl}
+              chaptersLength={totalChapters}
+              category={course.category?.name || "بدون دسته‌بندی"}
+              isEnrolled={course.enrollments.length > 0}
+            />
+          );
+        })}
+      </div>
+    ) : (
+      <div className="text-center py-12 bg-slate-50 rounded-xl">
+        <p className="text-slate-500 text-lg">در حال حاضر دوره‌ای برای نمایش وجود ندارد.</p>
+      </div>
+    )}
+  </section>
+);
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
@@ -80,50 +114,9 @@ export default async function HomePage() {
     { icon: Clock, title: "یادگیری در هر زمان", description: "دسترسی نامحدود و مادام‌العمر به محتوای آموزشی" },
     { icon: TrendingUp, title: "به‌روز و کاربردی", description: "محتوای به‌روز شده با جدیدترین تکنولوژی‌های روز دنیا" }
   ];
-  
-  // --- شروع رفع خطا: تعریف نوع دقیق برای پراپس کامپوننت ---
-  const CourseSection = ({ title, courses, icon: Icon }: { title: string, courses: CourseForCard[], icon?: LucideIcon }) => (
-    <section className="py-16">
-      <div className="flex justify-between items-center mb-10">
-        <div className="flex items-center gap-3">
-          {Icon && <Icon className="w-8 h-8 text-sky-600" />}
-          <h2 className="text-3xl font-bold text-slate-800">{title}</h2>
-        </div>
-        <Link href="/courses">
-          <Button variant="outline" size="lg" className="hover:bg-sky-50 hover:text-sky-700 hover:border-sky-300">
-            مشاهده همه دوره‌ها
-          </Button>
-        </Link>
-      </div>
-      {courses.length > 0 ? (
-        <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {courses.map((course) => {
-            // --- شروع رفع خطا: تعریف نوع دقیق برای accumulator و level ---
-            const totalChapters = course.levels.reduce((acc: number, level: { chapters: unknown[] }) => acc + level.chapters.length, 0);
-            // --- پایان رفع خطا ---
-            return (
-              <CourseCatalogCard
-                key={course.id}
-                id={course.id}
-                title={course.title}
-                imageUrl={course.imageUrl}
-                chaptersLength={totalChapters}
-                category={course.category?.name || "بدون دسته‌بندی"}
-                isEnrolled={course.enrollments.length > 0}
-              />
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-slate-50 rounded-xl">
-          <p className="text-slate-500 text-lg">در حال حاضر دوره‌ای برای نمایش وجود ندارد.</p>
-        </div>
-      )}
-    </section>
-  );
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{ backgroundColor: '#f7f9fa' }}>
       {/* بخش Hero با گرادیانت */}
       <section className="relative bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-50 overflow-hidden">
         <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] -z-10"></div>
@@ -147,7 +140,6 @@ export default async function HomePage() {
               دسترسی به بیش از {courseCount} دوره آموزشی با کیفیت بالا در زمینه‌های مختلف فناوری و کسب‌وکار
             </p>
 
-            {/* --- ۳. کامپوننت جستجوی تعاملی را اینجا قرار دهید --- */}
             <HomePageSearch />
 
           </div>
@@ -156,7 +148,7 @@ export default async function HomePage() {
         {/* موج دکوراتیو */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white"/>
+            <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="#f7f9fa"/>
           </svg>
         </div>
       </section>
@@ -224,7 +216,7 @@ export default async function HomePage() {
         <CourseSection title="جدیدترین دوره‌ها" courses={publishedCourses} icon={Clock} />
 
         {/* بخش Call to Action */}
-        <section className="py-20">
+        <section className="py-20" style={{ backgroundColor: '#f7f9fa' }}>
           <div className="bg-gradient-to-r from-sky-600 to-blue-600 rounded-3xl p-12 text-center text-white relative overflow-hidden">
             <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.5))]"></div>
             

@@ -1,3 +1,4 @@
+// فایل: app/(dashboard)/learning-paths/[learningPathId]/edit/_components/EditPageClient.tsx
 "use client";
 
 import { useState } from "react";
@@ -5,9 +6,7 @@ import { Prisma, Role } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Eye, Pencil } from "lucide-react";
 
-// ۱. کامپوننت Breadcrumbs را اینجا وارد می‌کنیم
 import { Breadcrumbs, BreadcrumbItem } from "@/components/Breadcrumbs";
-
 import { TitleForm } from "./TitleForm";
 import { DescriptionForm } from "./DescriptionForm";
 import { ImageForm } from "./ImageForm";
@@ -17,11 +16,11 @@ import { LevelsForm } from "./LevelsForm";
 import { CourseActions } from "./CourseActions";
 import { WhatYouWillLearnForm } from "./WhatYouWillLearnForm";
 import { CourseStructureTree } from "./CourseStructureTree";
+import { CourseRatingAnalyticsCard } from "./CourseRatingAnalyticsCard";
 
-// تعریف تایپ‌های لازم برای پراپس‌ها
 type LearningPathWithStructure = Prisma.LearningPathGetPayload<{
   include: {
-    levels: { include: { chapters: { include: { sections: true } } } };
+    levels: { include: { chapters: { include: { sections: { include: { progress: { select: { rating: true } } } } } } } };
   }
 }>;
 
@@ -36,6 +35,7 @@ interface EditPageClientProps {
   totalFields: number;
   isComplete: boolean;
   userRole: Role;
+  allRatings: (number | null)[];
 }
 
 export const EditPageClient = ({
@@ -45,10 +45,10 @@ export const EditPageClient = ({
   totalFields,
   isComplete,
   userRole,
+  allRatings,
 }: EditPageClientProps) => {
   const [isTreeView, setIsTreeView] = useState(false);
 
-  // ۲. آیتم‌های Breadcrumb را با استفاده از پراپس‌ها در کامپوننت کلاینت می‌سازیم
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: "مسیرهای یادگیری", href: "/dashboard" },
     { label: learningPath.title, href: `/learning-paths/${learningPath.id}/edit` },
@@ -56,7 +56,6 @@ export const EditPageClient = ({
 
   return (
     <div className="p-6">
-      {/* ۳. کامپوننت Breadcrumbs را اینجا قرار می‌دهیم */}
       <Breadcrumbs items={breadcrumbItems} />
 
       <div className="flex items-center justify-between">
@@ -97,6 +96,7 @@ export const EditPageClient = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16">
+          {/* ستون سمت راست (در حالت RTL) */}
           <div className="space-y-6">
             <TitleForm initialData={learningPath} learningPathId={learningPath.id} />
             <DescriptionForm initialData={learningPath} learningPathId={learningPath.id} />
@@ -110,7 +110,10 @@ export const EditPageClient = ({
               initialData={learningPath}
               learningPathId={learningPath.id}
             />
+            {/* +++ کارت تحلیل امتیازات به اینجا منتقل شد +++ */}
+            <CourseRatingAnalyticsCard ratings={allRatings} />
           </div>
+          {/* ستون سمت چپ (در حالت RTL) */}
           <div className="space-y-6">
             <ImageForm initialData={learningPath} learningPathId={learningPath.id} />
             <LevelsForm initialData={{ levels: learningPath.levels }} learningPathId={learningPath.id} />
