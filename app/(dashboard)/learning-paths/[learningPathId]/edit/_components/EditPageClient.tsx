@@ -17,6 +17,11 @@ import { CourseActions } from "./CourseActions";
 import { WhatYouWillLearnForm } from "./WhatYouWillLearnForm";
 import { CourseStructureTree } from "./CourseStructureTree";
 import { CourseRatingAnalyticsCard } from "./CourseRatingAnalyticsCard";
+// +++ شروع اصلاح کلیدی +++
+import { DropOffAnalyticsCard } from "./DropOffAnalyticsCard";
+// به جای DropOffStat، تایپ صحیح FunnelStat وارد می‌شود
+import { type FunnelStat } from "@/actions/get-dropoff-stats"; 
+// +++ پایان اصلاح کلیدی +++
 
 type LearningPathWithStructure = Prisma.LearningPathGetPayload<{
   include: {
@@ -36,6 +41,7 @@ interface EditPageClientProps {
   isComplete: boolean;
   userRole: Role;
   allRatings: (number | null)[];
+  funnelStats: FunnelStat[]; // نام پراپ صحیح است
 }
 
 export const EditPageClient = ({
@@ -46,6 +52,7 @@ export const EditPageClient = ({
   isComplete,
   userRole,
   allRatings,
+  funnelStats, // نام پراپ صحیح است
 }: EditPageClientProps) => {
   const [isTreeView, setIsTreeView] = useState(false);
 
@@ -110,8 +117,8 @@ export const EditPageClient = ({
               initialData={learningPath}
               learningPathId={learningPath.id}
             />
-            {/* +++ کارت تحلیل امتیازات به اینجا منتقل شد +++ */}
             <CourseRatingAnalyticsCard ratings={allRatings} />
+            <DropOffAnalyticsCard stats={funnelStats} />
           </div>
           {/* ستون سمت چپ (در حالت RTL) */}
           <div className="space-y-6">

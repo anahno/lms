@@ -3,6 +3,11 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+// ... سایر import ها
+import { Star } from "lucide-react";
+
+// ... بقیه کد فایل بدون تغییر است ...
+// (محتوای کامل را جایگزین کنید تا مطمئن شوید تغییرات اعمال می‌شوند)
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import axios from "axios";
@@ -27,17 +32,15 @@ import {
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Grip, Star } from "lucide-react"; // +++ Star اضافه شد +++
+import { PlusCircle, Pencil, Grip } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   title: z.string().min(1, { message: "عنوان الزامی است" }),
 });
 
-// +++ شروع تعریف تایپ‌های جدید +++
 type SectionWithRating = Section & {
     progress: Pick<UserProgress, "rating">[];
 };
@@ -45,15 +48,12 @@ type SectionWithRating = Section & {
 type ChapterWithSectionsAndRating = Chapter & {
     sections: SectionWithRating[];
 };
-// +++ پایان تعریف تایپ‌ها +++
 
-
-// کامپوننت داخلی هر آیتم فصل
 function SortableChapterItem({
   chapter,
   learningPathId,
 }: {
-  chapter: ChapterWithSectionsAndRating; // +++ از تایپ جدید استفاده می‌کنیم +++
+  chapter: ChapterWithSectionsAndRating;
   learningPathId: string;
 }) {
   const {
@@ -69,7 +69,6 @@ function SortableChapterItem({
     transition,
   };
 
-  // +++ محاسبه میانگین امتیاز فصل +++
   const allRatings = chapter.sections.flatMap(section => 
     section.progress.map(p => p.rating)
   ).filter(Boolean) as number[];
@@ -85,7 +84,6 @@ function SortableChapterItem({
         <p className="flex-1 font-medium">{chapter.title}</p>
         <div className="ml-auto flex items-center gap-x-2">
 
-          {/* +++ نمایش میانگین امتیاز فصل +++ */}
           {allRatings.length > 0 && (
             <div className="flex items-center gap-x-1 text-amber-500" title={`میانگین امتیاز: ${averageRating.toFixed(1)}`}>
               <span className="text-sm font-bold">{averageRating.toFixed(1)}</span>
@@ -105,24 +103,15 @@ function SortableChapterItem({
   );
 }
 
-// کامپوننت اصلی برای لیست فصل‌ها
 export const ChaptersList = ({
   initialChapters,
   learningPathId,
   levelId,
 }: {
-  initialChapters: ChapterWithSectionsAndRating[]; // +++ از تایپ جدید استفاده می‌کنیم +++
+  initialChapters: ChapterWithSectionsAndRating[];
   learningPathId: string;
   levelId: string;
 }) => {
-    // +++ شروع اصلاح برای خطای Hydration +++
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-  // +++ پایان اصلاح +++
-
   const [chapters, setChapters] = useState(initialChapters);
   const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();

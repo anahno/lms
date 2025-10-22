@@ -109,7 +109,7 @@ export const CourseStructureTree = ({ learningPath }: CourseStructureTreeProps) 
                         {chapter.sections.length > 0 && (
                           <div className="px-4 pb-4 pt-2 bg-white">
                             <div className="mr-10 space-y-2 border-r-2 border-dashed border-slate-300 pr-4">
-                              {chapter.sections.map((section, sectionIndex) => (
+                              {chapter.sections.map((section) => (
                                 <div key={section.id} className="relative">
                                   {/* خط افقی اتصال */}
                                   <div className="absolute -right-4 top-1/2 w-4 h-0.5 border-t-2 border-dashed border-slate-300" />

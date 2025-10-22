@@ -10,14 +10,15 @@ import {
   LayoutGrid, 
   MessageSquare,
   Users,
-  UserCog, // ۱. آیکون‌های جدید را وارد کنید
-  User 
+  UserCog,
+  User,
+  FileDown // +++ آیکون FileDown در اینجا اضافه شد +++
 } from "lucide-react"; 
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import { Role } from "@prisma/client";
 
-// ۲. مسیرها را به دو گروه تقسیم می‌کنیم: ناوبری اصلی و تنظیمات حساب
+// مسیرها به دو گروه تقسیم می‌شوند: ناوبری اصلی و تنظیمات حساب
 const mainRoutes = [
   {
     icon: BookCopy,
@@ -33,6 +34,13 @@ const mainRoutes = [
     icon: MessageSquare,
     href: "/qa-center",
     label: "مرکز پرسش و پاسخ",
+  },
+  // +++ آبجکت جدید برای گزارش‌گیری در اینجا قرار می‌گیرد +++
+  {
+    icon: FileDown, 
+    href: "/admin/reports",
+    label: "گزارش‌گیری پیشرفته",
+    adminOnly: true,
   },
   {
     icon: Users,
@@ -85,7 +93,6 @@ export default function Sidebar() {
         <h1 className="text-lg font-bold">LMS پلتفرم</h1>
       </div>
       
-      {/* ۳. سایدبار را به دو بخش تقسیم می‌کنیم */}
       <div className="flex flex-col flex-1 p-4 overflow-y-auto">
         {/* بخش اصلی ناوبری */}
         {mainRoutes
@@ -107,27 +114,24 @@ export default function Sidebar() {
           </Link>
         ))}
 
-        {/* ۴. جداکننده و بخش تنظیمات حساب در انتهای سایدبار */}
+        {/* جداکننده و بخش تنظیمات حساب در انتهای سایدبار */}
         <div className="mt-auto pt-4 border-t">
             <h3 className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                 تنظیمات
             </h3>
             {accountRoutes
                 .filter(route => {
-                    // اگر مسیر فقط برای استاد است، نقش کاربر را چک کن
                     if (route.instructorOnly) {
                         return userRole === "INSTRUCTOR";
                     }
-                    // در غیر این صورت (مانند "حساب کاربری")، برای همه نمایش بده
                     return true;
                 })
                 .map((route) => {
-                    // برای مسیرهای داینامیک، آدرس را می‌سازیم
                     const href = typeof route.href === 'function' ? route.href(userId || '') : route.href;
 
                     return (
                         <Link
-                            key={route.label} // چون href داینامیک است، از label به عنوان کلید استفاده می‌کنیم
+                            key={route.label}
                             href={href}
                             className={cn(
                             "flex items-center p-3 my-1 rounded-lg text-slate-700 hover:bg-slate-200 transition",

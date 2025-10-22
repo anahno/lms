@@ -1,17 +1,18 @@
+
 // فایل: app/(dashboard)/browse-courses/_components/CourseListItem.tsx
 "use client";
 
 import Image from "next/image";
 import { useState } from "react";
-import { Users, Clock, Star, ChevronDown, Loader2 } from "lucide-react";
+import { Users, Clock, ChevronDown, Loader2 } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { getStudentPerformance, StudentPerformance } from "@/actions/get-student-performance";
 import { StudentPerformanceList } from "./StudentPerformanceList";
 import { cn } from "@/lib/utils";
-// +++ ۱. کامپوننت Rating را وارد می‌کنیم +++
 import { Rating } from "@/components/ui/rating";
 
-// +++ ۲. تایپ را برای شامل شدن امتیازات به‌روز می‌کنیم +++
+// ... بقیه کد بدون تغییر
+// (تمام فایل را کپی کنید تا مطمئن شوید import های بالا صحیح هستند)
 type CourseWithDetails = Prisma.LearningPathGetPayload<{
     include: {
         user: true,
@@ -39,12 +40,10 @@ interface CourseListItemProps {
     course: CourseWithDetails;
 }
 
-// تابع کمکی برای محاسبه مجموع ساعات دوره
 const calculateTotalHours = (levels: CourseWithDetails["levels"]): string => {
     const totalSeconds = levels.reduce((total, level) => {
         return total + level.chapters.reduce((chapterTotal, chapter) => {
             return chapterTotal + chapter.sections.reduce((sectionTotal, section) => {
-                // اینجا باید بررسی کنیم که duration وجود دارد یا نه
                 return sectionTotal + (section.duration || 0);
             }, 0);
         }, 0);
@@ -58,7 +57,6 @@ const calculateTotalHours = (levels: CourseWithDetails["levels"]): string => {
    });
 };
 
-// +++ ۳. تابع جدید برای محاسبه میانگین امتیاز دوره +++
 const calculateAverageRating = (levels: CourseWithDetails["levels"]): { average: number; count: number } => {
     const allRatings = levels.flatMap(level =>
         level.chapters.flatMap(chapter =>
@@ -107,7 +105,6 @@ export const CourseListItem = ({ course }: CourseListItemProps) => {
 
     return (
         <div className="flex flex-col md:flex-row gap-4 border rounded-lg p-4 bg-white shadow-sm transition hover:shadow-md">
-            {/* بخش اطلاعات دوره */}
             <div className="flex-1 bg-slate-50 p-4 rounded-lg border flex flex-col">
                  <h2 className="text-xl font-bold text-slate-800">{course.title}</h2>
                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
@@ -133,7 +130,6 @@ export const CourseListItem = ({ course }: CourseListItemProps) => {
                      </div>
                  </div>
 
-                {/* بخش نمایش لیست دانشجویان */}
                {isExpanded && (
                     <div className="mt-4">
                         {isLoading ? (
@@ -145,7 +141,6 @@ export const CourseListItem = ({ course }: CourseListItemProps) => {
                )}
              </div>
 
-            {/* بخش اطلاعات استاد */}
             <div className="w-full md:w-48 flex-shrink-0 flex flex-col items-center justify-center bg-sky-50 p-4 rounded-lg border text-center">
                 <div className="relative w-20 h-20 mb-3">
                     <Image
@@ -157,7 +152,6 @@ export const CourseListItem = ({ course }: CourseListItemProps) => {
                 </div>
                 <p className="font-bold text-slate-900">{instructor.name || "نامشخص"}</p>
                 
-                {/* +++ نمایش ستاره‌های واقعی به جای ستاره‌های نمایشی +++ */}
                 <div className="flex flex-col items-center gap-y-1 mt-2" title={`میانگین امتیاز: ${averageRating.toFixed(1)} از ${ratingCount} رای`}>
                     {ratingCount > 0 ? (
                         <>

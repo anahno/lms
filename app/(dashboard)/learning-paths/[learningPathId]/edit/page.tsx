@@ -5,16 +5,18 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Role } from "@prisma/client";
 import { EditPageClient } from "./_components/EditPageClient";
+// +++ ۱. اکشن با نام صحیح وارد شده است +++
+import { getDropOffStats } from "@/actions/get-dropoff-stats";
 
 export default async function EditLearningPathPage({
   params,
 }: {
-  params: Promise<{ learningPathId: string }>; 
+  params: Promise<{ learningPathId: string }>;
 }) {
   const { learningPathId } = await params;
 
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     return redirect("/login");
   }
@@ -23,15 +25,15 @@ export default async function EditLearningPathPage({
   const userRole = (session.user as unknown as { role: Role }).role;
 
   if (!userRole) {
-      return redirect("/login");
+    return redirect("/login");
   }
 
-  const [learningPath, categories] = await Promise.all([
+  // نام متغیر را برای خوانایی به funnelStats تغییر می‌دهیم
+  const [learningPath, categories, funnelStats] = await Promise.all([
     db.learningPath.findUnique({
       where: {
         id: learningPathId,
       },
-      // +++ شروع تغییر اصلی: واکشی عمیق امتیازات +++
       include: {
         levels: {
           orderBy: { position: "asc" },
@@ -51,7 +53,6 @@ export default async function EditLearningPathPage({
           },
         },
       },
-      // +++ پایان تغییر اصلی +++
     }),
     db.category.findMany({
       where: { parentId: null },
@@ -60,6 +61,8 @@ export default async function EditLearningPathPage({
       },
       orderBy: { name: "asc" },
     }),
+    // فراخوانی اکشن با نام صحیح
+    getDropOffStats(learningPathId),
   ]);
 
   if (!learningPath) {
@@ -70,9 +73,8 @@ export default async function EditLearningPathPage({
     return redirect("/");
   }
 
-  // ... (بقیه منطق محاسبه فیلدهای تکمیل شده بدون تغییر)
-  const hasPublishedChapter = learningPath.levels.some(level => 
-    level.chapters.some(chapter => chapter.isPublished)
+  const hasPublishedChapter = learningPath.levels.some((level) =>
+    level.chapters.some((chapter) => chapter.isPublished)
   );
 
   const requiredFields = [
@@ -87,15 +89,14 @@ export default async function EditLearningPathPage({
   const completedFields = requiredFields.filter(Boolean).length;
   const isComplete = requiredFields.every(Boolean);
 
-  // +++ استخراج تمام امتیازات دوره +++
-  const allRatings = learningPath.levels.flatMap(level => 
-    level.chapters.flatMap(chapter => 
-      chapter.sections.flatMap(section => 
-        section.progress.map(p => p.rating)
+  const allRatings = learningPath.levels.flatMap((level) =>
+    level.chapters.flatMap((chapter) =>
+      chapter.sections.flatMap((section) =>
+        section.progress.map((p) => p.rating)
       )
     )
   );
-  
+
   return (
     <EditPageClient
       learningPath={learningPath}
@@ -104,7 +105,8 @@ export default async function EditLearningPathPage({
       totalFields={totalFields}
       isComplete={isComplete}
       userRole={userRole}
-      allRatings={allRatings} // +++ پاس دادن امتیازات به کامپوننت کلاینت +++
+      allRatings={allRatings}
+      funnelStats={funnelStats} // پاس دادن داده‌ها به کامپوننت کلاینت
     />
   );
 }

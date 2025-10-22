@@ -39,7 +39,6 @@ export const Rating = ({
   };
 
   const fullStars = Math.floor(hoverRating ?? rating);
-  const partialStar = (hoverRating ?? rating) - fullStars;
 
   return (
     <div
