@@ -52,7 +52,7 @@ export default async function DashboardPage() {
   ]);
 
   // برای اشکال‌زدایی: داده‌های واکشی شده را در ترمینال سرور خود ببینید
-  console.log("Courses fetched for dashboard:", learningPaths.slice(0, 3).map(p => ({ title: p.title, price: p.price, discount: p.discountPrice })));
+  //console.log("Courses fetched for dashboard:", learningPaths.slice(0, 3).map(p => ({ title: p.title, price: p.price, discount: p.discountPrice })));
 
   const hasAnyCourse = learningPaths.length > 0;
 
