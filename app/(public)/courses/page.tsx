@@ -123,6 +123,8 @@ export default async function CoursesCatalogPage({ searchParams }: CoursesCatalo
                         chaptersLength={totalChapters}
                         category={course.category?.name || "بدون دسته‌بندی"}
                         isEnrolled={course.enrollments.length > 0}
+                                price={course.price} // +++ این خط اضافه شد +++
+        discountPrice={course.discountPrice} // +++ این خط اضافه شد +++
                     />
                     );
                 })}

@@ -1,58 +1,79 @@
 // فایل: components/EnrollButton.tsx
 "use client";
 
-import { useState } from "react";
+// +++ شروع اصلاح: useState و Lock حذف شدند +++
+import { useTransition } from "react";
+// +++ پایان اصلاح +++
+
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Plus } from "lucide-react";
 
 import { enrollInCourse } from "@/actions/enroll-course";
+import { createPaymentRequest } from "@/actions/payment-actions";
 import { Button } from "./ui/button";
 
 interface EnrollButtonProps {
   learningPathId: string;
+  price: number | null | undefined;
 }
 
-export const EnrollButton = ({ learningPathId }: EnrollButtonProps) => {
+export const EnrollButton = ({ learningPathId, price }: EnrollButtonProps) => {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  const handleClick = async () => {
-    setIsLoading(true);
-    try {
-      const result = await enrollInCourse(learningPathId);
+  const isFree = !price || price <= 0;
+  const buttonLabel = isFree ? "ثبت‌نام رایگان در دوره" : "خرید دوره";
 
-      if (result.success) {
-        toast.success(result.success);
-        router.refresh(); // برای به‌روزرسانی UI و نمایش دکمه "مشاهده"
-      } else if (result.error) {
-        // --- شروع تغییر کلیدی ---
-        // بررسی می‌کنیم که آیا خطا مربوط به عدم ورود کاربر است یا نه
-        if (result.error === "برای ثبت‌نام ابتدا باید وارد شوید.") {
-          toast.error(result.error); // پیام را نمایش می‌دهیم
-          router.push("/login"); // و کاربر را به صفحه ورود هدایت می‌کنیم
+  const handleClick = () => {
+    startTransition(async () => {
+      try {
+        if (isFree) {
+          const result = await enrollInCourse(learningPathId);
+          if (result.success) {
+            toast.success(result.success);
+            router.refresh();
+          } else if (result.error) {
+            if (result.error === "برای ثبت‌نام ابتدا باید وارد شوید.") {
+              toast.error(result.error);
+              router.push("/login");
+            } else {
+              toast.error(result.error);
+            }
+          }
         } else {
-          // برای سایر خطاها، فقط پیام را نمایش می‌دهیم
-          toast.error(result.error);
+          const result = await createPaymentRequest(learningPathId);
+          if (result.success && result.url) {
+            toast.loading("در حال انتقال به درگاه پرداخت...");
+            window.location.href = result.url;
+          } else if (result.error) {
+            if (result.error === "برای خرید دوره ابتدا باید وارد شوید.") {
+              toast.error(result.error);
+              router.push("/login");
+            } else {
+              toast.error(result.error);
+            }
+          }
         }
-        // --- پایان تغییر کلیدی ---
+      } catch {
+        toast.error("یک خطای ناشناخته در سرور رخ داد.");
       }
-    } catch {
-      toast.error("یک خطای ناشناخته در سرور رخ داد.");
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   return (
     <Button 
       onClick={handleClick} 
-      disabled={isLoading} 
+      disabled={isPending} 
       size="icon-lg"
       className="rounded-full w-16 h-16 shadow-lg bg-sky-500 text-white hover:bg-sky-600 transition-all duration-300 ease-in-out transform hover:scale-110"
-      aria-label="ثبت‌نام در دوره"
+      aria-label={buttonLabel}
     >
-      {isLoading ? "..." : <Plus className="w-8 h-8" />}
+      {isPending ? (
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      ) : (
+        <Plus className="w-8 h-8" />
+      )}
     </Button>
   );
 };

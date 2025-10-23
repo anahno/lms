@@ -11,17 +11,16 @@ import { TitleForm } from "./TitleForm";
 import { DescriptionForm } from "./DescriptionForm";
 import { ImageForm } from "./ImageForm";
 import { CategoryForm } from "./CategoryForm";
+import { PriceForm } from "./PriceForm";
+import { DiscountPriceForm } from "./DiscountPriceForm"; // +++ 1. فرم جدید اینجا import شد +++
 import { IntroAudioForm } from "./IntroAudioForm";
 import { LevelsForm } from "./LevelsForm";
 import { CourseActions } from "./CourseActions";
 import { WhatYouWillLearnForm } from "./WhatYouWillLearnForm";
 import { CourseStructureTree } from "./CourseStructureTree";
 import { CourseRatingAnalyticsCard } from "./CourseRatingAnalyticsCard";
-// +++ شروع اصلاح کلیدی +++
 import { DropOffAnalyticsCard } from "./DropOffAnalyticsCard";
-// به جای DropOffStat، تایپ صحیح FunnelStat وارد می‌شود
-import { type FunnelStat } from "@/actions/get-dropoff-stats"; 
-// +++ پایان اصلاح کلیدی +++
+import { type FunnelStat } from "@/actions/get-dropoff-stats";
 
 type LearningPathWithStructure = Prisma.LearningPathGetPayload<{
   include: {
@@ -41,7 +40,7 @@ interface EditPageClientProps {
   isComplete: boolean;
   userRole: Role;
   allRatings: (number | null)[];
-  funnelStats: FunnelStat[]; // نام پراپ صحیح است
+  funnelStats: FunnelStat[];
 }
 
 export const EditPageClient = ({
@@ -52,7 +51,7 @@ export const EditPageClient = ({
   isComplete,
   userRole,
   allRatings,
-  funnelStats, // نام پراپ صحیح است
+  funnelStats,
 }: EditPageClientProps) => {
   const [isTreeView, setIsTreeView] = useState(false);
 
@@ -112,6 +111,15 @@ export const EditPageClient = ({
               initialData={learningPath}
               learningPathId={learningPath.id}
               options={categories}
+            />
+            <PriceForm
+              initialData={learningPath}
+              learningPathId={learningPath.id}
+            />
+            {/* +++ 2. کامپوننت فرم قیمت تخفیف خورده اینجا اضافه شد +++ */}
+            <DiscountPriceForm
+              initialData={learningPath}
+              learningPathId={learningPath.id}
             />
             <IntroAudioForm
               initialData={learningPath}

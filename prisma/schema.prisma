@@ -74,42 +74,47 @@ enum SubmissionStatus {
   GRADED
 }
 
+// +++ Enum جدید برای وضعیت خرید +++
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
 
 // --- مدل‌های اصلی برنامه ---
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  role          Role      @default(USER)
-  bio           String?   @db.Text 
-    // +++ شروع تغییرات جدید برای گیمیفیکیشن +++
-  experiencePoints Int    @default(0) // امتیاز تجربه (XP)
-  level            Int    @default(1) // سطح کاربر
-  badges           UserBadge[] // لیستی از نشان‌هایی که کاربر دریافت کرده
-  // +++ پایان تغییرات جدید +++
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String      @id @default(cuid())
+  name             String?
+  email            String?     @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?
+  role             Role        @default(USER)
+  bio              String?     @db.Text
+  experiencePoints Int         @default(0)
+  level            Int         @default(1)
+  badges           UserBadge[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
-
-  accounts    Account[]
-  sessions    Session[]
+  accounts      Account[]
+  sessions      Session[]
   learningPaths LearningPath[]
-  progress    UserProgress[]
-  enrollments Enrollment[]
-  submissions QuizSubmission[]
-    discussions Discussion[] 
-
+  progress      UserProgress[]
+  enrollments   Enrollment[]
+  submissions   QuizSubmission[]
+  discussions   Discussion[]
+  purchases     Purchase[] // <--- رابطه دوطرفه با خریدها اضافه شد
 }
+
 enum CourseLevel {
   BEGINNER
   INTERMEDIATE
   ADVANCED
   ALL_LEVELS
 }
+
 model LearningPath {
   id               String       @id @default(cuid())
   title            String
@@ -119,35 +124,39 @@ model LearningPath {
   whatYouWillLearn String[]     @default([])
   requirements     String[]     @default([])
   price            Float?
+    // +++ شروع تغییرات +++
+  discountPrice    Float?       // قیمت بعد از تخفیف (می‌تواند null باشد)
+  // +++ پایان تغییرات +++
   level            CourseLevel? @default(ALL_LEVELS)
 
-  introAudioUrl    String?      @db.Text
-  status           CourseStatus @default(DRAFT)
-  
-  categoryId       String?
-  category         Category?    @relation(fields: [categoryId], references: [id])
-  
-  userId           String
-  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  
-  levels           Level[]
-  enrollments      Enrollment[]
-  quiz             Quiz?
+  introAudioUrl String?      @db.Text
+  status        CourseStatus @default(DRAFT)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  levels      Level[]
+  enrollments Enrollment[]
+  quiz        Quiz?
+  purchases   Purchase[] // <--- رابطه دوطرفه با خریدها اضافه شد
 }
 
 model Enrollment {
-  id             String       @id @default(cuid())
+  id             String @id @default(cuid())
   userId         String
   learningPathId String
 
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  learningPath   LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningPath LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, learningPathId])
 }
@@ -202,50 +211,44 @@ model Section {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   quiz        Quiz?
-    discussions Discussion[] 
-
+  discussions Discussion[]
 }
 
 model UserProgress {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   userId      String
-  isCompleted Boolean  @default(false)
-  score       Float?   // این برای نمره آزمون بود
+  isCompleted Boolean @default(false)
+  score       Float?
 
-  // +++ فیلد جدید برای امتیازدهی به درس +++
-  rating      Int?     // امتیازی که کاربر به این بخش داده (مثلاً 1 تا 5)
+  // فیلد امتیازدهی که در کد اصلی شما بود و من حفظش کردم
+  rating Int?
 
-  sectionId   String
-  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  sectionId String
+  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, sectionId])
 }
 
-
 // --- مدل‌های جدید و انعطاف‌پذیر برای سیستم آزمون ---
 
 model Quiz {
-  id    String @id @default(cuid())
-  title String
-
-  learningPathId String?  @unique
-  levelId        String?  @unique
-  chapterId      String?  @unique
-  sectionId      String?  @unique
-
-  learningPath LearningPath? @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
-  level        Level?        @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  chapter      Chapter?      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  section      Section?      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  
-  questions    Question[]
-  submissions  QuizSubmission[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String           @id @default(cuid())
+  title          String
+  learningPathId String?          @unique
+  levelId        String?          @unique
+  chapterId      String?          @unique
+  sectionId      String?          @unique
+  learningPath   LearningPath?    @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  level          Level?           @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  chapter        Chapter?         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  section        Section?         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  questions      Question[]
+  submissions    QuizSubmission[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }
 
 model Question {
@@ -255,116 +258,106 @@ model Question {
   points    Int          @default(1)
   type      QuestionType
   mediaUrl  String?
-
   quizId    String
   quiz      Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  
   options   Option[]
   answers   UserAnswer[]
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 }
 
 model Option {
-  id         String   @id @default(cuid())
-  text       String
-  isCorrect  Boolean  @default(false)
-  
-  questionId String
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  // --- این خط جدید برای رفع خطا اضافه شده است ---
-  // این فیلد می‌گوید که یک گزینه می‌تواند در پاسخ‌های چندین کاربر انتخاب شده باشد
+  id          String       @id @default(cuid())
+  text        String
+  isCorrect   Boolean      @default(false)
+  questionId  String
+  question    Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
   userAnswers UserAnswer[]
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model QuizSubmission {
   id        String           @id @default(cuid())
   userId    String
   quizId    String
-  
   score     Float?
   status    SubmissionStatus @default(IN_PROGRESS)
-
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   quiz      Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  
   answers   UserAnswer[]
-
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
-  
+
   @@unique([userId, quizId])
 }
 
 model UserAnswer {
-  id                String @id @default(cuid())
+  id                String         @id @default(cuid())
   submissionId      String
   questionId        String
-  
   selectedOptionId  String?
   selectedOptionIds String[]
-  textAnswer        String?  @db.Text
+  textAnswer        String?        @db.Text
   fileUrl           String?
-  
   isCorrect         Boolean?
   score             Float?
-  feedback          String?  @db.Text
-
-  submission QuizSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  question   Question       @relation(fields: [questionId], references: [id], onDelete: NoAction)
-  option     Option?        @relation(fields: [selectedOptionId], references: [id], onDelete: NoAction)
+  feedback          String?        @db.Text
+  submission        QuizSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question          Question       @relation(fields: [questionId], references: [id], onDelete: NoAction)
+  option            Option?        @relation(fields: [selectedOptionId], references: [id], onDelete: NoAction)
 
   @@unique([submissionId, questionId])
 }
 
 // +++ مدل جدید برای سیستم پرسش و پاسخ +++
 model Discussion {
-  id        String   @id @default(cuid())
-  content   String   @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // ارتباط با کاربر (نویسنده)
+  id        String       @id @default(cuid())
+  content   String       @db.Text
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // ارتباط با بخش (درس)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   sectionId String
-  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-
-  // برای ساختار درختی (پاسخ به یک نظر دیگر)
+  section   Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   parentId  String?
   parent    Discussion?  @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Discussion[] @relation("Replies")
 }
+
 // +++ شروع مدل‌های جدید برای گیمیفیکیشن +++
-
-// مدل اصلی برای تعریف هر نشان
 model Badge {
-  id          String   @id @default(cuid())
-  name        String   @unique
+  id          String      @id @default(cuid())
+  name        String      @unique
   description String
-  imageUrl    String   // آدرس تصویر یا آیکون نشان
-
-  users       UserBadge[] // کاربرانی که این نشان را دارند
-  createdAt   DateTime @default(now())
+  imageUrl    String
+  users       UserBadge[]
+  createdAt   DateTime    @default(now())
 }
 
-// مدل واسط برای اتصال کاربر و نشان
 model UserBadge {
   userId    String
   badgeId   String
   awardedAt DateTime @default(now())
-
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
 
-  @@id([userId, badgeId]) // کلید اصلی ترکیبی
+  @@id([userId, badgeId])
 }
 
-// +++ پایان مدل‌های جدید +++
+// +++ مدل جدید و نهایی برای مدیریت پرداخت‌ها +++
+model Purchase {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningPathId String
+  learningPath   LearningPath   @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  amount         Float
+  status         PurchaseStatus @default(PENDING)
+  authority      String?        @unique
+  refId          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([userId, learningPathId])
+}

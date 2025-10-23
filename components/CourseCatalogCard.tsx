@@ -13,6 +13,8 @@ interface CourseCatalogCardProps {
   chaptersLength: number;
   category: string | null;
   isEnrolled: boolean;
+  price: number | null; // +++ پراپرتی قیمت اضافه شد +++
+  discountPrice: number | null; // +++ پراپرتی تخفیف اضافه شد +++
 }
 
 export const CourseCatalogCard = ({
@@ -22,10 +24,21 @@ export const CourseCatalogCard = ({
   chaptersLength,
   category,
   isEnrolled,
+  price,
+  discountPrice,
 }: CourseCatalogCardProps) => {
+  // +++ شروع منطق جدید برای قیمت و تخفیف +++
+  const hasDiscount = discountPrice && price && discountPrice < price;
+  const finalPrice = hasDiscount ? discountPrice : price;
+
+  let discountPercent = 0;
+  if (hasDiscount) {
+    discountPercent = Math.round(((price! - discountPrice!) / price!) * 100);
+  }
+  // +++ پایان منطق جدید +++
+
   return (
     <div className="relative group h-full">
-      {/* --- تغییر در اینجا: کلاس‌های border و border-slate-200 اضافه شد --- */}
       <div className="inner-curve h-full rounded-2xl p-6 flex flex-col drop-shadow-lg transition-all duration-300 hover:drop-shadow-xl border border-slate-200">
         <div className="flex flex-col items-center text-center flex-grow">
           <div className="w-full aspect-video relative mb-4">
@@ -36,18 +49,45 @@ export const CourseCatalogCard = ({
                 <Book className="h-12 w-12 text-slate-300" />
               </div>
             )}
+            {/* +++ نمایش برچسب تخفیف روی تصویر +++ */}
+            {hasDiscount && (
+              <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                {discountPercent}% تخفیف
+              </div>
+            )}
           </div>
           
-          <h3 className="text-2xl font-bold leading-tight text-slate-800 dark:text-white line-clamp-2">
+          <h3 className="text-xl font-bold leading-tight text-slate-800 line-clamp-2">
             {title}
           </h3>
           <p className="text-sm text-slate-500 mt-2">
             {category || "بدون دسته‌بندی"}
           </p>
-          
-          <div className="mt-auto pt-6 flex items-center justify-center gap-x-2 text-xs text-slate-500 font-semibold">
-            <Layers className="h-4 w-4" />
-            <span>{chaptersLength} فصل</span>
+
+          <div className="mt-auto pt-6 flex flex-col items-center gap-y-2 w-full">
+             {/* +++ بخش جدید نمایش قیمت +++ */}
+            <div className="flex items-center justify-center gap-x-2">
+              {finalPrice !== null && finalPrice > 0 ? (
+                <>
+                  {hasDiscount && (
+                    <p className="text-slate-400 line-through">
+                      {price?.toLocaleString("fa-IR")}
+                    </p>
+                  )}
+                  <p className="font-bold text-lg text-slate-800">
+                    {finalPrice.toLocaleString("fa-IR")} تومان
+                  </p>
+                </>
+              ) : (
+                <p className="font-bold text-lg text-emerald-600">
+                  رایگان
+                </p>
+              )}
+            </div>
+            <div className="flex items-center justify-center gap-x-2 text-xs text-slate-500 font-semibold">
+              <Layers className="h-4 w-4" />
+              <span>{chaptersLength} فصل</span>
+            </div>
           </div>
         </div>
 
@@ -58,7 +98,7 @@ export const CourseCatalogCard = ({
         {isEnrolled ? (
           <ViewCourseButton learningPathId={id} />
         ) : (
-          <EnrollButton learningPathId={id} />
+          <EnrollButton learningPathId={id} price={finalPrice} />
         )}
       </div>
     </div>

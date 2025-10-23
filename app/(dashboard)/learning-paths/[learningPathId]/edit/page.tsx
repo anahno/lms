@@ -82,6 +82,8 @@ export default async function EditLearningPathPage({
     learningPath.description,
     learningPath.imageUrl,
     learningPath.categoryId,
+      learningPath.price !== null, // +++ این خط اضافه شده است +++
+
     hasPublishedChapter,
   ];
 

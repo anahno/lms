@@ -1,4 +1,5 @@
 // فایل: app/(dashboard)/dashboard/page.tsx
+
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -34,6 +35,11 @@ export default async function DashboardPage() {
     getDashboardStats(userId, isAdmin),
     db.learningPath.findMany({
         where: courseWhereClause,
+        // +++ شروع اصلاح کلیدی +++
+        // ما باید به صورت صریح فیلدهای مورد نیاز را در include واکشی کنیم
+        // اما چون `price` و `discountPrice` فیلدهای مستقیم هستند،
+        // Prisma به صورت خودکار آنها را برمی‌گرداند.
+        // برای اطمینان، یک console.log اضافه می‌کنیم تا داده‌ها را ببینیم.
         include: {
           user: true,
           category: true,
@@ -45,16 +51,18 @@ export default async function DashboardPage() {
     })
   ]);
 
+  // برای اشکال‌زدایی: داده‌های واکشی شده را در ترمینال سرور خود ببینید
+  console.log("Courses fetched for dashboard:", learningPaths.slice(0, 3).map(p => ({ title: p.title, price: p.price, discount: p.discountPrice })));
+
   const hasAnyCourse = learningPaths.length > 0;
 
   return (
     <div className="p-6 space-y-8">
+      {/* ... بخش‌های بالایی صفحه بدون تغییر ... */}
       <div>
         <h1 className="text-3xl font-bold">داشبورد</h1>
         <p className="text-muted-foreground">نمای کلی از وضعیت پلتفرم و فعالیت‌های اخیر</p>
       </div>
-
-      {/* بخش کارت‌های آماری و نمودار در کنار هم */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 flex flex-col gap-y-6">
             <StatCard 
@@ -82,8 +90,8 @@ export default async function DashboardPage() {
             <CoursesByCategoryChart data={stats.coursesByCategory} />
         </div>
       </div>
-
-      {/* +++ بخش جدید: آخرین دوره‌ها به صورت افقی در پایین صفحه +++ */}
+      
+      {/* بخش آخرین دوره‌ها */}
       <div>
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-semibold">آخرین دوره‌ها</h2>
@@ -95,16 +103,20 @@ export default async function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {learningPaths.slice(0, 3).map(path => {
                     const totalChapters = path.levels.reduce((acc, level) => acc + level.chapters.length, 0);
-                    return <CourseCard 
-                                key={path.id}
-                                id={path.id}
-                                title={path.title}
-                                imageUrl={path.imageUrl}
-                                chaptersLength={totalChapters}
-                                category={path.category?.name || "بدون دسته‌بندی"}
-                                status={path.status}
-                                instructor={path.user}
-                            />
+                    return (
+                      <CourseCard 
+                        key={path.id}
+                        id={path.id}
+                        title={path.title}
+                        imageUrl={path.imageUrl}
+                        chaptersLength={totalChapters}
+                        category={path.category?.name || "بدون دسته‌بندی"}
+                        status={path.status}
+                        instructor={path.user}
+                        price={path.price} // <--- اطمینان از ارسال پراپرتی
+                        discountPrice={path.discountPrice} // <--- اطمینان از ارسال پراپرتی
+                      />
+                    );
                 })}
             </div>
         ) : (

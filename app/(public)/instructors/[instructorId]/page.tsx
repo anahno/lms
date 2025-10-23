@@ -12,20 +12,17 @@ import { authOptions } from "@/lib/auth";
 export default async function InstructorProfilePage({
   params,
 }: {
-  // ۱. برای خوانایی و type-safety بهتر، به params تایپ Promise می‌دهیم.
-  params: Promise<{ instructorId: string }>;
+  params: { instructorId: string };
 }) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 
-  // ۲. (تغییر اصلی) قبل از دسترسی به پراپرتی‌های params، آن را await می‌کنیم.
-  const resolvedParams = await params;
+  const { instructorId } = params;
 
   const instructor = await db.user.findUnique({
     where: {
-      // ۳. از آبجکت resolve شده برای دسترسی به instructorId استفاده می‌کنیم.
-      id: resolvedParams.instructorId,
-      role: 'INSTRUCTOR', // فقط پروفایل اساتید را نشان بده
+      id: instructorId,
+      role: 'INSTRUCTOR',
     },
     include: {
       learningPaths: {
@@ -40,7 +37,6 @@ export default async function InstructorProfilePage({
               },
             },
           },
-          // برای اینکه بدانیم کاربر فعلی در دوره‌های این استاد ثبت‌نام کرده یا نه
           enrollments: {
             where: { userId },
           },
@@ -50,13 +46,12 @@ export default async function InstructorProfilePage({
   });
 
   if (!instructor) {
-    // اگر استادی با این ID پیدا نشد، کاربر را به صفحه اصلی هدایت کن
     return redirect("/");
   }
 
   return (
     <div className="container mx-auto px-4 py-12">
-      {/* بخش اطلاعات پروفایل */}
+      {/* بخش اطلاعات پروفایل (بدون تغییر) */}
       <div className="flex flex-col md:flex-row items-center md:items-start gap-8 border-b pb-12 mb-12">
         <div className="relative w-40 h-40 flex-shrink-0">
           <Image
@@ -94,6 +89,11 @@ export default async function InstructorProfilePage({
                   chaptersLength={totalChapters}
                   category={course.category?.name || "بدون دسته‌بندی"}
                   isEnrolled={course.enrollments.length > 0}
+                  // +++ شروع اصلاح کلیدی +++
+                  // پراپرتی‌های قیمت و تخفیف به کامپوننت پاس داده می‌شوند
+                  price={course.price}
+                  discountPrice={course.discountPrice}
+                  // +++ پایان اصلاح کلیدی +++
                 />
               );
             })}

@@ -46,6 +46,10 @@ const CourseSection = ({ title, courses, icon: Icon }: { title: string, courses:
               chaptersLength={totalChapters}
               category={course.category?.name || "بدون دسته‌بندی"}
               isEnrolled={course.enrollments.length > 0}
+              // +++ شروع اصلاح نهایی +++
+              price={course.price}
+              discountPrice={course.discountPrice}
+              // +++ پایان اصلاح نهایی +++
             />
           );
         })}
