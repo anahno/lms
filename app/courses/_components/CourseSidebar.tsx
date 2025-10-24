@@ -1,7 +1,7 @@
 // فایل: app/courses/_components/CourseSidebar.tsx
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { CourseSidebarItem } from "./CourseSidebarItem";
 import { CourseQuizItem } from "./CourseQuizItem";
 import { Progress } from "@/components/ui/progress";

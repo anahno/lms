@@ -1,9 +1,9 @@
 // فایل: middleware.ts
-import { withAuth } from "next-auth/middleware";
+import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 
-// این تابع برای اضافه کردن pathname به هدر درخواست است
+// این تابع برای اضافه کردن هدر pathname برای کامپوننت Breadcrumbs است
 function addPathnameHeader(req: NextRequest) {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set('x-next-pathname', req.nextUrl.pathname);
@@ -14,68 +14,65 @@ function addPathnameHeader(req: NextRequest) {
     });
 }
 
-// این بخش اصلی middleware شماست که با next-auth کار می‌کند
-const authMiddleware = withAuth(
-  function middleware(req) {
-    // فقط منطق مربوط به دسترسی‌ها در اینجا باقی می‌ماند
-    const { token } = req.nextauth;
+// این تابع اصلی میدلور است که به طور کامل بازنویسی شده
+export async function middleware(req: NextRequest) {
+    // توکن کاربر را برای بررسی وضعیت لاگین دریافت می‌کنیم
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const { pathname } = req.nextUrl;
 
-    const userRole = token?.role as Role;
-
-    const adminOnlyPaths = ["/categories", "/admin"];
-    
-    if (userRole !== "ADMIN" && adminOnlyPaths.some(p => pathname.startsWith(p))) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-    
-    const protectedPaths = ["/dashboard", "/learning-paths", "/categories", "/grading", "/browse-courses", "/admin"];
-    if (userRole === "USER" && protectedPaths.some(p => pathname.startsWith(p))) {
-       return NextResponse.redirect(new URL("/my-courses", req.url));
-     }
-
-    // اگر هیچکدام از شرط‌های بالا برقرار نبود، فقط هدر pathname را اضافه کن
-    return addPathnameHeader(req);
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token, // این بخش فقط برای مسیرهای محافظت شده اجرا می‌شود
-    },
-  }
-);
-
-
-// این تابع اصلی است که توسط Next.js فراخوانی می‌شود
-export default function middleware(req: NextRequest) {
-    const { pathname } = req.nextUrl;
-    
-    // لیست مسیرهای محافظت شده
-    const protectedPathsMatcher = [
-        "/dashboard/:path*",
-        "/learning-paths/:path*",
-        "/categories/:path*",
-        "/grading/:path*",
-        "/browse-courses/:path*",
-        "/qa-center/:path*",
-        "/admin/:path*",
+    // --- تعریف مسیرهای محافظت شده ---
+    // اینها مسیرهایی هستند که یک کاربر مهمان (وارد نشده) هرگز نباید ببیند.
+    // مهم: مسیر پخش دوره (/courses/.../sections) در این لیست نیست.
+    const strictlyProtectedPaths = [
+        "/my-courses",
+        "/my-account",
+        "/dashboard",
+        "/learning-paths", // صفحات ساخت و ویرایش دوره
+        "/grading",
+        "/qa-center",
+        "/admin",
+        "/browse-courses", // این بخش از داشبورد استاد/ادمین است
+        "/categories",
     ];
 
-    // بررسی اینکه آیا مسیر فعلی جزو مسیرهای محافظت شده است یا نه
-    const isProtected = protectedPathsMatcher.some(matcher => 
-        new RegExp(`^${matcher.replace(/:\w+\*/, '.*')}$`).test(pathname)
-    );
+    // بررسی می‌کنیم که آیا مسیر فعلی یکی از مسیرهای کاملاً محافظت شده است یا خیر.
+    const isStrictlyProtected = strictlyProtectedPaths.some(p => pathname.startsWith(p));
 
-    if (isProtected) {
-        // اگر مسیر محافظت شده بود، middleware احراز هویت را اجرا کن
-        return (authMiddleware as any)(req);
+    // --- منطق اصلی کنترل دسترسی ---
+
+    // ۱. اگر مسیر محافظت شده است و کاربر لاگین نکرده، او را به صفحه لاگین هدایت کن.
+    if (isStrictlyProtected && !token) {
+        const loginUrl = new URL("/login", req.url);
+        loginUrl.searchParams.set("callbackUrl", pathname);
+        return NextResponse.redirect(loginUrl);
     }
 
-    // اگر مسیر عمومی بود، فقط هدر pathname را اضافه کن و ادامه بده
+    // ۲. اگر کاربر لاگین کرده است، منطق مربوط به نقش‌ها را اجرا کن.
+    if (token) {
+        const userRole = token.role as Role;
+
+        // مسیرهای مخصوص استاد و ادمین
+        const instructorAdminPaths = [ "/dashboard", "/learning-paths", "/grading", "/browse-courses" ];
+        if (userRole === "USER" && instructorAdminPaths.some(p => pathname.startsWith(p))) {
+           return NextResponse.redirect(new URL("/my-courses", req.url));
+        }
+
+        // مسیرهای مخصوص ادمین
+        const adminOnlyPaths = ["/categories", "/admin"];
+        if (userRole !== "ADMIN" && adminOnlyPaths.some(p => pathname.startsWith(p))) {
+          const redirectUrl = userRole === "INSTRUCTOR" ? "/dashboard" : "/my-courses";
+          return NextResponse.redirect(new URL(redirectUrl, req.url));
+        }
+    }
+
+    // ۳. برای تمام مسیرهای دیگر (مانند صفحه اصلی، کاتالوگ، و مهمتر از همه /courses/.../sections/...)
+    // هیچ ریدایرکتی انجام نده و فقط درخواست را به صفحه مورد نظر ارسال کن.
     return addPathnameHeader(req);
 }
 
 
+// --- Config ---
+// این اطمینان می‌دهد که میدلور روی همه مسیرها به جز فایل‌های استاتیک و API اجرا می‌شود.
 export const config = {
-  // middleware را برای همه مسیرها اجرا کن
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };

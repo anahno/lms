@@ -1,4 +1,3 @@
-
 // فایل: app/courses/[learningPathId]/sections/[sectionId]/layout.tsx
 "use server";
 
@@ -24,11 +23,12 @@ export default async function CourseSectionLayout({
   params: Promise<{ learningPathId: string; sectionId: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return redirect("/login");
+  // --- ۱. خط کد ریدایرکت ناخواسته از اینجا به طور کامل حذف شد ---
+  // if (!session?.user?.id) return redirect("/login"); <-- این خط حذف شد
 
   const resolvedParams = await params;
   const { learningPathId, sectionId } = resolvedParams;
-  const userId = session.user.id;
+  const userId = session?.user?.id; // اگر کاربر لاگین نباشد، این undefined خواهد بود
 
   const learningPathData = await db.learningPath.findUnique({
     where: { id: learningPathId },
@@ -57,24 +57,19 @@ export default async function CourseSectionLayout({
 
   if (!learningPathData) return redirect("/");
 
-  const isOwner = learningPathData.userId === userId;
-  // +++ ۱. وضعیت ثبت‌نام را اینجا مشخص می‌کنیم +++
-  const enrollment = await db.enrollment.findUnique({
-    where: { userId_learningPathId: { userId, learningPathId } },
-  });
-  
-  // اگر کاربر مالک دوره نباشد و ثبت‌نام هم نکرده باشد، اجازه ورود نمی‌دهیم
-  if (!isOwner && !enrollment) {
-    // البته این منطق باید بهبود یابد تا اجازه دیدن بخش‌های رایگان را بدهد
-    // که در گام بعدی (محافظت از محتوا) انجام می‌دهیم.
-    // فعلاً فرض می‌کنیم برای ورود به این صفحه باید ثبت‌نام کرده باشد.
-    return redirect(`/courses/${learningPathId}`);
+  let isEnrolled = false;
+  let progressCount = 0;
+
+  // --- ۲. فقط اگر کاربر لاگین کرده بود، وضعیت ثبت‌نام و پیشرفت را بررسی می‌کنیم ---
+  if (userId) {
+    const enrollment = await db.enrollment.findUnique({
+      where: { userId_learningPathId: { userId, learningPathId } },
+    });
+    isEnrolled = !!enrollment;
+    progressCount = await getProgress(userId, learningPathData.id);
   }
-  
-  const isEnrolled = !!enrollment;
 
-  const progressCount = await getProgress(userId, learningPathData.id);
-
+  // بقیه کد برای ساخت Breadcrumbs بدون تغییر باقی می‌ماند
   let chapterTitle = "";
   let sectionTitle = "";
 
@@ -97,13 +92,12 @@ export default async function CourseSectionLayout({
     sectionTitle
   };
 
-
   return (
     <CoursePlayerLayout
       learningPath={learningPathData}
       progressCount={progressCount}
       breadcrumbData={breadcrumbData}
-      isEnrolled={isEnrolled} // +++ ۲. وضعیت ثبت‌نام را پاس می‌دهیم +++
+      isEnrolled={isEnrolled}
     >
       {children}
     </CoursePlayerLayout>

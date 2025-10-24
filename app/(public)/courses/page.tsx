@@ -8,66 +8,66 @@ import { authOptions } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 import { Filters } from "./_components/Filters";
 
+// +++ ۱. نوع پراپ‌ها را برای دریافت Promise اصلاح می‌کنیم +++
 interface CoursesCatalogPageProps {
-  searchParams: {
+  searchParams: Promise<{
     search?: string;
     category?: string;
     level?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'ALL_LEVELS';
     price?: 'free' | 'paid';
     sortBy?: 'newest' | 'popular';
-  }
+  }>
 }
 
 export default async function CoursesCatalogPage({ searchParams }: CoursesCatalogPageProps) {
   
+  // +++ ۲. قبل از استفاده، searchParams را await می‌کنیم +++
+  const resolvedSearchParams = await searchParams;
+
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 
-  // ==================== شروع تغییرات کلیدی برای رفع خطا ====================
   const whereClause: Prisma.LearningPathWhereInput = {
     status: 'PUBLISHED',
-    AND: [], // مقداردهی اولیه به عنوان یک آرایه خالی صحیح است
+    AND: [],
   };
 
-  // اما برای اضافه کردن شرط‌ها باید به این صورت عمل کنیم
   const conditions: Prisma.LearningPathWhereInput[] = [];
 
-  if (searchParams.search) {
+  // +++ ۳. از resolvedSearchParams برای خواندن مقادیر استفاده می‌کنیم +++
+  if (resolvedSearchParams.search) {
     conditions.push({
       OR: [
-        { title: { contains: searchParams.search, mode: 'insensitive' } },
-        { description: { contains: searchParams.search, mode: 'insensitive' } },
-        { subtitle: { contains: searchParams.search, mode: 'insensitive' } },
+        { title: { contains: resolvedSearchParams.search, mode: 'insensitive' } },
+        { description: { contains: resolvedSearchParams.search, mode: 'insensitive' } },
+        { subtitle: { contains: resolvedSearchParams.search, mode: 'insensitive' } },
       ],
     });
   }
 
-  if (searchParams.category) {
-    conditions.push({ categoryId: searchParams.category });
+  if (resolvedSearchParams.category) {
+    conditions.push({ categoryId: resolvedSearchParams.category });
   }
 
-  if (searchParams.level && searchParams.level !== 'ALL_LEVELS') {
-    conditions.push({ level: searchParams.level });
+  if (resolvedSearchParams.level && resolvedSearchParams.level !== 'ALL_LEVELS') {
+    conditions.push({ level: resolvedSearchParams.level });
   }
 
-  if (searchParams.price) {
-    if (searchParams.price === 'free') {
+  if (resolvedSearchParams.price) {
+    if (resolvedSearchParams.price === 'free') {
       conditions.push({ OR: [{ price: null }, { price: 0 }] });
-    } else if (searchParams.price === 'paid') {
+    } else if (resolvedSearchParams.price === 'paid') {
       conditions.push({ price: { gt: 0 } });
     }
   }
 
-  // در نهایت، آرایه شرط‌ها را به whereClause.AND اختصاص می‌دهیم
   if (conditions.length > 0) {
     whereClause.AND = conditions;
   }
   
-  // ===================== پایان تغییرات کلیدی برای رفع خطا =====================
-
   let orderByClause: Prisma.LearningPathOrderByWithRelationInput = { createdAt: "desc" };
 
-  if (searchParams.sortBy === 'popular') {
+  if (resolvedSearchParams.sortBy === 'popular') {
     orderByClause = { enrollments: { _count: 'desc' } };
   }
   
@@ -105,7 +105,8 @@ export default async function CoursesCatalogPage({ searchParams }: CoursesCatalo
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
         <aside className="md:col-span-1">
-          <Filters categories={categories} searchParams={searchParams} />
+          {/* +++ ۴. resolvedSearchParams را به کامپوننت Filters پاس می‌دهیم +++ */}
+          <Filters categories={categories} searchParams={resolvedSearchParams} />
         </aside>
 
         <main className="md:col-span-3">
@@ -123,8 +124,8 @@ export default async function CoursesCatalogPage({ searchParams }: CoursesCatalo
                         chaptersLength={totalChapters}
                         category={course.category?.name || "بدون دسته‌بندی"}
                         isEnrolled={course.enrollments.length > 0}
-                                price={course.price} // +++ این خط اضافه شد +++
-        discountPrice={course.discountPrice} // +++ این خط اضافه شد +++
+                        price={course.price}
+                        discountPrice={course.discountPrice}
                     />
                     );
                 })}

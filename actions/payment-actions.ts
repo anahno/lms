@@ -16,6 +16,13 @@ const ZARINPAL_START_PAY_URL = "https://www.zarinpal.com/pg/StartPay/";
  * @returns آبجکتی شامل لینک پرداخت در صورت موفقیت، یا پیام خطا در صورت شکست.
  */
 export const createPaymentRequest = async (learningPathId: string) => {
+  // +++ ۱. بررسی حیاتی: چک کردن وجود Merchant ID +++
+  if (!process.env.ZARINPAL_MERCHANT_ID) {
+    console.error("[FATAL_PAYMENT_ERROR] ZARINPAL_MERCHANT_ID is not set in environment variables.");
+    return { error: "تنظیمات درگاه پرداخت صحیح نیست. لطفاً با پشتیبانی تماس بگیرید." };
+  }
+  // +++ پایان بررسی +++
+
   // 1. بررسی نشست و احراز هویت کاربر
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -51,7 +58,6 @@ export const createPaymentRequest = async (learningPathId: string) => {
 
   try {
     // 4. ایجاد یک رکورد خرید موقت در دیتابیس با وضعیت "در انتظار"
-    // اگر کاربر قبلا تلاش ناموفق داشته، رکورد قبلی را آپدیت می‌کنیم
     const purchase = await db.purchase.upsert({
       where: { userId_learningPathId: { userId, learningPathId } },
       update: { amount },
@@ -70,7 +76,6 @@ export const createPaymentRequest = async (learningPathId: string) => {
       callback_url,
       metadata: {
         email: session.user.email,
-        // mobile: "09120000000" // (اختیاری)
       },
     });
 
@@ -78,7 +83,7 @@ export const createPaymentRequest = async (learningPathId: string) => {
     if (response.data.data.code === 100) {
       const authority = response.data.data.authority;
 
-      // 7. ذخیره کد authority برای پیگیری تراکنش در مرحله بعد
+      // 7. ذخیره کد authority
       await db.purchase.update({
         where: { id: purchase.id },
         data: { authority },
@@ -88,11 +93,10 @@ export const createPaymentRequest = async (learningPathId: string) => {
       
       console.log(`[Payment] User ${userId} redirected to: ${paymentUrl}`);
       
-      // 8. بازگرداندن لینک پرداخت به کلاینت
+      // 8. بازگرداندن لینک پرداخت
       return { success: true, url: paymentUrl };
 
     } else {
-      // اگر زرین‌پال خطا داد، آن را ثبت می‌کنیم
       const error_code = response.data.errors.code;
       const error_message = response.data.errors.message;
       console.error(`[Zarinpal Error] Code: ${error_code}, Message: ${error_message}`);

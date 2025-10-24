@@ -11,18 +11,17 @@ import { LockedContent } from "@/app/courses/_components/LockedContent";
 export default async function SectionIdPageWrapper({
   params,
 }: {
+  // +++ ۱. نوع پراپ params را به Promise تغییر می‌دهیم +++
   params: Promise<{ learningPathId: string; sectionId: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    // در صورت لاگین نبودن، کاربر را به صفحه لاگین با ریدایرکت به همین دوره هدایت می‌کنیم
-    return redirect(`/login?callbackUrl=/courses/${(await params).learningPathId}`);
-  }
-  const userId = session.user.id;
-
+  
+  // +++ ۲. قبل از استفاده، params را await می‌کنیم +++
   const { learningPathId, sectionId } = await params;
 
-  const [learningPath, section, enrollment] = await Promise.all([
+  const userId = session?.user?.id;
+
+  const [learningPath, section] = await Promise.all([
     db.learningPath.findUnique({
       where: {
         id: learningPathId,
@@ -44,23 +43,11 @@ export default async function SectionIdPageWrapper({
         isPublished: true,
       },
       include: {
-        progress: {
-          where: { userId },
-        },
-        // +++ ۱. اطلاعات فصل والد را هم واکشی می‌کنیم +++
         chapter: {
           select: {
             isFree: true,
           }
         }
-      },
-    }),
-    db.enrollment.findUnique({
-      where: {
-        userId_learningPathId: {
-          userId,
-          learningPathId,
-        },
       },
     }),
   ]);
@@ -69,17 +56,47 @@ export default async function SectionIdPageWrapper({
     return redirect("/");
   }
 
-  // +++ ۲. منطق نهایی برای بررسی دسترسی +++
-  const isEnrolled = !!enrollment;
   const isSectionFree = section.isFree;
   const isChapterFree = section.chapter.isFree;
-  const canViewContent = isEnrolled || isSectionFree || isChapterFree;
+  const isContentFree = isSectionFree || isChapterFree;
+
+  let isEnrolled = false;
+  if (userId) {
+    const enrollment = await db.enrollment.findUnique({
+      where: {
+        userId_learningPathId: {
+          userId,
+          learningPathId,
+        },
+      },
+    });
+    isEnrolled = !!enrollment;
+  }
+  
+  const canViewContent = isEnrolled || isContentFree;
 
   if (!canViewContent) {
+    // اگر کاربر وارد نشده و محتوا رایگان نیست، به صفحه لاگین با ریدایرکت هدایت شود
+    if (!userId) {
+      return redirect(`/login?callbackUrl=/courses/${learningPathId}/sections/${sectionId}`);
+    }
+    // اگر کاربر وارد شده ولی ثبت‌نام نکرده، محتوای قفل شده نمایش داده شود
     return <LockedContent courseId={learningPath.id} />;
   }
 
-  // ... بقیه کد بدون تغییر ...
+  const sectionWithProgress = await db.section.findUnique({
+    where: { id: sectionId },
+    include: {
+      progress: {
+        where: { userId },
+      },
+    },
+  });
+
+  if (!sectionWithProgress) {
+    return redirect("/");
+  }
+  
   const allSectionsInOrder = await db.section.findMany({
     where: {
       chapter: {
@@ -99,12 +116,12 @@ export default async function SectionIdPageWrapper({
   const currentSectionIndex = allSectionsInOrder.findIndex(s => s.id === sectionId);
   const nextSection = allSectionsInOrder[currentSectionIndex + 1];
 
-  const isCompleted = !!section.progress && section.progress.length > 0 && section.progress[0].isCompleted;
+  const isCompleted = !!sectionWithProgress.progress && sectionWithProgress.progress.length > 0 && sectionWithProgress.progress[0].isCompleted;
 
   return (
     <CoursePlayerPage
       learningPath={learningPath}
-      section={section}
+      section={sectionWithProgress}
       nextSectionId={nextSection?.id}
       isCompleted={isCompleted}
     />

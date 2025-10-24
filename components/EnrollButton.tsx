@@ -1,10 +1,7 @@
 // فایل: components/EnrollButton.tsx
 "use client";
 
-// +++ شروع اصلاح: useState و Lock حذف شدند +++
 import { useTransition } from "react";
-// +++ پایان اصلاح +++
-
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Plus } from "lucide-react";
@@ -16,9 +13,10 @@ import { Button } from "./ui/button";
 interface EnrollButtonProps {
   learningPathId: string;
   price: number | null | undefined;
+  context?: "catalog" | "landing";
 }
 
-export const EnrollButton = ({ learningPathId, price }: EnrollButtonProps) => {
+export const EnrollButton = ({ learningPathId, price, context = "landing" }: EnrollButtonProps) => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -26,6 +24,12 @@ export const EnrollButton = ({ learningPathId, price }: EnrollButtonProps) => {
   const buttonLabel = isFree ? "ثبت‌نام رایگان در دوره" : "خرید دوره";
 
   const handleClick = () => {
+    if (context === "catalog") {
+      // +++ اصلاح شد: استفاده از بک‌تیک (`) برای ساخت رشته URL +++
+      router.push(`/courses/${learningPathId}`);
+      return;
+    }
+
     startTransition(async () => {
       try {
         if (isFree) {
@@ -36,7 +40,7 @@ export const EnrollButton = ({ learningPathId, price }: EnrollButtonProps) => {
           } else if (result.error) {
             if (result.error === "برای ثبت‌نام ابتدا باید وارد شوید.") {
               toast.error(result.error);
-              router.push("/login");
+              router.push(`/login?callbackUrl=/courses/${learningPathId}`);
             } else {
               toast.error(result.error);
             }
@@ -49,7 +53,7 @@ export const EnrollButton = ({ learningPathId, price }: EnrollButtonProps) => {
           } else if (result.error) {
             if (result.error === "برای خرید دوره ابتدا باید وارد شوید.") {
               toast.error(result.error);
-              router.push("/login");
+              router.push(`/login?callbackUrl=/courses/${learningPathId}`);
             } else {
               toast.error(result.error);
             }
