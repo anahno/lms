@@ -13,8 +13,9 @@ import { SectionVideoForm } from "./_components/SectionVideoForm";
 import { SectionActions } from "./_components/SectionActions";
 import { SectionAudioForm } from "./_components/SectionAudioForm";
 import { SectionQuizForm } from "./_components/SectionQuizForm";
-// +++ ۱. کامپوننت جدید تحلیل امتیازات را وارد می‌کنیم +++
 import { RatingAnalyticsCard } from "./_components/RatingAnalyticsCard";
+// +++ ۱. کامپوننت جدید را وارد کنید +++
+import { SectionAccessForm } from "./_components/SectionAccessForm";
 
 
 export default async function SectionIdPage({
@@ -24,7 +25,6 @@ export default async function SectionIdPage({
 }) {
   const { learningPathId, chapterId, sectionId } = await params;
 
-  // +++ ۲. کوئری را برای دریافت تمام امتیازات این بخش اصلاح می‌کنیم +++
   const section = await db.section.findUnique({
     where: {
       id: sectionId,
@@ -44,9 +44,8 @@ export default async function SectionIdPage({
         },
       },
       progress: {
-        // همه رکوردهای progress را می‌گیریم
         select: {
-          rating: true, // فقط فیلد امتیاز را انتخاب می‌کنیم
+          rating: true,
         },
       },
     },
@@ -56,7 +55,6 @@ export default async function SectionIdPage({
     return redirect(`/learning-paths/${learningPathId}/edit`);
   }
   
-  // +++ ۳. لیست تمام امتیازات را استخراج می‌کنیم +++
   const ratings = section.progress.map(p => p.rating);
   
   const hasContent = !!section.videoUrl || !!section.audioUrl;
@@ -126,6 +124,13 @@ export default async function SectionIdPage({
               chapterId={chapterId}
               sectionId={sectionId}
             />
+            {/* +++ ۲. کامپوننت فرم دسترسی را اینجا اضافه کنید +++ */}
+            <SectionAccessForm
+              initialData={section}
+              learningPathId={learningPathId}
+              chapterId={chapterId}
+              sectionId={sectionId}
+            />
             <SectionQuizForm
               initialData={section}
               learningPathId={learningPathId}
@@ -152,7 +157,6 @@ export default async function SectionIdPage({
               sectionId={sectionId}
             />
             
-            {/* +++ ۴. کامپوننت تحلیل امتیازات را اینجا اضافه می‌کنیم +++ */}
             <div className="mt-6">
               <div className="flex items-center gap-x-2 mb-4">
                 <h2 className="text-xl">آمار و تحلیل</h2>

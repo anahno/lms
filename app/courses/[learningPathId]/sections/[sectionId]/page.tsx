@@ -3,10 +3,10 @@
 
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth"; // مسیر صحیح
 import { db } from "@/lib/db";
 import { CoursePlayerPage } from "@/app/courses/_components/CoursePlayerPage";
-import { CourseStatus } from "@prisma/client"; // ۱. ایمپورت کردن enum برای type safety
+import { LockedContent } from "@/app/courses/_components/LockedContent"; // +++ ۱. کامپوننت جدید +++
 
 export default async function SectionIdPageWrapper({
   params,
@@ -15,22 +15,19 @@ export default async function SectionIdPageWrapper({
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return redirect("/login");
+    return redirect(`/login?callbackUrl=/courses/${(await params).learningPathId}`);
   }
   const userId = session.user.id;
 
-  const resolvedParams = await params;
-  const { learningPathId, sectionId } = resolvedParams;
+  const { learningPathId, sectionId } = await params;
 
-  const [learningPath, section] = await Promise.all([
-    db.learningPath.findFirst({
-      // --- شروع تغییر نهایی و قطعی ---
-      // به جای isPublished، از status: 'PUBLISHED' استفاده می‌کنیم
+  // --- واکشی همزمان تمام داده‌های مورد نیاز ---
+  const [learningPath, section, enrollment] = await Promise.all([
+    db.learningPath.findUnique({
       where: {
         id: learningPathId,
-        status: CourseStatus.PUBLISHED, // <-- استفاده از enum صحیح
+        status: 'PUBLISHED',
       },
-      // --- پایان تغییر نهایی و قطعی ---
       select: {
         id: true,
         title: true,
@@ -38,10 +35,10 @@ export default async function SectionIdPageWrapper({
         description: true,
         whatYouWillLearn: true,
         requirements: true,
+        price: true, // برای نمایش در صفحه خرید
       },
     }),
-    // کوئری برای Section صحیح است چون Section هنوز isPublished دارد
-    db.section.findFirst({
+    db.section.findUnique({
       where: {
         id: sectionId,
         isPublished: true,
@@ -52,13 +49,31 @@ export default async function SectionIdPageWrapper({
         },
       },
     }),
+    db.enrollment.findUnique({
+      where: {
+        userId_learningPathId: {
+          userId,
+          learningPathId,
+        },
+      },
+    }),
   ]);
 
   if (!learningPath || !section) {
     return redirect("/");
   }
 
-  // ... بقیه کد بدون تغییر ...
+  // --- منطق اصلی بررسی دسترسی ---
+  const isEnrolled = !!enrollment;
+  const isFree = section.isFree;
+  const canViewContent = isEnrolled || isFree;
+
+  // اگر محتوا قفل بود، کامپوننت LockedContent را نمایش بده
+  if (!canViewContent) {
+    return <LockedContent courseId={learningPath.id} />;
+  }
+
+  // اگر دسترسی مجاز بود، بقیه منطق مثل قبل اجرا می‌شود
   const allSectionsInOrder = await db.section.findMany({
     where: {
       chapter: {

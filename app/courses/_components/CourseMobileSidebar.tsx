@@ -1,17 +1,20 @@
-// فایل: app/courses/[learningPathId]/_components/CourseMobileSidebar.tsx
+// فایل: app/courses/_components/CourseMobileSidebar.tsx
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { CourseSidebar } from "./CourseSidebar";
 import { LearningPathWithStructure } from "@/lib/types";
 
+// +++ ۱. پراپ جدید را به اینترفیس اضافه کنید +++
 interface CourseMobileSidebarProps {
   learningPath: LearningPathWithStructure;
   progressCount: number;
+  isEnrolled: boolean;
 }
 
 export const CourseMobileSidebar = ({
   learningPath,
   progressCount,
+  isEnrolled, // +++ ۲. پراپ را اینجا دریافت کنید +++
 }: CourseMobileSidebarProps) => {
   return (
     <Sheet>
@@ -22,6 +25,7 @@ export const CourseMobileSidebar = ({
         <CourseSidebar
           learningPath={learningPath}
           progressCount={progressCount}
+          isEnrolled={isEnrolled} // +++ ۳. پراپ را به کامپوننت فرزند پاس دهید +++
         />
       </SheetContent>
     </Sheet>

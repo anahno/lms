@@ -9,7 +9,6 @@ import { CollapsedSidebar } from "../_components/CollapsedSidebar";
 import type { LearningPathWithStructure } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Menu } from "lucide-react";
-// +++ ۱. تایپ BreadcrumbData را از layout وارد می‌کنیم +++
 import type { BreadcrumbData } from "../[learningPathId]/sections/[sectionId]/layout";
 
 
@@ -17,14 +16,16 @@ interface CoursePlayerLayoutProps {
   children: React.ReactNode;
   learningPath: LearningPathWithStructure;
   progressCount: number;
-  breadcrumbData: BreadcrumbData; // +++ ۲. پراپ جدید را اضافه می‌کنیم +++
+  breadcrumbData: BreadcrumbData;
+  isEnrolled: boolean; // +++ ۱. پراپ جدید +++
 }
 
 export const CoursePlayerLayout = ({
   children,
   learningPath,
   progressCount,
-  breadcrumbData, // +++ ۳. پراپ جدید را دریافت می‌کنیم +++
+  breadcrumbData,
+  isEnrolled, // +++ ۲. دریافت پراپ +++
 }: CoursePlayerLayoutProps) => {
   const [isDesktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 
@@ -34,9 +35,8 @@ export const CoursePlayerLayout = ({
         <CourseNavbar
           learningPath={learningPath}
           progressCount={progressCount}
-          breadcrumbData={breadcrumbData} // +++ ۴. پراپ را به CourseNavbar پاس می‌دهیم +++
+          breadcrumbData={breadcrumbData}
         >
-          {/* دکمه منوی همبرگری موبایل */}
           <Sheet>
             <SheetTrigger className="md:hidden pr-4 hover:opacity-75 transition">
               <Menu />
@@ -46,13 +46,13 @@ export const CoursePlayerLayout = ({
                 learningPath={learningPath}
                 progressCount={progressCount}
                 onClose={() => {}}
+                isEnrolled={isEnrolled} // +++ ۳. پاس دادن به سایدبار +++
               />
             </SheetContent>
           </Sheet>
         </CourseNavbar>
       </div>
 
-      {/* ... (بقیه کد بدون تغییر) ... */}
       <div className="hidden md:block h-full fixed inset-y-0 right-0 z-40 pt-[80px]">
         {isDesktopSidebarOpen ? (
           <div className="w-80">
@@ -60,6 +60,7 @@ export const CoursePlayerLayout = ({
               learningPath={learningPath}
               progressCount={progressCount}
               onClose={() => setDesktopSidebarOpen(false)}
+              isEnrolled={isEnrolled} // +++ ۴. پاس دادن به سایدبار +++
             />
           </div>
         ) : (

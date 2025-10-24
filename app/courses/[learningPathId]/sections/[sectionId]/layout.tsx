@@ -1,3 +1,4 @@
+
 // فایل: app/courses/[learningPathId]/sections/[sectionId]/layout.tsx
 "use server";
 
@@ -8,7 +9,6 @@ import { authOptions } from "@/lib/auth";
 import { getProgress } from "@/actions/get-progress";
 import { CoursePlayerLayout } from "../../../_components/CoursePlayerLayout";
 
-// +++ ۱. courseId را به تایپ اضافه می‌کنیم +++
 export type BreadcrumbData = {
   courseId: string;
   courseTitle: string;
@@ -58,12 +58,20 @@ export default async function CourseSectionLayout({
   if (!learningPathData) return redirect("/");
 
   const isOwner = learningPathData.userId === userId;
-  if (!isOwner) {
-    const enrollment = await db.enrollment.findUnique({
-      where: { userId_learningPathId: { userId, learningPathId } },
-    });
-    if (!enrollment) return redirect("/courses");
+  // +++ ۱. وضعیت ثبت‌نام را اینجا مشخص می‌کنیم +++
+  const enrollment = await db.enrollment.findUnique({
+    where: { userId_learningPathId: { userId, learningPathId } },
+  });
+  
+  // اگر کاربر مالک دوره نباشد و ثبت‌نام هم نکرده باشد، اجازه ورود نمی‌دهیم
+  if (!isOwner && !enrollment) {
+    // البته این منطق باید بهبود یابد تا اجازه دیدن بخش‌های رایگان را بدهد
+    // که در گام بعدی (محافظت از محتوا) انجام می‌دهیم.
+    // فعلاً فرض می‌کنیم برای ورود به این صفحه باید ثبت‌نام کرده باشد.
+    return redirect(`/courses/${learningPathId}`);
   }
+  
+  const isEnrolled = !!enrollment;
 
   const progressCount = await getProgress(userId, learningPathData.id);
 
@@ -83,7 +91,7 @@ export default async function CourseSectionLayout({
   }
   
   const breadcrumbData: BreadcrumbData = {
-    courseId: learningPathData.id, // +++ ۲. courseId را اینجا مقداردهی می‌کنیم +++
+    courseId: learningPathData.id,
     courseTitle: learningPathData.title,
     chapterTitle,
     sectionTitle
@@ -95,6 +103,7 @@ export default async function CourseSectionLayout({
       learningPath={learningPathData}
       progressCount={progressCount}
       breadcrumbData={breadcrumbData}
+      isEnrolled={isEnrolled} // +++ ۲. وضعیت ثبت‌نام را پاس می‌دهیم +++
     >
       {children}
     </CoursePlayerLayout>

@@ -1,4 +1,4 @@
-// ✅ فایل نهایی: app/courses/_components/CourseSidebar.tsx
+// فایل: app/courses/_components/CourseSidebar.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 interface CourseSidebarProps {
   learningPath: LearningPathWithStructure;
   progressCount: number;
+  isEnrolled: boolean; // +++ ۱. پراپ جدید +++
   onClose?: () => void;
 }
 
@@ -28,6 +29,7 @@ const formatDuration = (totalSeconds: number | null) => {
 export const CourseSidebar = ({
   learningPath,
   progressCount,
+  isEnrolled, // +++ ۲. دریافت پراپ +++
   onClose,
 }: CourseSidebarProps) => {
   const [expandedChapters, setExpandedChapters] = useState<string[]>(
@@ -114,6 +116,8 @@ export const CourseSidebar = ({
                               isCompleted={
                                 !!section.progress?.[0]?.isCompleted
                               }
+                              isFree={section.isFree} // +++ ۳. پاس دادن isFree +++
+                              isEnrolled={isEnrolled} // +++ ۴. پاس دادن isEnrolled +++
                             />
                             {hasQuiz ? (
                               <CourseQuizItem
