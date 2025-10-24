@@ -4,7 +4,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 import toast from "react-hot-toast";
-import { Check, PlayCircle, Lock } from "lucide-react"; // +++ ۱. آیکن Lock را اضافه کنید +++
+import { Check, PlayCircle, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toggleSectionCompletion } from "@/actions/progress";
 
@@ -14,8 +14,9 @@ interface CourseSidebarItemProps {
   duration: number | null;
   isCompleted: boolean;
   learningPathId: string;
-  isFree: boolean; // +++ ۲. پراپ جدید +++
-  isEnrolled: boolean; // +++ ۳. پراپ جدید +++
+  isFree: boolean;
+  isChapterFree: boolean; // +++ پراپ جدید برای وضعیت فصل +++
+  isEnrolled: boolean;
 }
 
 const formatDuration = (seconds: number | null) => {
@@ -32,6 +33,7 @@ export const CourseSidebarItem = ({
   isCompleted,
   learningPathId,
   isFree,
+  isChapterFree,
   isEnrolled,
 }: CourseSidebarItemProps) => {
   const pathname = usePathname();
@@ -39,10 +41,17 @@ export const CourseSidebarItem = ({
   const [isPending, startTransition] = useTransition();
 
   const isActive = pathname?.includes(`/sections/${id}`);
-  // +++ ۴. منطق جدید برای قفل بودن +++
-  const isLocked = !isEnrolled && !isFree;
+  
+  // +++ منطق جدید و نهایی برای قفل بودن +++
+  // یک بخش قفل است اگر:
+  // ۱. کاربر ثبت‌نام نکرده باشد، و
+  // ۲. خود آن بخش به تنهایی رایگان نباشد، و
+  // ۳. فصل والد آن بخش هم رایگان نباشد.
+  const isLocked = !isEnrolled && !isFree && !isChapterFree;
 
   const handleItemClick = () => {
+    // حتی اگر قفل بود هم به صفحه مربوطه می‌رویم
+    // چون آن صفحه خودش منطق محافظت از محتوا را دارد
     router.push(`/courses/${learningPathId}/sections/${id}`);
   };
 
@@ -72,7 +81,7 @@ export const CourseSidebarItem = ({
         isActive ? "bg-sky-100/50 text-sky-800" : "hover:bg-slate-100",
         isCompleted && !isActive && "text-emerald-700 hover:text-emerald-800",
         isPending && "opacity-75 cursor-not-allowed",
-        isLocked && "text-slate-500 hover:bg-slate-50 cursor-default" // +++ استایل برای آیتم قفل شده +++
+        isLocked && "text-slate-500 hover:bg-slate-50"
       )}
       disabled={isPending}
     >
@@ -84,7 +93,7 @@ export const CourseSidebarItem = ({
             ? "border-emerald-600 bg-emerald-600 text-white"
             : "border-slate-400 bg-white group-hover:border-slate-700",
           isActive && !isCompleted && "border-sky-700",
-          isLocked && "cursor-not-allowed" // +++ غیرفعال کردن کلیک روی چک‌باکس قفل شده +++
+          isLocked && "cursor-not-allowed"
         )}
       >
         {isCompleted && <Check className="h-3 w-3" />}
@@ -98,7 +107,6 @@ export const CourseSidebarItem = ({
         </div>
       </div>
       
-      {/* +++ ۵. نمایش آیکن قفل +++ */}
       {isLocked && (
         <Lock className="h-4 w-4 text-amber-500" />
       )}

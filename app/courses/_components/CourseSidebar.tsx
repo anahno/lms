@@ -29,10 +29,10 @@ const formatDuration = (totalSeconds: number | null) => {
 export const CourseSidebar = ({
   learningPath,
   progressCount,
-  isEnrolled, // +++ ۲. دریافت پراپ +++
+  isEnrolled,
   onClose,
 }: CourseSidebarProps) => {
-  const [expandedChapters, setExpandedChapters] = useState<string[]>(
+  const [expandedChapters, setExpandedChapters] = React.useState<string[]>(
     [learningPath.levels[0]?.chapters[0]?.id].filter(Boolean)
   );
 
@@ -116,15 +116,17 @@ export const CourseSidebar = ({
                               isCompleted={
                                 !!section.progress?.[0]?.isCompleted
                               }
-                              isFree={section.isFree} // +++ ۳. پاس دادن isFree +++
-                              isEnrolled={isEnrolled} // +++ ۴. پاس دادن isEnrolled +++
+                              isFree={section.isFree}
+                              // +++ پراپ جدید برای وضعیت فصل را پاس می‌دهیم +++
+                              isChapterFree={chapter.isFree} 
+                              isEnrolled={isEnrolled}
                             />
-                            {hasQuiz ? (
+                            {hasQuiz && ( // اگر آزمون وجود داشت، آن را نمایش بده
                               <CourseQuizItem
                                 quizId={section.quiz!.id}
                                 learningPathId={learningPath.id}
                               />
-                            ) : null}
+                            )}
                           </React.Fragment>
                         );
                       })}

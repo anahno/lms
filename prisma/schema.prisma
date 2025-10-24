@@ -187,6 +187,8 @@ model Chapter {
   title       String
   position    Int
   isPublished Boolean   @default(false)
+    isFree      Boolean   @default(false) // +++ این خط را اضافه کنید +++
+
   levelId     String
   level       Level     @relation(fields: [levelId], references: [id], onDelete: Cascade)
   sections    Section[]

@@ -9,8 +9,9 @@ import { ChapterTitleForm } from "./ChapterTitleForm";
 import { ChapterActions } from "./ChapterActions";
 import { SectionsForm } from "./SectionsForm";
 import { ChapterRatingAnalyticsCard } from "./ChapterRatingAnalyticsCard";
+// +++ ۱. کامپوننت جدید را وارد کنید +++
+import { ChapterAccessForm } from "./ChapterAccessForm";
 
-// یک تایپ دقیق برای پراپ chapter تعریف می‌کنیم تا از any استفاده نکنیم
 type ChapterWithDetails = Prisma.ChapterGetPayload<{
   include: {
     sections: {
@@ -44,7 +45,6 @@ export const ChapterPageClient = ({
   allRatings,
 }: ChapterPageClientProps) => {
 
-  // تمام منطق‌های مربوط به نمایش UI به اینجا منتقل شده است
   const hasPublishedSection = chapter.sections.some(
     (section) => section.isPublished
   );
@@ -103,6 +103,12 @@ export const ChapterPageClient = ({
               <h2 className="text-xl">سفارشی‌سازی فصل</h2>
             </div>
             <ChapterTitleForm
+              initialData={chapter}
+              learningPathId={learningPathId}
+              chapterId={chapterId}
+            />
+            {/* +++ ۲. کامپوننت دسترسی را اینجا اضافه کنید +++ */}
+            <ChapterAccessForm
               initialData={chapter}
               learningPathId={learningPathId}
               chapterId={chapterId}
