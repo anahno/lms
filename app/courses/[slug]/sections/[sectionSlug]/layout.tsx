@@ -1,4 +1,4 @@
-// فایل: app/courses/[learningPathId]/sections/[sectionId]/layout.tsx
+// فایل: app/courses/[slug]/sections/[sectionSlug]/layout.tsx
 "use server";
 
 import { db } from "@/lib/db";
@@ -20,18 +20,19 @@ export default async function CourseSectionLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ learningPathId: string; sectionId: string }>;
+  params: Promise<{ slug: string; sectionSlug: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  // --- ۱. خط کد ریدایرکت ناخواسته از اینجا به طور کامل حذف شد ---
-  // if (!session?.user?.id) return redirect("/login"); <-- این خط حذف شد
-
+  
   const resolvedParams = await params;
-  const { learningPathId, sectionId } = resolvedParams;
-  const userId = session?.user?.id; // اگر کاربر لاگین نباشد، این undefined خواهد بود
+  const { slug, sectionSlug } = resolvedParams;
+  const userId = session?.user?.id;
 
   const learningPathData = await db.learningPath.findUnique({
-    where: { id: learningPathId },
+    where: { slug: slug },
+    // --- شروع اصلاح نهایی و قطعی ---
+    // فیلدهای price و discountPrice از داخل include حذف شدند.
+    // پریزما به صورت خودکار تمام فیلدهای اصلی (scalar) را باز می‌گرداند.
     include: {
       levels: {
         orderBy: { position: "asc" },
@@ -53,29 +54,29 @@ export default async function CourseSectionLayout({
         },
       },
     },
+    // --- پایان اصلاح نهایی و قطعی ---
   });
 
   if (!learningPathData) return redirect("/");
 
+  const learningPathId = learningPathData.id;
+
   let isEnrolled = false;
   let progressCount = 0;
 
-  // --- ۲. فقط اگر کاربر لاگین کرده بود، وضعیت ثبت‌نام و پیشرفت را بررسی می‌کنیم ---
   if (userId) {
     const enrollment = await db.enrollment.findUnique({
       where: { userId_learningPathId: { userId, learningPathId } },
     });
     isEnrolled = !!enrollment;
-    progressCount = await getProgress(userId, learningPathData.id);
+    progressCount = await getProgress(userId, learningPathId);
   }
 
-  // بقیه کد برای ساخت Breadcrumbs بدون تغییر باقی می‌ماند
   let chapterTitle = "";
   let sectionTitle = "";
-
   for (const level of learningPathData.levels) {
     for (const chapter of level.chapters) {
-      const section = chapter.sections.find(s => s.id === sectionId);
+      const section = chapter.sections.find(s => s.id === sectionSlug);
       if (section) {
         chapterTitle = chapter.title;
         sectionTitle = section.title;
@@ -86,7 +87,7 @@ export default async function CourseSectionLayout({
   }
   
   const breadcrumbData: BreadcrumbData = {
-    courseId: learningPathData.id,
+    courseId: learningPathId,
     courseTitle: learningPathData.title,
     chapterTitle,
     sectionTitle

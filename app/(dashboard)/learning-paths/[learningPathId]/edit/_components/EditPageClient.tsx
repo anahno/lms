@@ -12,7 +12,7 @@ import { DescriptionForm } from "./DescriptionForm";
 import { ImageForm } from "./ImageForm";
 import { CategoryForm } from "./CategoryForm";
 import { PriceForm } from "./PriceForm";
-import { DiscountPriceForm } from "./DiscountPriceForm"; // +++ 1. فرم جدید اینجا import شد +++
+import { DiscountPriceForm } from "./DiscountPriceForm";
 import { IntroAudioForm } from "./IntroAudioForm";
 import { LevelsForm } from "./LevelsForm";
 import { CourseActions } from "./CourseActions";
@@ -21,6 +21,7 @@ import { CourseStructureTree } from "./CourseStructureTree";
 import { CourseRatingAnalyticsCard } from "./CourseRatingAnalyticsCard";
 import { DropOffAnalyticsCard } from "./DropOffAnalyticsCard";
 import { type FunnelStat } from "@/actions/get-dropoff-stats";
+import { SeoForm } from "./SeoForm"; // +++ ۱. کامپوننت فرم SEO در اینجا import شد +++
 
 type LearningPathWithStructure = Prisma.LearningPathGetPayload<{
   include: {
@@ -116,7 +117,6 @@ export const EditPageClient = ({
               initialData={learningPath}
               learningPathId={learningPath.id}
             />
-            {/* +++ 2. کامپوننت فرم قیمت تخفیف خورده اینجا اضافه شد +++ */}
             <DiscountPriceForm
               initialData={learningPath}
               learningPathId={learningPath.id}
@@ -131,6 +131,8 @@ export const EditPageClient = ({
           {/* ستون سمت چپ (در حالت RTL) */}
           <div className="space-y-6">
             <ImageForm initialData={learningPath} learningPathId={learningPath.id} />
+            {/* +++ ۲. کامپوننت فرم SEO در اینجا اضافه شد +++ */}
+            <SeoForm initialData={learningPath} learningPathId={learningPath.id} />
             <LevelsForm initialData={{ levels: learningPath.levels }} learningPathId={learningPath.id} />
           </div>
         </div>

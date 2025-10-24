@@ -4,7 +4,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 import toast from "react-hot-toast";
-import { Check, PlayCircle, Lock } from "lucide-react";
+import { Check, PlayCircle, Lock } from "lucide-react"; // +++ ۱. آیکون Lock وارد شد +++
 import { cn } from "@/lib/utils";
 import { toggleSectionCompletion } from "@/actions/progress";
 
@@ -15,8 +15,9 @@ interface CourseSidebarItemProps {
   isCompleted: boolean;
   learningPathId: string;
   isFree: boolean;
-  isChapterFree: boolean; // +++ پراپ جدید برای وضعیت فصل +++
+  isChapterFree: boolean;
   isEnrolled: boolean;
+  onOpenModal: () => void;
 }
 
 const formatDuration = (seconds: number | null) => {
@@ -35,30 +36,27 @@ export const CourseSidebarItem = ({
   isFree,
   isChapterFree,
   isEnrolled,
+  onOpenModal,
 }: CourseSidebarItemProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const isActive = pathname?.includes(`/sections/${id}`);
-  
-  // +++ منطق جدید و نهایی برای قفل بودن +++
-  // یک بخش قفل است اگر:
-  // ۱. کاربر ثبت‌نام نکرده باشد، و
-  // ۲. خود آن بخش به تنهایی رایگان نباشد، و
-  // ۳. فصل والد آن بخش هم رایگان نباشد.
   const isLocked = !isEnrolled && !isFree && !isChapterFree;
 
   const handleItemClick = () => {
-    // حتی اگر قفل بود هم به صفحه مربوطه می‌رویم
-    // چون آن صفحه خودش منطق محافظت از محتوا را دارد
-    router.push(`/courses/${learningPathId}/sections/${id}`);
+    if (isLocked) {
+      onOpenModal();
+    } else {
+      router.push(`/courses/${learningPathId}/sections/${id}`);
+    }
   };
 
   const handleProgressToggle = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     if (isLocked) {
-      toast.error("برای انجام این کار باید در دوره ثبت‌نام کنید.");
+      onOpenModal();
       return;
     }
     startTransition(async () => {
@@ -93,10 +91,16 @@ export const CourseSidebarItem = ({
             ? "border-emerald-600 bg-emerald-600 text-white"
             : "border-slate-400 bg-white group-hover:border-slate-700",
           isActive && !isCompleted && "border-sky-700",
-          isLocked && "cursor-not-allowed"
+          // +++ ۲. استایل مخصوص حالت قفل شده +++
+          isLocked && "bg-slate-100 border-slate-300 text-slate-500 cursor-pointer"
         )}
       >
-        {isCompleted && <Check className="h-3 w-3" />}
+        {/* +++ ۳. منطق جدید برای نمایش آیکون‌ها +++ */}
+        {isCompleted ? (
+          <Check className="h-3 w-3" />
+        ) : isLocked ? (
+          <Lock className="h-3 w-3" />
+        ) : null}
       </div>
 
       <div className="flex-1">
@@ -106,10 +110,6 @@ export const CourseSidebarItem = ({
           <span>{formatDuration(duration)}</span>
         </div>
       </div>
-      
-      {isLocked && (
-        <Lock className="h-4 w-4 text-amber-500" />
-      )}
     </button>
   );
 };

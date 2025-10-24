@@ -118,19 +118,25 @@ enum CourseLevel {
 model LearningPath {
   id               String       @id @default(cuid())
   title            String
+  // --- شروع اصلاح کلیدی ---
+  // ما یک مقدار پیش‌فرض موقت اضافه می‌کنیم و از cuid() برای اطمینان از یکتا بودن استفاده می‌کنیم
+  slug             String       @unique
+  // --- پایان اصلاح کلیدی ---
   subtitle         String?      @db.Text
   description      String?      @db.Text
   imageUrl         String?
   whatYouWillLearn String[]     @default([])
   requirements     String[]     @default([])
   price            Float?
-    // +++ شروع تغییرات +++
-  discountPrice    Float?       // قیمت بعد از تخفیف (می‌تواند null باشد)
-  // +++ پایان تغییرات +++
+  discountPrice    Float?
   level            CourseLevel? @default(ALL_LEVELS)
 
   introAudioUrl String?      @db.Text
   status        CourseStatus @default(DRAFT)
+
+  metaTitle       String?
+  metaDescription String?  @db.Text
+  metaKeywords    String[] @default([])
 
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
@@ -144,7 +150,7 @@ model LearningPath {
   levels      Level[]
   enrollments Enrollment[]
   quiz        Quiz?
-  purchases   Purchase[] // <--- رابطه دوطرفه با خریدها اضافه شد
+  purchases   Purchase[]
 }
 
 model Enrollment {
@@ -183,18 +189,18 @@ model Level {
 }
 
 model Chapter {
-  id          String    @id @default(cuid())
+  id          String  @id @default(cuid())
   title       String
   position    Int
-  isPublished Boolean   @default(false)
-    isFree      Boolean   @default(false) // +++ این خط را اضافه کنید +++
+  isPublished Boolean @default(false)
+  isFree      Boolean @default(false) // +++ این خط را اضافه کنید +++
 
-  levelId     String
-  level       Level     @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  sections    Section[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  quiz        Quiz?
+  levelId   String
+  level     Level     @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  sections  Section[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  quiz      Quiz?
 }
 
 model Section {

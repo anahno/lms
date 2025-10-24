@@ -7,7 +7,8 @@ import { Prisma, Role } from "@prisma/client";
 import { 
     BookCopy, 
     Activity,
-    MessageSquareWarning
+    MessageSquareWarning,
+    PlusCircle // +++ ۱. ایمپورت آیکون PlusCircle +++
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -35,11 +36,6 @@ export default async function DashboardPage() {
     getDashboardStats(userId, isAdmin),
     db.learningPath.findMany({
         where: courseWhereClause,
-        // +++ شروع اصلاح کلیدی +++
-        // ما باید به صورت صریح فیلدهای مورد نیاز را در include واکشی کنیم
-        // اما چون `price` و `discountPrice` فیلدهای مستقیم هستند،
-        // Prisma به صورت خودکار آنها را برمی‌گرداند.
-        // برای اطمینان، یک console.log اضافه می‌کنیم تا داده‌ها را ببینیم.
         include: {
           user: true,
           category: true,
@@ -51,18 +47,26 @@ export default async function DashboardPage() {
     })
   ]);
 
-  // برای اشکال‌زدایی: داده‌های واکشی شده را در ترمینال سرور خود ببینید
-  //console.log("Courses fetched for dashboard:", learningPaths.slice(0, 3).map(p => ({ title: p.title, price: p.price, discount: p.discountPrice })));
-
   const hasAnyCourse = learningPaths.length > 0;
 
   return (
     <div className="p-6 space-y-8">
-      {/* ... بخش‌های بالایی صفحه بدون تغییر ... */}
-      <div>
-        <h1 className="text-3xl font-bold">داشبورد</h1>
-        <p className="text-muted-foreground">نمای کلی از وضعیت پلتفرم و فعالیت‌های اخیر</p>
+      {/* --- شروع اصلاح اصلی --- */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">داشبورد</h1>
+          <p className="text-muted-foreground">نمای کلی از وضعیت پلتفرم و فعالیت‌های اخیر</p>
+        </div>
+        {/* +++ ۲. دکمه "ایجاد دوره جدید" در اینجا اضافه شد و همیشه نمایش داده می‌شود +++ */}
+        <Link href="/learning-paths/create">
+          <Button>
+            <PlusCircle className="h-4 w-4 ml-2" />
+            ایجاد دوره جدید
+          </Button>
+        </Link>
       </div>
+      {/* --- پایان اصلاح اصلی --- */}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 flex flex-col gap-y-6">
             <StatCard 
@@ -113,18 +117,16 @@ export default async function DashboardPage() {
                         category={path.category?.name || "بدون دسته‌بندی"}
                         status={path.status}
                         instructor={path.user}
-                        price={path.price} // <--- اطمینان از ارسال پراپرتی
-                        discountPrice={path.discountPrice} // <--- اطمینان از ارسال پراپرتی
+                        price={path.price}
+                        discountPrice={path.discountPrice}
                       />
                     );
                 })}
             </div>
         ) : (
             <div className="text-center text-sm text-muted-foreground mt-4 p-12 border-2 border-dashed rounded-lg bg-slate-50">
-                <p>هنوز دوره‌ای ایجاد نکرده‌اید.</p>
-                <Link href="/learning-paths/create">
-                  <Button size="sm" className="mt-4">+ دوره جدید بسازید</Button>
-                </Link>
+                <p>هنوز هیچ دوره‌ای ایجاد نکرده‌اید.</p>
+                {/* دکمه قبلی که فقط در حالت خالی نمایش داده می‌شد، اکنون حذف شده و به بالای صفحه منتقل شده است */}
             </div>
         )}
       </div>

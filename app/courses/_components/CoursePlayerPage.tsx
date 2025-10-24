@@ -66,7 +66,8 @@ export function CoursePlayerPage({
                     : "text-gray-600 hover:text-gray-800"
                 }`}
               >
-                Overview
+                {/* +++ اصلاح اصلی در اینجا انجام شد +++ */}
+                توضیحات
                 {activeTab === "overview" && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />
                 )}
@@ -86,7 +87,6 @@ export function CoursePlayerPage({
               </button>
             </div>
             
-            {/* بخش امتیازدهی (فقط در تب Overview نمایش داده می‌شود) */}
             {activeTab === "overview" && (
               <InlineRating 
                 sectionId={section.id}

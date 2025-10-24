@@ -1,5 +1,5 @@
 // فایل: middleware.ts
-import { getToken } from "next-auth/jwt";
+import { withAuth } from "next-auth/middleware";
 import { NextRequest, NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 
@@ -14,65 +14,72 @@ function addPathnameHeader(req: NextRequest) {
     });
 }
 
-// این تابع اصلی میدلور است که به طور کامل بازنویسی شده
-export async function middleware(req: NextRequest) {
-    // توکن کاربر را برای بررسی وضعیت لاگین دریافت می‌کنیم
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    const { pathname } = req.nextUrl;
+export default withAuth(
+  // این تابع فقط برای کاربرانی که لاگین کرده‌اند و به یک صفحه محافظت شده می‌روند، اجرا می‌شود
+  function middleware(req) {
+    const token = req.nextauth.token;
+    const userRole = token?.role as Role;
+    const pathname = req.nextUrl.pathname;
 
-    // --- تعریف مسیرهای محافظت شده ---
-    // اینها مسیرهایی هستند که یک کاربر مهمان (وارد نشده) هرگز نباید ببیند.
-    // مهم: مسیر پخش دوره (/courses/.../sections) در این لیست نیست.
-    const strictlyProtectedPaths = [
-        "/my-courses",
-        "/my-account",
-        "/dashboard",
-        "/learning-paths", // صفحات ساخت و ویرایش دوره
-        "/grading",
-        "/qa-center",
-        "/admin",
-        "/browse-courses", // این بخش از داشبورد استاد/ادمین است
-        "/categories",
-    ];
+    // --- منطق کنترل دسترسی بر اساس نقش (فقط برای کاربران لاگین کرده) ---
 
-    // بررسی می‌کنیم که آیا مسیر فعلی یکی از مسیرهای کاملاً محافظت شده است یا خیر.
-    const isStrictlyProtected = strictlyProtectedPaths.some(p => pathname.startsWith(p));
-
-    // --- منطق اصلی کنترل دسترسی ---
-
-    // ۱. اگر مسیر محافظت شده است و کاربر لاگین نکرده، او را به صفحه لاگین هدایت کن.
-    if (isStrictlyProtected && !token) {
-        const loginUrl = new URL("/login", req.url);
-        loginUrl.searchParams.set("callbackUrl", pathname);
-        return NextResponse.redirect(loginUrl);
+    // 1. اگر کاربر USER است، به پنل ادمین/استاد دسترسی نداشته باشد
+    const instructorAdminPaths = ["/dashboard", "/learning-paths", "/categories", "/grading", "/browse-courses", "/admin"];
+    if (userRole === "USER" && instructorAdminPaths.some(p => pathname.startsWith(p))) {
+       return NextResponse.redirect(new URL("/my-courses", req.url));
     }
 
-    // ۲. اگر کاربر لاگین کرده است، منطق مربوط به نقش‌ها را اجرا کن.
-    if (token) {
-        const userRole = token.role as Role;
-
-        // مسیرهای مخصوص استاد و ادمین
-        const instructorAdminPaths = [ "/dashboard", "/learning-paths", "/grading", "/browse-courses" ];
-        if (userRole === "USER" && instructorAdminPaths.some(p => pathname.startsWith(p))) {
-           return NextResponse.redirect(new URL("/my-courses", req.url));
-        }
-
-        // مسیرهای مخصوص ادمین
-        const adminOnlyPaths = ["/categories", "/admin"];
-        if (userRole !== "ADMIN" && adminOnlyPaths.some(p => pathname.startsWith(p))) {
-          const redirectUrl = userRole === "INSTRUCTOR" ? "/dashboard" : "/my-courses";
-          return NextResponse.redirect(new URL(redirectUrl, req.url));
-        }
+    // 2. اگر کاربر INSTRUCTOR است، به پنل ادمین دسترسی نداشته باشد
+    const adminOnlyPaths = ["/categories", "/admin"];
+    if (userRole === "INSTRUCTOR" && adminOnlyPaths.some(p => pathname.startsWith(p))) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    // ۳. برای تمام مسیرهای دیگر (مانند صفحه اصلی، کاتالوگ، و مهمتر از همه /courses/.../sections/...)
-    // هیچ ریدایرکتی انجام نده و فقط درخواست را به صفحه مورد نظر ارسال کن.
+    // اگر هیچکدام از شرط‌های بالا برقرار نبود، فقط هدر را اضافه کن و اجازه عبور بده
     return addPathnameHeader(req);
-}
+  },
+  {
+    callbacks: {
+      // این تابع مشخص می‌کند کدام صفحات نیاز به لاگین دارند
+      authorized: ({ req, token }) => {
+        const { pathname } = req.nextUrl;
 
+        // +++ شروع تغییر کلیدی و نهایی +++
+        // لیست مسیرهایی که حتماً و همیشه نیاز به لاگین دارند.
+        // مهم: مسیر پخش دوره (/courses/.../sections/...) در این لیست نیست.
+        const protectedPaths = [
+            "/my-courses",
+            "/my-account",
+            "/dashboard",
+            "/learning-paths",
+            "/grading",
+            "/qa-center",
+            "/admin",
+            "/browse-courses",
+            "/categories",
+        ];
+        
+        // بررسی می‌کنیم که آیا مسیر فعلی یکی از مسیرهای کاملاً محافظت شده است یا خیر
+        const isProtected = protectedPaths.some(p => pathname.startsWith(p));
 
-// --- Config ---
-// این اطمینان می‌دهد که میدلور روی همه مسیرها به جز فایل‌های استاتیک و API اجرا می‌شود.
+        // اگر مسیر محافظت شده است، کاربر حتماً باید لاگین کرده باشد
+        if (isProtected) {
+            return !!token;
+        }
+
+        // برای تمام مسیرهای دیگر (مانند صفحه اصلی، کاتالوگ، و مهم‌تر از همه /courses/.../sections/...)
+        // همیشه اجازه دسترسی می‌دهیم. منطق قفل بودن محتوا در خود صفحه مدیریت خواهد شد.
+        return true;
+        // +++ پایان تغییر کلیدی و نهایی +++
+      },
+    },
+    pages: {
+        signIn: "/login",
+    }
+  }
+);
+
+// این بخش برای جلوگیری از اجرای middleware روی فایل‌های استاتیک و API است
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };

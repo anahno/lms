@@ -2,11 +2,27 @@
 
 import {  NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth"; // <-- از مسیر جدید import می‌کنیم
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+// --- شروع اصلاح کلیدی: بازنویسی کامل تابع generateSlug ---
+function generateSlug(title: string): string {
+  // +++ علامت پلاس (+) به لیست کاراکترهای مجاز اضافه شد +++
+  const allowedChars = "a-zA-Z0-9\u0600-\u06FF\\+"; // حروف انگلیسی، اعداد، فارسی/عربی و علامت +
+  
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-') // ۱. تمام فاصله‌ها را با یک خط تیره جایگزین کن
+    // ۲. هر کاراکتری که جزو حروف مجاز یا خط تیره نیست را حذف کن
+    .replace(new RegExp(`[^${allowedChars}\\-]+`, 'g'), '') 
+    .replace(/--+/g, '-') // ۳. چند خط تیره پشت سر هم را به یکی تبدیل کن
+    .replace(/^-+|-+$/g, ''); // ۴. خط تیره اضافی از ابتدا یا انتهای رشته را حذف کن
+}
+// --- پایان اصلاح کلیدی ---
+
 // تابع POST برای ایجاد یک مسیر یادگیری جدید
-export async function POST(_req: Request) {
+export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -14,17 +30,29 @@ export async function POST(_req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const body = await _req.json();
+    const body = await req.json();
     const { title } = body;
 
     if (!title) {
       return new NextResponse("Title is required", { status: 400 });
     }
 
+    // ساخت اسلاگ و بررسی یکتا بودن آن
+    let baseSlug = generateSlug(title);
+    let slug = baseSlug;
+    let counter = 1;
+
+    // این منطق بدون تغییر باقی می‌ماند
+    while (await db.learningPath.findUnique({ where: { slug } })) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
     const learningPath = await db.learningPath.create({
       data: {
         title: title,
         userId: session.user.id,
+        slug: slug,
       },
     });
 
@@ -36,7 +64,7 @@ export async function POST(_req: Request) {
   }
 }
 
-// تابع GET برای دریافت لیست تمام مسیرهای یادگیری کاربر
+// تابع GET بدون تغییر باقی می‌ماند
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

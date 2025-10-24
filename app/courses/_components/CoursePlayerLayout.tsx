@@ -9,15 +9,15 @@ import { CollapsedSidebar } from "../_components/CollapsedSidebar";
 import type { LearningPathWithStructure } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Menu } from "lucide-react";
-import type { BreadcrumbData } from "../[learningPathId]/sections/[sectionId]/layout";
-
+import type { BreadcrumbData } from "../[slug]/sections/[sectionSlug]/layout";
+import { LoginOrPurchaseModal } from "./LoginOrPurchaseModal";
 
 interface CoursePlayerLayoutProps {
   children: React.ReactNode;
-  learningPath: LearningPathWithStructure;
+  learningPath: LearningPathWithStructure & { price: number | null, discountPrice: number | null };
   progressCount: number;
   breadcrumbData: BreadcrumbData;
-  isEnrolled: boolean; // +++ ۱. پراپ جدید +++
+  isEnrolled: boolean;
 }
 
 export const CoursePlayerLayout = ({
@@ -25,12 +25,22 @@ export const CoursePlayerLayout = ({
   learningPath,
   progressCount,
   breadcrumbData,
-  isEnrolled, // +++ ۲. دریافت پراپ +++
+  isEnrolled,
 }: CoursePlayerLayoutProps) => {
   const [isDesktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const finalPrice = learningPath.discountPrice ?? learningPath.price;
 
   return (
     <div className="h-full">
+      <LoginOrPurchaseModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        courseId={learningPath.id}
+        price={finalPrice}
+      />
+
       <div className="h-[80px] fixed inset-y-0 w-full z-50">
         <CourseNavbar
           learningPath={learningPath}
@@ -46,7 +56,8 @@ export const CoursePlayerLayout = ({
                 learningPath={learningPath}
                 progressCount={progressCount}
                 onClose={() => {}}
-                isEnrolled={isEnrolled} // +++ ۳. پاس دادن به سایدبار +++
+                isEnrolled={isEnrolled}
+                onOpenModal={() => setIsModalOpen(true)}
               />
             </SheetContent>
           </Sheet>
@@ -55,12 +66,15 @@ export const CoursePlayerLayout = ({
 
       <div className="hidden md:block h-full fixed inset-y-0 right-0 z-40 pt-[80px]">
         {isDesktopSidebarOpen ? (
-          <div className="w-80">
+          // +++ اصلاح اصلی در این خط است +++
+          // کلاس h-full اضافه شده تا ارتفاع 100% را بگیرد
+          <div className="w-80 h-full"> 
             <CourseSidebar
               learningPath={learningPath}
               progressCount={progressCount}
               onClose={() => setDesktopSidebarOpen(false)}
-              isEnrolled={isEnrolled} // +++ ۴. پاس دادن به سایدبار +++
+              isEnrolled={isEnrolled}
+              onOpenModal={() => setIsModalOpen(true)}
             />
           </div>
         ) : (

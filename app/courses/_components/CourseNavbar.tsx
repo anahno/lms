@@ -22,7 +22,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { LearningPathWithStructure } from "@/lib/types";
-import type { BreadcrumbData } from "../[learningPathId]/sections/[sectionId]/layout";
+import type { BreadcrumbData } from "../[slug]/sections/[sectionSlug]/layout";
 
 interface CourseNavbarProps {
   learningPath: LearningPathWithStructure;

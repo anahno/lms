@@ -1,4 +1,3 @@
-
 // فایل: components/ViewCourseButton.tsx
 "use client";
 
@@ -21,16 +20,14 @@ export const ViewCourseButton = ({ learningPathId }: ViewCourseButtonProps) => {
   const handleClick = async () => {
     setIsLoading(true);
     try {
-      // اکشن سروری را برای گرفتن آدرس اولین درس فراخوانی می‌کنیم
       const result = await getCourseEntryUrl(learningPathId);
 
       if (result.url) {
-        // کاربر را مستقیماً به آدرس اولین درس هدایت می‌کنیم
         router.push(result.url);
       } else if (result.error) {
         toast.error(result.error);
       }
-    } catch {
+    } catch  {
       toast.error("یک خطای ناشناخته رخ داد.");
     } finally {
       setIsLoading(false);
@@ -43,7 +40,7 @@ export const ViewCourseButton = ({ learningPathId }: ViewCourseButtonProps) => {
       disabled={isLoading} 
       size="icon-lg"
       className="rounded-full w-16 h-16 shadow-lg bg-sky-500 text-white hover:bg-sky-600 transition-all duration-300 ease-in-out transform hover:scale-110"
-      aria-label="شروع یا ادامه دوره"
+      aria-label="ادامه دوره"
     >
       {isLoading 
         ? <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div> 

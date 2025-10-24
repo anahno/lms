@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 interface CourseSidebarProps {
   learningPath: LearningPathWithStructure;
   progressCount: number;
-  isEnrolled: boolean; // +++ ۱. پراپ جدید +++
+  isEnrolled: boolean;
+  onOpenModal: () => void;
   onClose?: () => void;
 }
 
@@ -30,9 +31,11 @@ export const CourseSidebar = ({
   learningPath,
   progressCount,
   isEnrolled,
+  onOpenModal,
   onClose,
 }: CourseSidebarProps) => {
   const [expandedChapters, setExpandedChapters] = React.useState<string[]>(
+    // به صورت پیش‌فرض اولین فصل را باز نگه می‌داریم
     [learningPath.levels[0]?.chapters[0]?.id].filter(Boolean)
   );
 
@@ -81,6 +84,7 @@ export const CourseSidebar = ({
 
               return (
                 <div key={chapter.id} className="border-b">
+                  {/* +++ این بخش به طور کامل بازگردانده شد +++ */}
                   <button
                     onClick={() => toggleChapter(chapter.id)}
                     className="w-full p-4 flex items-center justify-between hover:bg-slate-50 text-right"
@@ -113,15 +117,13 @@ export const CourseSidebar = ({
                               label={section.title}
                               duration={section.duration}
                               learningPathId={learningPath.id}
-                              isCompleted={
-                                !!section.progress?.[0]?.isCompleted
-                              }
+                              isCompleted={!!section.progress?.[0]?.isCompleted}
                               isFree={section.isFree}
-                              // +++ پراپ جدید برای وضعیت فصل را پاس می‌دهیم +++
                               isChapterFree={chapter.isFree} 
                               isEnrolled={isEnrolled}
+                              onOpenModal={onOpenModal}
                             />
-                            {hasQuiz && ( // اگر آزمون وجود داشت، آن را نمایش بده
+                            {hasQuiz && (
                               <CourseQuizItem
                                 quizId={section.quiz!.id}
                                 learningPathId={learningPath.id}
