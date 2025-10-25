@@ -2,6 +2,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link"; // +++ ۱. وارد کردن Link +++
+import Image from "next/image"; // +++ ۲. وارد کردن Image +++
 import { CourseSidebarItem } from "./CourseSidebarItem";
 import { CourseQuizItem } from "./CourseQuizItem";
 import { Progress } from "@/components/ui/progress";
@@ -57,6 +59,25 @@ export const CourseSidebar = ({
           <X className="h-5 w-5" />
         </button>
       </div>
+
+      {/* +++ ۳. بخش جدید برای نمایش اطلاعات مدرس +++ */}
+      <div className="p-4 flex items-center gap-x-3 border-b">
+        <Image
+          src={learningPath.user.image || "/images/default-avatar.png"}
+          alt={learningPath.user.name || "مدرس"}
+          width={40}
+          height={40}
+          className="rounded-full"
+        />
+        <div>
+          <p className="text-xs text-slate-500">مدرس دوره</p>
+          <Link href={`/instructors/${learningPath.user.id}`} className="font-semibold text-slate-800 hover:text-sky-600 transition">
+            {learningPath.user.name || "نامشخص"}
+          </Link>
+        </div>
+      </div>
+      {/* +++ پایان بخش جدید +++ */}
+
 
       <div className="p-4 flex flex-col border-b">
         <div className="mt-2">
@@ -114,7 +135,7 @@ export const CourseSidebar = ({
                               id={section.id}
                               label={section.title}
                               duration={section.duration}
-                              learningPathId={learningPath.id} // این هنوز id است و مشکلی ندارد
+                              learningPathId={learningPath.id}
                               isCompleted={!!section.progress?.[0]?.isCompleted}
                               isFree={section.isFree}
                               isChapterFree={chapter.isFree} 
@@ -124,7 +145,6 @@ export const CourseSidebar = ({
                             {hasQuiz && (
                               <CourseQuizItem
                                 quizId={section.quiz!.id}
-                                // +++ از learningPath.slug استفاده می‌کنیم +++
                                 courseSlug={learningPath.slug} 
                               />
                             )}

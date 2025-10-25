@@ -30,10 +30,10 @@ export default async function CourseSectionLayout({
 
   const learningPathData = await db.learningPath.findUnique({
     where: { slug: slug },
-    // --- شروع اصلاح نهایی و قطعی ---
-    // فیلدهای price و discountPrice از داخل include حذف شدند.
-    // پریزما به صورت خودکار تمام فیلدهای اصلی (scalar) را باز می‌گرداند.
     include: {
+      // +++ شروع تغییر +++
+      user: true, // اطلاعات کامل مدرس را واکشی می‌کنیم
+      // +++ پایان تغییر +++
       levels: {
         orderBy: { position: "asc" },
         include: {
@@ -54,7 +54,6 @@ export default async function CourseSectionLayout({
         },
       },
     },
-    // --- پایان اصلاح نهایی و قطعی ---
   });
 
   if (!learningPathData) return redirect("/");

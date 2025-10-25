@@ -8,6 +8,7 @@ import { CourseCatalogCard } from "@/components/CourseCatalogCard";
 import { BookOpen } from "lucide-react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { Role } from "@prisma/client"; // +++ ۱. وارد کردن Role +++
 
 export default async function InstructorProfilePage({
   params,
@@ -19,11 +20,17 @@ export default async function InstructorProfilePage({
 
   const { instructorId } = params;
 
+  // +++ ۲. شروع تغییرات اصلی در کوئری +++
   const instructor = await db.user.findUnique({
     where: {
       id: instructorId,
-      role: 'INSTRUCTOR',
+      // به جای یک نقش، هر دو نقش استاد و ادمین را مجاز می‌دانیم
+      OR: [
+        { role: Role.INSTRUCTOR },
+        { role: Role.ADMIN }
+      ],
     },
+    // +++ پایان تغییرات اصلی در کوئری +++
     include: {
       learningPaths: {
         where: { status: 'PUBLISHED' },
@@ -63,7 +70,10 @@ export default async function InstructorProfilePage({
         </div>
         <div className="text-center md:text-right">
           <h1 className="text-4xl font-extrabold text-slate-800">{instructor.name}</h1>
-          <p className="text-lg text-sky-600 font-semibold mt-1">مدرس و متخصص</p>
+          {/* +++ ۳. نمایش برچسب مناسب بر اساس نقش +++ */}
+          <p className="text-lg text-sky-600 font-semibold mt-1">
+            {instructor.role === Role.ADMIN ? "ادمین و مدرس" : "مدرس و متخصص"}
+          </p>
           <p className="text-slate-600 mt-4 max-w-2xl">
             {instructor.bio || "بیوگرافی این مدرس هنوز تکمیل نشده است."}
           </p>
@@ -89,11 +99,8 @@ export default async function InstructorProfilePage({
                   chaptersLength={totalChapters}
                   category={course.category?.name || "بدون دسته‌بندی"}
                   isEnrolled={course.enrollments.length > 0}
-                  // +++ شروع اصلاح کلیدی +++
-                  // پراپرتی‌های قیمت و تخفیف به کامپوننت پاس داده می‌شوند
                   price={course.price}
                   discountPrice={course.discountPrice}
-                  // +++ پایان اصلاح کلیدی +++
                 />
               );
             })}
