@@ -3,6 +3,7 @@
 
 import { useState, useTransition, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Quiz, Question, Option, QuestionType } from "@prisma/client";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -207,6 +208,27 @@ export const QuizPlayer = ({ quiz, learningPathId }: QuizPlayerProps) => {
         </CardHeader>
         
         <CardContent className="min-h-[400px] overflow-visible">
+          
+          {/* بخش نمایش رسانه‌ها */}
+          <div className="mb-6 space-y-4">
+            {currentQuestion.imageUrl && (
+              <div className="relative aspect-video rounded-md overflow-hidden border bg-slate-50">
+                <Image 
+                  src={currentQuestion.imageUrl} 
+                  alt="تصویر سوال" 
+                  fill
+                  className="object-contain"
+                />
+              </div>
+            )}
+            {currentQuestion.videoUrl && (
+              <video src={currentQuestion.videoUrl} controls className="w-full rounded-md" />
+            )}
+            {currentQuestion.audioUrl && (
+              <audio src={currentQuestion.audioUrl} controls className="w-full" />
+            )}
+          </div>
+          
           <p className="text-lg font-semibold mb-6">{currentQuestion.text}</p>
           
           {currentQuestion.type === QuestionType.ESSAY && (

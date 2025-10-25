@@ -8,8 +8,9 @@ import * as z from "zod";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Question, Option, QuestionType } from "@prisma/client";
-import { Grip, Pencil, Trash, PlusCircle, Save, X, Square, Braces, Trash2 } from "lucide-react";
+import { Grip, Pencil, Trash, PlusCircle, Save, X, Square, Braces, Trash2, Image as ImageIcon, Video, Music, UploadCloud, Loader2 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
@@ -20,15 +21,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 
-// +++ نوع جدید برای مدیریت ساختار متن سوال +++
 type TextPart = { type: 'text'; content: string } | { type: 'blank'; id: string };
 
 const formSchema = z.object({
   text: z.string().min(1, { message: "متن سوال الزامی است" }),
   points: z.number().min(1, { message: "امتیاز باید حداقل ۱ باشد" }),
+  imageUrl: z.string().url().optional().or(z.literal("")),
+  videoUrl: z.string().url().optional().or(z.literal("")),
+  audioUrl: z.string().url().optional().or(z.literal("")),
   options: z.array(z.object({
-    id: z.string().optional(), // id برای گزینه‌های موجود
+    id: z.string().optional(),
     text: z.string().min(1, { message: "متن گزینه الزامی است" }),
     isCorrect: z.boolean(),
   })),
@@ -52,6 +56,69 @@ const questionTypeInfo = {
     [QuestionType.DRAG_INTO_TEXT]: { text: "کشیدن در متن", className: "bg-purple-600" },
 }
 
+// کامپوننت جدید با نمایش پیشرفت آپلود
+const MediaInput = ({ 
+  label, 
+  icon: Icon, 
+  value, 
+  onChange, 
+  onUpload, 
+  uploadProgress,
+  isUploading 
+}: {
+  label: string;
+  icon: React.ElementType;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  uploadProgress: number;
+  isUploading: boolean;
+}) => (
+  <div className="space-y-2">
+    <Label className="flex items-center gap-2"><Icon className="w-4 h-4" /> {label}</Label>
+    <div className="flex items-center gap-2">
+      <Input
+        type="url"
+        placeholder="لینک خارجی را اینجا وارد کنید"
+        className="bg-white"
+        value={value}
+        onChange={onChange}
+        disabled={isUploading}
+      />
+      <span className="text-xs text-muted-foreground">یا</span>
+      <Button asChild variant="outline" size="sm" className="whitespace-nowrap min-w-[100px]" disabled={isUploading}>
+        <label className={cn(isUploading && "cursor-not-allowed opacity-50")}>
+          {isUploading ? (
+            <>
+              <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+              {uploadProgress}%
+            </>
+          ) : (
+            <>
+              <UploadCloud className="w-4 h-4 ml-2" />
+              آپلود
+            </>
+          )}
+          <input 
+            type="file" 
+            className="hidden" 
+            onChange={onUpload} 
+            disabled={isUploading}
+            accept={
+              label === "تصویر" ? "image/*" : 
+              label === "ویدیو" ? "video/*" : 
+              "audio/*"
+            }
+          />
+        </label>
+      </Button>
+    </div>
+    {isUploading && (
+      <Progress value={uploadProgress} className="h-2" />
+    )}
+  </div>
+);
+
 export const QuestionCard = ({
   question,
   learningPathId,
@@ -59,12 +126,13 @@ export const QuestionCard = ({
   sectionId,
 }: QuestionCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   const router = useRouter();
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: question.id });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : "auto" };
   
-  // +++ State برای مدیریت ساختار متن سوال کشیدنی +++
   const [textParts, setTextParts] = useState<TextPart[]>(() => {
     try {
       return question.description ? JSON.parse(question.description) : [];
@@ -78,6 +146,9 @@ export const QuestionCard = ({
     defaultValues: {
       text: question.text,
       points: question.points,
+      imageUrl: question.imageUrl || "",
+      videoUrl: question.videoUrl || "",
+      audioUrl: question.audioUrl || "",
       options: question.options.map(o => ({ id: o.id, text: o.text, isCorrect: o.isCorrect })),
     },
   });
@@ -91,6 +162,9 @@ export const QuestionCard = ({
         form.reset({
             text: question.text,
             points: question.points,
+            imageUrl: question.imageUrl || "",
+            videoUrl: question.videoUrl || "",
+            audioUrl: question.audioUrl || "",
             options: question.options.map(o => ({ id: o.id, text: o.text, isCorrect: o.isCorrect })),
         });
         try {
@@ -103,7 +177,6 @@ export const QuestionCard = ({
   
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      // برای سوالات کشیدنی، باید تعداد جاهای خالی با تعداد گزینه‌های صحیح برابر باشد
       if(question.type === QuestionType.DRAG_INTO_TEXT) {
         const blankCount = textParts.filter(p => p.type === 'blank').length;
         const correctOptionsCount = values.options.filter(o => o.isCorrect).length;
@@ -136,7 +209,35 @@ export const QuestionCard = ({
     }
   };
 
-  // +++ توابع کمکی برای مدیریت ساختار متن +++
+  // تابع بهبود یافته برای مدیریت آپلود با نمایش پیشرفت
+  const handleFileUpload = async (file: File, field: "imageUrl" | "videoUrl" | "audioUrl") => {
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+      const response = await axios.post("/api/upload", formData, {
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = progressEvent.total 
+            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            : 0;
+          setUploadProgress(percentCompleted);
+        },
+      });
+      
+      form.setValue(field, response.data.url, { shouldValidate: true });
+      toast.success("فایل با موفقیت آپلود شد.");
+    } catch (error) {
+      toast.error("خطا در آپلود فایل.");
+      console.error("Upload error:", error);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+  
   const handleAddTextPart = (type: 'text' | 'blank') => {
     if (type === 'blank') {
       const newBlankId = `blank-${Date.now()}`;
@@ -158,7 +259,6 @@ export const QuestionCard = ({
   const handleRemoveTextPart = (index: number) => {
     setTextParts(textParts.filter((_, i) => i !== index));
   };
-
 
   const isChoiceQuestion = question.type === QuestionType.SINGLE_CHOICE || question.type === QuestionType.MULTIPLE_CHOICE;
   const isDragIntoTextQuestion = question.type === QuestionType.DRAG_INTO_TEXT;
@@ -194,7 +294,7 @@ export const QuestionCard = ({
         
         <div className="p-4">
           {isEditing ? (
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-3">
                   <Label htmlFor={`text-${question.id}`}>عنوان کلی سوال (راهنما)</Label>
@@ -208,6 +308,38 @@ export const QuestionCard = ({
                 </div>
               </div>
               
+              {/* بخش افزودن رسانه با نمایش پیشرفت */}
+              <div className="space-y-4 p-4 border rounded-md bg-slate-100">
+                <h4 className="text-sm font-semibold">افزودن رسانه (اختیاری)</h4>
+                <MediaInput
+                    label="تصویر"
+                    icon={ImageIcon}
+                    value={form.watch("imageUrl") || ""}
+                    onChange={(e) => form.setValue("imageUrl", e.target.value)}
+                    onUpload={(e) => e.target.files && handleFileUpload(e.target.files[0], "imageUrl")}
+                    uploadProgress={uploadProgress}
+                    isUploading={isUploading}
+                />
+                <MediaInput
+                    label="ویدیو"
+                    icon={Video}
+                    value={form.watch("videoUrl") || ""}
+                    onChange={(e) => form.setValue("videoUrl", e.target.value)}
+                    onUpload={(e) => e.target.files && handleFileUpload(e.target.files[0], "videoUrl")}
+                    uploadProgress={uploadProgress}
+                    isUploading={isUploading}
+                />
+                <MediaInput
+                    label="فایل صوتی"
+                    icon={Music}
+                    value={form.watch("audioUrl") || ""}
+                    onChange={(e) => form.setValue("audioUrl", e.target.value)}
+                    onUpload={(e) => e.target.files && handleFileUpload(e.target.files[0], "audioUrl")}
+                    uploadProgress={uploadProgress}
+                    isUploading={isUploading}
+                />
+              </div>
+
               {isDragIntoTextQuestion ? (
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -299,13 +431,21 @@ export const QuestionCard = ({
               
               <div className="flex items-center justify-end gap-x-2">
                 <Button type="button" variant="ghost" onClick={toggleEdit}>انصراف</Button>
-                <Button type="submit" disabled={isSubmitting || !isValid}><Save className="h-4 w-4 ml-2" /> ذخیره</Button>
+                <Button type="submit" disabled={isSubmitting || !isValid || isUploading}>
+                  <Save className="h-4 w-4 ml-2" /> ذخیره
+                </Button>
               </div>
             </form>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-4">
+              {/* پیش‌نمایش رسانه */}
+              {question.imageUrl && <div className="relative aspect-video rounded-md overflow-hidden"><Image src={question.imageUrl} alt="Question Image" fill className="object-contain" /></div>}
+              {question.videoUrl && <video src={question.videoUrl} controls className="w-full rounded-md" />}
+              {question.audioUrl && <audio src={question.audioUrl} controls className="w-full" />}
+              
               <p className="font-semibold">{question.text}</p>
               <p className="text-xs text-slate-500">امتیاز: {question.points}</p>
+
               {isDragIntoTextQuestion ? (
                 <div className="space-y-2 pt-2">
                   <div className="p-2 border rounded-md bg-slate-50">

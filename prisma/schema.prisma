@@ -267,8 +267,15 @@ model Question {
   position    Int
   points      Int          @default(1)
   type        QuestionType
-  mediaUrl    String?
-  description String?      @db.Text  // ✅ اضافه‌شده
+  description String?      @db.Text
+  
+  // +++ شروع تغییرات +++
+  // سه فیلد جدید برای ذخیره لینک‌های چندرسانه‌ای
+  imageUrl    String?      @db.Text
+  videoUrl    String?      @db.Text
+  audioUrl    String?      @db.Text
+  // +++ پایان تغییرات +++
+
   quizId      String
   quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   options     Option[]

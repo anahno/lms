@@ -26,16 +26,20 @@ export async function PATCH(
     if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
 
     const updatedQuestion = await db.$transaction(async (prisma) => {
-      // +++ شروع اصلاح کلیدی: فیلد description به آپدیت اضافه شد +++
+      // +++ شروع تغییرات اصلی +++
+      // فیلدهای جدید برای ذخیره لینک‌های چندرسانه‌ای اضافه شده‌اند
       const question = await prisma.question.update({
         where: { id: questionId },
         data: {
           text: values.text,
           points: values.points,
-          description: values.description, // این خط حیاتی است
+          description: values.description,
+          imageUrl: values.imageUrl,     // <--- فیلد جدید
+          videoUrl: values.videoUrl,     // <--- فیلد جدید
+          audioUrl: values.audioUrl,     // <--- فیلد جدید
         },
       });
-      // +++ پایان اصلاح کلیدی +++
+      // +++ پایان تغییرات اصلی +++
 
       await prisma.option.deleteMany({ where: { questionId: questionId } });
 
@@ -58,7 +62,6 @@ export async function PATCH(
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
-
 export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ learningPathId: string; questionId: string }> }
