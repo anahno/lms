@@ -12,26 +12,32 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Pencil, Copy, Check } from "lucide-react";
+import { Pencil, Copy, Check, TextCursorInput } from "lucide-react"; // <-- آیکون جدید
 
-// تابع تولید اسلاگ در کلاینت هم لازم است
+// --- این بخش بدون تغییر باقی می‌ماند ---
 function generateSlug(title: string): string {
+  if (!title) return ""; 
+
   const allowedChars = "a-zA-Z0-9\u0600-\u06FF\\+";
-  return title
+  
+  const slug = title
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(new RegExp(`[^${allowedChars}\\-]+`, 'g'), '')
-    .replace(/--+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/--+/g, '-');
+
+  if (slug !== '-' && slug.replace(/-/g, '').length > 0) {
+    return slug.replace(/^-+|-+$/g, '');
+  }
+  
+  return slug;
 }
 
-// اسکیما برای اعتبارسنجی فرم
 const formSchema = z.object({
   title: z.string().min(1, { message: "عنوان نمی‌تواند خالی باشد" }),
-  // اعتبارسنجی برای اسلاگ: باید فقط شامل کاراکترهای مجاز باشد
   slug: z.string().min(3, "پیوند یکتا باید حداقل ۳ کاراکتر باشد.")
-    .regex(/^[a-z0-9\u0600-\u06FF+-]+$/, "پیوند یکتا فقط می‌تواند شامل حروف، اعداد و خط تیره باشد."),
+    .regex(/^[a-z0-9\u0600-\u06FF+-]+(-[a-z0-9\u0600-\u06FF+-]+)*$/, "فرمت پیوند یکتا نامعتبر است. فقط از حروف، اعداد و خط تیره استفاده کنید."),
 });
 
 interface TitleFormProps {
@@ -45,7 +51,6 @@ interface TitleFormProps {
 export const TitleForm = ({ initialData, learningPathId }: TitleFormProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  // این state برای جلوگیری از بازنویسی اسلاگ دستی توسط کاربر است
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
   const router = useRouter();
 
@@ -55,14 +60,16 @@ export const TitleForm = ({ initialData, learningPathId }: TitleFormProps) => {
       title: initialData.title,
       slug: initialData.slug,
     },
+    mode: "onChange"
   });
 
-  const { isSubmitting, isValid, watch, setValue } = form;
-  const watchedTitle = watch("title"); // مشاهده تغییرات زنده فیلد عنوان
+  // +++ شروع اصلاح کلیدی +++
+  const { formState: { isSubmitting, isValid }, watch, setValue } = form;
+  // +++ پایان اصلاح کلیدی +++
 
-  // این `useEffect` به صورت هوشمند اسلاگ را بر اساس عنوان پیشنهاد می‌دهد
+  const watchedTitle = watch("title");
+
   useEffect(() => {
-    // فقط در صورتی اسلاگ را آپدیت کن که کاربر به صورت دستی آن را تغییر نداده باشد
     if (isEditing && !isSlugManuallyEdited) {
       const suggestedSlug = generateSlug(watchedTitle);
       setValue("slug", suggestedSlug, { shouldValidate: true });
@@ -72,9 +79,7 @@ export const TitleForm = ({ initialData, learningPathId }: TitleFormProps) => {
 
   const toggleEdit = () => {
     setIsEditing((current) => !current);
-    // با هر بار باز و بسته کردن فرم، وضعیت ویرایش دستی اسلاگ را ریست کن
     setIsSlugManuallyEdited(false);
-    // مقادیر فرم را به حالت اولیه برگردان
     form.reset({ title: initialData.title, slug: initialData.slug });
   };
 
@@ -86,7 +91,6 @@ export const TitleForm = ({ initialData, learningPathId }: TitleFormProps) => {
       router.refresh();
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 409) {
-        // نمایش خطای تکراری بودن اسلاگ که از API می‌آید
         toast.error(error.response.data);
       } else {
         toast.error("مشکلی در ذخیره‌سازی پیش آمد.");
@@ -105,7 +109,10 @@ export const TitleForm = ({ initialData, learningPathId }: TitleFormProps) => {
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4 space-y-4">
       <div className="font-medium flex items-center justify-between">
-        عنوان و پیوند یکتا
+        <div className="flex items-center gap-x-2">
+          <TextCursorInput className="h-5 w-5 text-[#00a7f5]" />
+          عنوان و پیوند یکتا
+        </div>
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? "انصراف" : <><Pencil className="h-4 w-4 ml-2" /> ویرایش</>}
         </Button>
@@ -139,8 +146,9 @@ export const TitleForm = ({ initialData, learningPathId }: TitleFormProps) => {
                 disabled={isSubmitting} 
                 {...form.register("slug")}
                 onChange={(e) => {
-                    setIsSlugManuallyEdited(true); // کاربر شروع به ویرایش دستی کرده است
-                    form.setValue("slug", generateSlug(e.target.value), { shouldValidate: true });
+                    setIsSlugManuallyEdited(true);
+                    const cleanedValue = generateSlug(e.target.value);
+                    form.setValue("slug", cleanedValue, { shouldValidate: true });
                 }}
             />
             {form.formState.errors.slug && <p className="text-red-500 text-xs mt-1">{form.formState.errors.slug.message}</p>}

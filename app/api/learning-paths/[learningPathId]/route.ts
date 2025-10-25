@@ -19,15 +19,14 @@ function generateSlug(title: string): string {
 }
 
 
-// تابع DELETE بدون تغییر باقی می‌ماند
+// تابع DELETE با پارامترهای اصلاح شده
 export async function DELETE(
   req: NextRequest,
-  context: { params: { learningPathId: string } }
+  context: { params: Promise<{ learningPathId: string }> } // <--- اصلاح ۱
 ) {
-    /* ... محتوای این تابع بدون تغییر است ... */
     try {
         const session = await getServerSession(authOptions);
-        const { learningPathId } = await context.params;
+        const { learningPathId } = await context.params; // <--- اصلاح ۲
 
         if (!session?.user?.id) {
         return new NextResponse("Unauthorized", { status: 401 });
@@ -60,44 +59,37 @@ export async function DELETE(
 }
 
 
-// تابع PATCH برای پذیرش و اعتبارسنجی اسلاگ دستی بازنویسی می‌شود
+// تابع PATCH با پارامترهای اصلاح شده
 export async function PATCH(
   req: NextRequest,
-  context: { params: { learningPathId: string } }
+  context: { params: Promise<{ learningPathId: string }> } // <--- اصلاح ۱
 ) {
   try {
     const session = await getServerSession(authOptions);
-    const { learningPathId } = await context.params;
+    const { learningPathId } = await context.params; // <--- اصلاح ۲
     const values = await req.json();
 
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // --- شروع منطق جدید و نهایی برای اعتبارسنجی اسلاگ ---
-
-    // اگر کاربر یک اسلاگ جدید ارسال کرده بود
+    // --- منطق اعتبارسنجی اسلاگ (بدون تغییر) ---
     if (values.slug) {
-      // ابتدا آن را برای اطمینان از فرمت صحیح، پاکسازی می‌کنیم
       const cleanSlug = generateSlug(values.slug);
 
-      // سپس بررسی می‌کنیم که آیا دوره دیگری از این اسلاگ استفاده می‌کند یا خیر
       const existingPath = await db.learningPath.findFirst({
         where: {
           slug: cleanSlug,
-          id: { not: learningPathId }, // مهم: این دوره را از بررسی مستثنی کن
+          id: { not: learningPathId },
         },
       });
 
-      // اگر اسلاگ تکراری بود، خطا برگردان
       if (existingPath) {
-        return new NextResponse("این پیوند یکتا قبلاً توسط دوره دیگری استفاده شده است.", { status: 409 }); // 409 Conflict
+        return new NextResponse("این پیوند یکتا قبلاً توسط دوره دیگری استفاده شده است.", { status: 409 });
       }
       
-      // اگر تکراری نبود، اسلاگ پاکسازی شده را برای ذخیره در دیتابیس قرار بده
       values.slug = cleanSlug;
     }
-    // --- پایان منطق جدید ---
 
     const updatedLearningPath = await db.learningPath.update({
       where: { id: learningPathId },

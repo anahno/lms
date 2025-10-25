@@ -10,7 +10,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
+import { Pencil, Layers } from "lucide-react"; // آیکون جدید
 import { Combobox } from "@/components/ui/combobox";
 import { Category } from "@prisma/client"; // تایپ Category را وارد می‌کنیم
 
@@ -66,10 +66,13 @@ export const CategoryForm = ({ initialData, learningPathId, options = [] }: Cate
       }))
   }));
 
-  return (
+    return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        دسته‌بندی مسیر یادگیری
+        <div className="flex items-center gap-x-2">
+            <Layers className="h-5 w-5 text-[#00a7f5]" />
+            دسته‌بندی مسیر یادگیری
+        </div>
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? "انصراف" : <><Pencil className="h-4 w-4 ml-2" /> ویرایش</>}
         </Button>

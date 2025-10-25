@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { LearningPath } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, CheckCircle } from "lucide-react";
+import { Pencil, CheckCircle, GraduationCap } from "lucide-react"; // آیکون جدید
 
 interface WhatYouWillLearnFormProps {
   initialData: LearningPath;
@@ -36,7 +36,10 @@ export const WhatYouWillLearnForm = ({ initialData, learningPathId }: WhatYouWil
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        آنچه خواهید آموخت
+        <div className="flex items-center gap-x-2">
+            <GraduationCap className="h-5 w-5 text-[#00a7f5]" />
+            آنچه خواهید آموخت
+        </div>
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? "انصراف" : <><Pencil className="h-4 w-4 ml-2" /> ویرایش</>}
         </Button>

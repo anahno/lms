@@ -60,7 +60,10 @@ export const ImageForm = ({ initialData, learningPathId }: ImageFormProps) => {
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        تصویر مسیر یادگیری
+        <div className="flex items-center gap-x-2">
+            <ImageIcon className="h-5 w-5 text-[#00a7f5]" />
+            تصویر مسیر یادگیری
+        </div>
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing && <>انصراف</>}
           {!isEditing && !initialData.imageUrl && (

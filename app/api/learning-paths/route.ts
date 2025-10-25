@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     // ساخت اسلاگ و بررسی یکتا بودن آن
-    let baseSlug = generateSlug(title);
+const baseSlug = generateSlug(title); // <--- تغییر در اینجا
     let slug = baseSlug;
     let counter = 1;
 

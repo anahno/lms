@@ -13,7 +13,7 @@ import { LearningPath } from "@prisma/client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Pencil, Sparkles } from "lucide-react";
+import { Pencil, Sparkles, Globe } from "lucide-react"; // آیکون جدید
 import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
@@ -71,7 +71,10 @@ export const SeoForm = ({ initialData, learningPathId }: SeoFormProps) => {
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        تنظیمات SEO (بهینه‌سازی برای موتورهای جستجو)
+        <div className="flex items-center gap-x-2">
+            <Globe className="h-5 w-5 text-[#00a7f5]" />
+            تنظیمات SEO (بهینه‌سازی برای موتورهای جستجو)
+        </div>
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? "انصراف" : <><Pencil className="h-4 w-4 ml-2" /> ویرایش</>}
         </Button>

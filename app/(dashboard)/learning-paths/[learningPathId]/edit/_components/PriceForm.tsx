@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { LearningPath } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil } from "lucide-react";
+import { Pencil, Tag } from "lucide-react"; // آیکون جدید
 
 // ✅ اسکیمای دقیق و بدون ambiguous type
 const formSchema = z.object({
@@ -64,7 +64,10 @@ export const PriceForm = ({ initialData, learningPathId }: PriceFormProps) => {
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        قیمت دوره (به تومان)
+        <div className="flex items-center gap-x-2">
+            <Tag className="h-5 w-5 text-[#00a7f5]" />
+            قیمت دوره (به تومان)
+        </div>
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? "انصراف" : (
             <>

@@ -52,7 +52,10 @@ export const IntroAudioForm = ({
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        فایل صوتی معرفی دوره (اختیاری)
+        <div className="flex items-center gap-x-2">
+            <FileAudio className="h-5 w-5 text-[#00a7f5]" />
+            فایل صوتی معرفی دوره (اختیاری)
+        </div>
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing && "انصراف"}
           {!isEditing && !initialData.introAudioUrl && (

@@ -4,17 +4,19 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { CourseSidebar } from "./CourseSidebar";
 import { LearningPathWithStructure } from "@/lib/types";
 
-// +++ ۱. پراپ جدید را به اینترفیس اضافه کنید +++
+// +++ ۱. پراپ onOpenModal را به اینترفیس اضافه کنید +++
 interface CourseMobileSidebarProps {
   learningPath: LearningPathWithStructure;
   progressCount: number;
   isEnrolled: boolean;
+  onOpenModal: () => void; // <--- این خط اضافه شد
 }
 
 export const CourseMobileSidebar = ({
   learningPath,
   progressCount,
-  isEnrolled, // +++ ۲. پراپ را اینجا دریافت کنید +++
+  isEnrolled,
+  onOpenModal, // <--- ۲. پراپ را اینجا دریافت کنید
 }: CourseMobileSidebarProps) => {
   return (
     <Sheet>
@@ -25,7 +27,9 @@ export const CourseMobileSidebar = ({
         <CourseSidebar
           learningPath={learningPath}
           progressCount={progressCount}
-          isEnrolled={isEnrolled} // +++ ۳. پراپ را به کامپوننت فرزند پاس دهید +++
+          isEnrolled={isEnrolled}
+          onOpenModal={onOpenModal} // <--- ۳. پراپ را به کامپوننت فرزند پاس دهید
+          onClose={() => {}} // onClose اختیاری است اما بهتر است یک تابع خالی به آن بدهیم
         />
       </SheetContent>
     </Sheet>

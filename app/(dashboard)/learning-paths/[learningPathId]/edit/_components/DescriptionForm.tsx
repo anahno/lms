@@ -9,18 +9,17 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
-import { Textarea } from "@/components/ui/textarea"; // استفاده از Textarea
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
+import { Pencil, FileText } from "lucide-react"; // آیکون جدید
 
-// تعریف شمای اعتبارسنجی با Zod
 const formSchema = z.object({
   description: z.string().min(1, { message: "توضیحات نمی‌تواند خالی باشد" }),
 });
 
 interface DescriptionFormProps {
   initialData: {
-    description: string | null; // توضیحات می‌تواند null باشد
+    description: string | null;
   };
   learningPathId: string;
 }
@@ -42,7 +41,6 @@ export const DescriptionForm = ({ initialData, learningPathId }: DescriptionForm
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      // از همان API قبلی استفاده می‌کنیم
       await axios.patch(`/api/learning-paths/${learningPathId}`, values);
       toast.success("توضیحات با موفقیت به‌روزرسانی شد.");
       toggleEdit();
@@ -55,7 +53,10 @@ export const DescriptionForm = ({ initialData, learningPathId }: DescriptionForm
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        توضیحات مسیر یادگیری
+        <div className="flex items-center gap-x-2">
+          <FileText className="h-5 w-5 text-[#00a7f5]" />
+          توضیحات مسیر یادگیری
+        </div>
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? (
             <>انصراف</>

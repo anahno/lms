@@ -29,7 +29,9 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Grip, Trash, Star } from "lucide-react";
+// +++ شروع اصلاح نهایی: Hierarchy با Network جایگزین شد +++
+import { PlusCircle, Network, Pencil, Grip, Trash, Star } from "lucide-react";
+// +++ پایان اصلاح نهایی +++
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { ChaptersList } from "./ChaptersList";
 
@@ -92,7 +94,6 @@ function SortableLevelItem({
     setIsEditing(false);
   };
   
-  // محاسبه میانگین امتیاز کل فصل‌های این سطح
   const allRatings = level.chapters.flatMap(chapter => 
     chapter.sections.flatMap(section => 
       section.progress.map(p => p.rating)
@@ -122,7 +123,6 @@ function SortableLevelItem({
           )}
           <div className="ml-auto flex items-center gap-x-2">
             
-            {/* نمایش میانگین امتیاز سطح */}
             {allRatings.length > 0 && (
                 <div className="flex items-center gap-x-1 text-amber-500" title={`میانگین امتیاز فصل‌های این سطح: ${averageRating.toFixed(1)}`}>
                     <span className="text-sm font-bold">{averageRating.toFixed(1)}</span>
@@ -156,13 +156,11 @@ function SortableLevelItem({
 
 // کامپوننت اصلی فرم
 export const LevelsForm = ({ initialData, learningPathId }: LevelsFormProps) => {
-    // +++ شروع اصلاح برای خطای Hydration +++
   const [isMounted, setIsMounted] = useState(false);
   
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  // +++ پایان اصلاح +++
 
   const [levels, setLevels] = useState(initialData.levels);
   const [isCreating, setIsCreating] = useState(false);
@@ -244,15 +242,20 @@ export const LevelsForm = ({ initialData, learningPathId }: LevelsFormProps) => 
       }
     }
   };
- // +++ یک شرط رندر جدید اینجا اضافه می‌کنیم +++
+
   if (!isMounted) {
-    return null; // یا یک اسکلت لودینگ نمایش دهید: <p>در حال بارگذاری لیست سطوح...</p>
+    return null;
   }
 
   return (
     <div className="relative mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        سطوح و فصل‌های مسیر یادگیری
+        <div className="flex items-center gap-x-2">
+            {/* +++ شروع اصلاح نهایی: استفاده از آیکون صحیح +++ */}
+            <Network className="h-5 w-5 text-[#00a7f5]" />
+            {/* +++ پایان اصلاح نهایی +++ */}
+            سطوح و فصل‌های مسیر یادگیری
+        </div>
         <Button onClick={toggleCreating} variant="ghost">
           {isCreating ? "انصراف" : <><PlusCircle className="h-4 w-4 ml-2" /> افزودن سطح</>}
         </Button>

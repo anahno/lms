@@ -1,10 +1,11 @@
+// فایل: components/sidebar.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   BookCopy, 
-  List, 
+  FolderTree, // +++ آیکون List با FolderTree جایگزین شد +++
   Edit, 
   Archive, 
   LayoutGrid, 
@@ -12,13 +13,12 @@ import {
   Users,
   UserCog,
   User,
-  FileDown // +++ آیکون FileDown در اینجا اضافه شد +++
+  FileDown
 } from "lucide-react"; 
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import { Role } from "@prisma/client";
 
-// مسیرها به دو گروه تقسیم می‌شوند: ناوبری اصلی و تنظیمات حساب
 const mainRoutes = [
   {
     icon: BookCopy,
@@ -35,7 +35,6 @@ const mainRoutes = [
     href: "/qa-center",
     label: "مرکز پرسش و پاسخ",
   },
-  // +++ آبجکت جدید برای گزارش‌گیری در اینجا قرار می‌گیرد +++
   {
     icon: FileDown, 
     href: "/admin/reports",
@@ -49,7 +48,7 @@ const mainRoutes = [
     adminOnly: true,
   },
   {
-    icon: List,
+    icon: FolderTree, // +++ آیکون جدید در اینجا استفاده شد +++
     href: "/categories",
     label: "دسته‌بندی‌ها",
     adminOnly: true,
@@ -66,7 +65,6 @@ const mainRoutes = [
   },
 ];
 
-// گروه جدید برای تنظیمات حساب
 const accountRoutes = [
     {
         icon: UserCog,
@@ -75,9 +73,9 @@ const accountRoutes = [
     },
     {
         icon: User,
-        href: (userId: string) => `/instructors/${userId}`, // این مسیر داینامیک است
+        href: (userId: string) => `/instructors/${userId}`,
         label: "پروفایل عمومی",
-        instructorOnly: true, // فقط برای اساتید
+        instructorOnly: true,
     }
 ]
 
@@ -94,7 +92,6 @@ export default function Sidebar() {
       </div>
       
       <div className="flex flex-col flex-1 p-4 overflow-y-auto">
-        {/* بخش اصلی ناوبری */}
         {mainRoutes
           .filter(route => {
             if (!route.adminOnly) return true;
@@ -109,12 +106,12 @@ export default function Sidebar() {
               (pathname === route.href || pathname.startsWith(`${route.href}/`)) && "bg-sky-200/50 text-sky-700"
             )}
           >
-            <route.icon className="h-5 w-5 ml-3" />
+            {/* +++ کد رنگ به کلاس آیکون اضافه شد +++ */}
+            <route.icon className="h-5 w-5 ml-3 text-[#00a7f5]" />
             {route.label}
           </Link>
         ))}
 
-        {/* جداکننده و بخش تنظیمات حساب در انتهای سایدبار */}
         <div className="mt-auto pt-4 border-t">
             <h3 className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                 تنظیمات
@@ -138,7 +135,8 @@ export default function Sidebar() {
                             pathname === href && "bg-sky-200/50 text-sky-700"
                             )}
                         >
-                            <route.icon className="h-5 w-5 ml-3" />
+                            {/* +++ کد رنگ به کلاس آیکون اضافه شد +++ */}
+                            <route.icon className="h-5 w-5 ml-3 text-[#00a7f5]" />
                             {route.label}
                         </Link>
                     )

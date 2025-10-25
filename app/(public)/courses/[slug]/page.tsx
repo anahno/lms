@@ -11,12 +11,14 @@ import { ViewCourseButton } from "@/components/ViewCourseButton";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Metadata, ResolvingMetadata } from "next";
-import { CourseSchema } from "@/components/CourseSchema";
+import { CourseSchema } from "@/components/ui/CourseSchema"; 
+
 
 // --- ۱. تابع generateMetadata برای SEO داینامیک بر اساس slug ---
 export async function generateMetadata(
-  { params }: { params: { slug: string } }, // پارامتر slug است
-  parent: ResolvingMetadata
+  { params }: { params: { slug: string } },
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _parent: ResolvingMetadata
 ): Promise<Metadata> {
   try {
     // دوره را بر اساس slug پیدا می‌کنیم
@@ -67,7 +69,6 @@ export async function generateMetadata(
     }
   }
 }
-
 
 export default async function CourseLandingPage({
   params,

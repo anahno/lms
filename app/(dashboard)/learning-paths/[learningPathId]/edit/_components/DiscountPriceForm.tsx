@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { LearningPath } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil } from "lucide-react";
+import { Pencil, BadgePercent } from "lucide-react"; // آیکون جدید
 import { cn } from "@/lib/utils";
 
 /**
@@ -90,7 +90,10 @@ const { formState: { isSubmitting, isValid, errors } } = form;
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        قیمت پس از تخفیف (اختیاری)
+        <div className="flex items-center gap-x-2">
+            <BadgePercent className="h-5 w-5 text-[#00a7f5]" />
+            قیمت پس از تخفیف (اختیاری)
+        </div>
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? "انصراف" : <><Pencil className="h-4 w-4 ml-2" /> ویرایش</>}
         </Button>
