@@ -11,8 +11,11 @@ type SubmissionPayload = {
   questionId: string;
   selectedOptionId?: string;
   selectedOptionIds?: string[];
-  textAnswer?: string;
+  textAnswer?: string; // برای ذخیره پاسخ‌های متنی (تشریحی، جای خالی، و JSON سوال کشیدنی)
 };
+
+// این نوع برای کار با ساختار متن سوال کشیدنی است
+type TextPart = { type: 'text'; content: string } | { type: 'blank'; id: string };
 
 export async function POST(
   req: NextRequest,
@@ -57,40 +60,78 @@ export async function POST(
       
       const submissionPayload: SubmissionPayload = { questionId: question.id };
 
-      if (question.type === QuestionType.ESSAY) {
-        isCorrect = null; 
-        score = null;     
-        if (typeof userAnswer === 'string') submissionPayload.textAnswer = userAnswer;
-      }
-      else if (question.type === QuestionType.SINGLE_CHOICE) {
-        const correctOption = question.options.find(opt => opt.isCorrect);
-        isCorrect = correctOption?.id === userAnswer;
-        if (userAnswer) submissionPayload.selectedOptionId = userAnswer;
-      } 
-      else if (question.type === QuestionType.MULTIPLE_CHOICE) {
-        const correctOptionIds = question.options.filter(opt => opt.isCorrect).map(opt => opt.id).sort();
-        const userAnswersArray = (Array.isArray(userAnswer) ? userAnswer : []).sort();
-        if (userAnswersArray.length === correctOptionIds.length && JSON.stringify(userAnswersArray) === JSON.stringify(correctOptionIds)) {
-          isCorrect = true;
-        }
-        if (userAnswersArray.length > 0) submissionPayload.selectedOptionIds = userAnswersArray;
-      }
-      else if (question.type === QuestionType.FILL_IN_THE_BLANK) {
-        const correctAnswer = question.options.find(opt => opt.isCorrect)?.text;
-        if (typeof userAnswer === 'string' && correctAnswer) {
-            isCorrect = userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
-        }
-        if (typeof userAnswer === 'string') submissionPayload.textAnswer = userAnswer;
+      if (!userAnswer) continue; // اگر جوابی برای سوال ارسال نشده، از آن بگذر
+
+      // بر اساس نوع سوال، نمره‌دهی را انجام می‌دهیم
+      switch (question.type) {
+        case QuestionType.ESSAY:
+        case QuestionType.AUDIO_RESPONSE:
+          isCorrect = null; 
+          score = null;     
+          if (typeof userAnswer === 'string') submissionPayload.textAnswer = userAnswer;
+          break;
+
+        case QuestionType.SINGLE_CHOICE:
+          const correctOption = question.options.find(opt => opt.isCorrect);
+          isCorrect = correctOption?.id === userAnswer;
+          if (userAnswer) submissionPayload.selectedOptionId = userAnswer;
+          break;
+        
+        case QuestionType.MULTIPLE_CHOICE:
+          const correctOptionIds = new Set(question.options.filter(opt => opt.isCorrect).map(opt => opt.id));
+          const userAnswersArray = new Set(Array.isArray(userAnswer) ? userAnswer : []);
+          
+          isCorrect = correctOptionIds.size === userAnswersArray.size && [...correctOptionIds].every(id => userAnswersArray.has(id));
+
+          if (userAnswersArray.size > 0) submissionPayload.selectedOptionIds = Array.from(userAnswersArray);
+          break;
+
+        case QuestionType.FILL_IN_THE_BLANK:
+          const correctAnswerText = question.options.find(opt => opt.isCorrect)?.text;
+          if (typeof userAnswer === 'string' && correctAnswerText) {
+              isCorrect = userAnswer.trim().toLowerCase() === correctAnswerText.trim().toLowerCase();
+          }
+          if (typeof userAnswer === 'string') submissionPayload.textAnswer = userAnswer;
+          break;
+
+        // +++ شروع منطق نمره‌دهی سوال کشیدن و رها کردن +++
+        case QuestionType.DRAG_INTO_TEXT:
+          const textParts: TextPart[] = JSON.parse(question.description || '[]');
+          const correctOptionsForDrag = question.options.filter(o => o.isCorrect);
+          const blankIds = new Set(textParts.filter(p => p.type === 'blank').map(p => (p as {id: string}).id));
+          let correctMatches = 0;
+
+          // userAnswer باید یک آبجکت باشد: { 'blank-id': 'option-id', ... }
+          if (typeof userAnswer === 'object' && userAnswer !== null && !Array.isArray(userAnswer)) {
+              for (const blankId in userAnswer) {
+                  if (blankIds.has(blankId)) {
+                      const droppedOptionId = (userAnswer as Record<string, string>)[blankId];
+                      const isMatchCorrect = correctOptionsForDrag.some(opt => opt.id === droppedOptionId);
+                      if (isMatchCorrect) {
+                          correctMatches++;
+                      }
+                  }
+              }
+          }
+
+          if (correctMatches > 0) {
+              const pointsPerBlank = question.points / correctOptionsForDrag.length;
+              score = correctMatches * pointsPerBlank;
+              earnedPoints += score;
+          }
+          
+          isCorrect = correctMatches === correctOptionsForDrag.length;
+          submissionPayload.textAnswer = JSON.stringify(userAnswer);
+          break;
+        // +++ پایان منطق نمره‌دهی +++
       }
       
-      if (isCorrect === true) {
+      if (isCorrect === true && question.type !== QuestionType.DRAG_INTO_TEXT) {
         earnedPoints += question.points;
         score = question.points;
       }
       
-      if (userAnswer && ( (Array.isArray(userAnswer) && userAnswer.length > 0) || !Array.isArray(userAnswer) )) {
-          userAnswersToCreate.push({ ...submissionPayload, isCorrect, score });
-      }
+      userAnswersToCreate.push({ ...submissionPayload, isCorrect, score });
     }
 
     let finalScore: number | null = null;

@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { QuestionType, Role } from "@prisma/client"; // ۱. Role را وارد کنید
+import { QuestionType, Role } from "@prisma/client";
 
 export async function POST(
   req: NextRequest,
@@ -20,7 +20,6 @@ export async function POST(
     const { learningPathId, sectionId } = await context.params;
     const { text, type = QuestionType.SINGLE_CHOICE } = await req.json();
 
-    // ===== شروع الگوی جدید بررسی دسترسی =====
     const learningPath = await db.learningPath.findUnique({
       where: { id: learningPathId },
     });
@@ -33,7 +32,6 @@ export async function POST(
     if (!isOwner && !isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
-    // ===== پایان الگوی جدید بررسی دسترسی =====
 
     const quiz = await db.quiz.findUnique({ where: { sectionId } });
     if (!quiz) {
@@ -47,13 +45,29 @@ export async function POST(
 
     const newPosition = lastQuestion ? lastQuestion.position + 1 : 1;
     
+    // +++ شروع تغییرات +++
     let optionsToCreate: { text: string; isCorrect?: boolean }[] = [];
+    let description: string | undefined = undefined;
 
     if (type === QuestionType.SINGLE_CHOICE || type === QuestionType.MULTIPLE_CHOICE) {
       optionsToCreate = [{ text: "گزینه ۱" }, { text: "گزینه ۲" }];
     } else if (type === QuestionType.FILL_IN_THE_BLANK) {
       optionsToCreate = [{ text: "", isCorrect: true }];
+    } 
+    else if (type === QuestionType.DRAG_INTO_TEXT) {
+      // یک ساختار JSON اولیه برای متن سوال ایجاد می‌کنیم
+      description = JSON.stringify([
+        { type: "text", content: "این یک متن " },
+        { type: "blank", id: `blank-${Date.now()}` }, // از Date.now() برای ID یکتا استفاده می‌کنیم
+        { type: "text", content: " برای نمونه است." },
+      ]);
+      // گزینه‌های اولیه برای کشیدن
+      optionsToCreate = [
+        { text: "آزمایشی", isCorrect: true }, // یک پاسخ صحیح
+        { text: "انحرافی", isCorrect: false }, // یک گزینه انحرافی
+      ];
     }
+    // +++ پایان تغییرات +++
     
     const question = await db.question.create({
       data: {
@@ -61,6 +75,7 @@ export async function POST(
         quizId: quiz.id,
         position: newPosition,
         type: type,
+        description, // فیلد جدید برای ذخیره ساختار متن
         options: {
           create: optionsToCreate,
         },

@@ -1,4 +1,4 @@
-// فایل: app/(public)/courses/[learningPathId]/quiz/[quizId]/page.tsx
+// فایل: app/(public)/courses/[slug]/quiz/[quizId]/page.tsx
 "use server";
 
 import { db } from "@/lib/db";
@@ -9,38 +9,29 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle, HelpCircle, FileText } from "lucide-react";
-import { QuestionType } from "@prisma/client"; // ۱. ایمپورت کردن QuestionType
+import { QuestionType } from "@prisma/client";
 
-// ۲. یک تابع کمکی برای ترجمه نوع سوال
 const getQuestionTypeDisplay = (types: QuestionType[]): string => {
-  if (types.length === 0) {
-    return "نامشخص";
-  }
+  if (types.length === 0) return "نامشخص";
   const uniqueTypes = new Set(types);
-  if (uniqueTypes.size > 1) {
-    return "ترکیبی";
-  }
+  if (uniqueTypes.size > 1) return "ترکیبی";
   const type = uniqueTypes.values().next().value;
   switch (type) {
-    case QuestionType.SINGLE_CHOICE:
-      return "تک گزینه‌ای";
-    case QuestionType.MULTIPLE_CHOICE:
-      return "چند گزینه‌ای";
-    case QuestionType.FILL_IN_THE_BLANK:
-      return "جای خالی";
-    case QuestionType.ESSAY:
-      return "تشریحی";
-    case QuestionType.AUDIO_RESPONSE:
-        return "پاسخ صوتی";
-    default:
-      return "استاندارد";
+    case QuestionType.SINGLE_CHOICE: return "تک گزینه‌ای";
+    case QuestionType.MULTIPLE_CHOICE: return "چند گزینه‌ای";
+    case QuestionType.FILL_IN_THE_BLANK: return "جای خالی";
+    case QuestionType.ESSAY: return "تشریحی";
+    case QuestionType.AUDIO_RESPONSE: return "پاسخ صوتی";
+    case QuestionType.DRAG_INTO_TEXT: return "کشیدن در متن";
+    default: return "استاندارد";
   }
 };
 
 export default async function QuizStartPage({
   params,
 }: {
-  params: Promise<{ learningPathId: string; quizId: string }>;
+  // +++ ۱. نوع پارامترها اصلاح شد +++
+  params: Promise<{ slug: string; quizId: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -48,29 +39,40 @@ export default async function QuizStartPage({
   }
   const userId = session.user.id;
 
-  const { learningPathId, quizId } = await params;
+  // +++ ۲. پارامترهای صحیح از URL خوانده شد +++
+  const { slug, quizId } = await params;
 
-  const enrollment = await db.enrollment.findUnique({
-    where: { userId_learningPathId: { userId, learningPathId } },
+  // +++ ۳. ابتدا دوره را با slug پیدا می‌کنیم تا id آن را بدست آوریم +++
+  const course = await db.learningPath.findUnique({
+    where: { slug },
+    select: { id: true },
   });
+
+  if (!course) {
+    return redirect("/courses"); // اگر دوره یافت نشد، به کاتالوگ برگرد
+  }
+
+  // +++ ۴. از course.id برای بررسی ثبت‌نام استفاده می‌کنیم +++
+  const enrollment = await db.enrollment.findUnique({
+    where: { userId_learningPathId: { userId, learningPathId: course.id } },
+  });
+
   if (!enrollment) {
-    return redirect(`/courses/${learningPathId}`);
+    return redirect(`/courses/${slug}`); // اگر ثبت‌نام نکرده بود، به صفحه دوره برگرد
   }
 
   const quiz = await db.quiz.findUnique({
     where: { id: quizId },
     include: {
-      // ۳. علاوه بر id، نوع (type) هر سوال را هم واکشی می‌کنیم
       questions: { select: { id: true, type: true } },
       submissions: { where: { userId } },
     },
   });
 
   if (!quiz) {
-    return redirect(`/courses/${learningPathId}`);
+    return redirect(`/courses/${slug}`); // اگر آزمون یافت نشد، به صفحه دوره برگرد
   }
   
-  // ۴. از تابع کمکی برای تعیین متن نمایشی استفاده می‌کنیم
   const questionTypes = quiz.questions.map(q => q.type);
   const questionTypeDisplay = getQuestionTypeDisplay(questionTypes);
 
@@ -95,7 +97,6 @@ export default async function QuizStartPage({
             </div>
             <div className="flex flex-col items-center gap-2">
               <FileText className="h-8 w-8 text-amber-600" />
-              {/* ۵. متن دینامیک را اینجا نمایش می‌دهیم */}
               <span className="font-bold">{questionTypeDisplay}</span>
               <span className="text-sm text-slate-600">نوع سوالات</span>
             </div>
@@ -112,12 +113,14 @@ export default async function QuizStartPage({
             {hasSubmitted ? (
               <div className="space-y-4">
                  <p className="text-lg font-semibold text-emerald-700">شما قبلاً در این آزمون شرکت کرده‌اید!</p>
-                <Link href={`/courses/${learningPathId}`}>
+                {/* +++ ۵. لینک‌ها با slug اصلاح شدند +++ */}
+                <Link href={`/courses/${slug}`}>
                   <Button className="w-full">بازگشت به دوره</Button>
                 </Link>
               </div>
             ) : (
-              <Link href={`/courses/${learningPathId}/quiz/${quizId}/play`}>
+              // +++ ۶. لینک‌ها با slug اصلاح شدند +++
+              <Link href={`/courses/${slug}/quiz/${quizId}/play`}>
                 <Button className="w-full" size="lg">شروع آزمون</Button>
               </Link>
             )}

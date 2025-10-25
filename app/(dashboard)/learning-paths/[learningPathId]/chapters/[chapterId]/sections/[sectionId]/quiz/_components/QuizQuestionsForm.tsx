@@ -53,6 +53,8 @@ export const QuizQuestionsForm = ({
         case QuestionType.MULTIPLE_CHOICE: text = "سوال چندگزینه‌ای جدید"; break;
         case QuestionType.FILL_IN_THE_BLANK: text = "سوال جای خالی جدید"; break;
         case QuestionType.ESSAY: text = "سوال تشریحی جدید"; break;
+        // +++ متن عنوان برای نوع سوال جدید +++
+        case QuestionType.DRAG_INTO_TEXT: text = "سوال کشیدن و رها کردن در متن"; break;
       }
 
       await axios.post(`/api/learning-paths/${learningPathId}/chapters/${chapterId}/sections/${sectionId}/quiz/questions`, {
@@ -109,6 +111,10 @@ export const QuizQuestionsForm = ({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAddQuestion(QuestionType.ESSAY)}>
               تشریحی
+            </DropdownMenuItem>
+            {/* +++ این گزینه جدید اضافه شده است +++ */}
+            <DropdownMenuItem onClick={() => onAddQuestion(QuestionType.DRAG_INTO_TEXT)}>
+              کشیدن و رها کردن در متن
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

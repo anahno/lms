@@ -1,15 +1,13 @@
 // فایل: lib/types.ts
 import { Level, Chapter, Section, UserProgress, Quiz } from "@prisma/client";
 
-// --- تایپ Section را به‌روز کنید ---
 export type SectionWithProgressAndQuiz = Section & {
   progress: UserProgress[];
-  quiz: Quiz | null; // <-- این خط اضافه شد
+  quiz: Quiz | null;
 };
 
-// --- تایپ Chapter را برای استفاده از تایپ جدید به‌روز کنید ---
 export type ChapterWithSectionsAndProgress = Chapter & {
-  sections: SectionWithProgressAndQuiz[]; // <-- این خط تغییر کرد
+  sections: SectionWithProgressAndQuiz[];
 };
 
 export type LevelWithChapters = Level & {
@@ -19,5 +17,6 @@ export type LevelWithChapters = Level & {
 export type LearningPathWithStructure = {
   id: string;
   title: string;
+  slug: string; // +++ این خط اضافه شده است +++
   levels: LevelWithChapters[];
 };

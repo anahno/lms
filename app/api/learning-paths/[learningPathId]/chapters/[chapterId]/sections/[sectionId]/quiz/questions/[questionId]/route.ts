@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { Role } from "@prisma/client"; // ۱. Role را وارد کنید
+import { Role } from "@prisma/client";
 
 export async function PATCH(
   req: NextRequest,
@@ -18,40 +18,36 @@ export async function PATCH(
     const { learningPathId, questionId } = await context.params;
     const values = await req.json();
 
-    // ===== شروع الگوی جدید بررسی دسترسی =====
-    const learningPath = await db.learningPath.findUnique({
-      where: { id: learningPathId },
-    });
+    const learningPath = await db.learningPath.findUnique({ where: { id: learningPathId } });
     if (!learningPath) return new NextResponse("Not Found", { status: 404 });
 
     const isOwner = learningPath.userId === session.user.id;
     const isAdmin = session.user.role === Role.ADMIN;
     if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
-    // ===== پایان الگوی جدید بررسی دسترسی =====
 
-    // به‌روزرسانی سوال و گزینه‌های آن در یک تراکنش
     const updatedQuestion = await db.$transaction(async (prisma) => {
+      // +++ شروع اصلاح کلیدی: فیلد description به آپدیت اضافه شد +++
       const question = await prisma.question.update({
         where: { id: questionId },
         data: {
           text: values.text,
           points: values.points,
+          description: values.description, // این خط حیاتی است
         },
       });
+      // +++ پایان اصلاح کلیدی +++
 
-      // حذف گزینه‌های قدیمی
-      await prisma.option.deleteMany({
-        where: { questionId: questionId },
-      });
+      await prisma.option.deleteMany({ where: { questionId: questionId } });
 
-      // ایجاد گزینه‌های جدید
-      await prisma.option.createMany({
-        data: values.options.map((opt: { text: string; isCorrect: boolean }) => ({
-          text: opt.text,
-          isCorrect: opt.isCorrect,
-          questionId: questionId,
-        })),
-      });
+      if (values.options && values.options.length > 0) {
+        await prisma.option.createMany({
+          data: values.options.map((opt: { text: string; isCorrect: boolean }) => ({
+            text: opt.text,
+            isCorrect: opt.isCorrect,
+            questionId: questionId,
+          })),
+        });
+      }
 
       return question;
     });
@@ -67,13 +63,13 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ learningPathId: string; questionId: string }> }
 ) {
+  // ... این تابع بدون تغییر باقی می‌ماند ...
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
 
     const { learningPathId, questionId } = await context.params;
     
-    // ===== شروع الگوی جدید بررسی دسترسی =====
     const learningPath = await db.learningPath.findUnique({
       where: { id: learningPathId },
     });
@@ -82,7 +78,6 @@ export async function DELETE(
     const isOwner = learningPath.userId === session.user.id;
     const isAdmin = session.user.role === Role.ADMIN;
     if (!isOwner && !isAdmin) return new NextResponse("Forbidden", { status: 403 });
-    // ===== پایان الگوی جدید بررسی دسترسی =====
 
     const deletedQuestion = await db.question.delete({
       where: { id: questionId },

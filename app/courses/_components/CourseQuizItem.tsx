@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 
 interface CourseQuizItemProps {
   quizId: string;
-  learningPathId: string;
+  courseSlug: string; // +++ ۱. نام پراپ به courseSlug تغییر کرد
 }
 
-export const CourseQuizItem = ({ quizId, learningPathId }: CourseQuizItemProps) => {
+export const CourseQuizItem = ({ quizId, courseSlug }: CourseQuizItemProps) => {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -18,7 +18,8 @@ export const CourseQuizItem = ({ quizId, learningPathId }: CourseQuizItemProps) 
 
   return (
     <button
-      onClick={() => router.push(`/courses/${learningPathId}/quiz/${quizId}`)}
+      // +++ ۲. از courseSlug در URL استفاده می‌شود +++
+      onClick={() => router.push(`/courses/${courseSlug}/quiz/${quizId}`)}
       type="button"
       className={cn(
         "flex w-full items-center gap-x-3 text-right py-3 pr-12 pl-4 text-sm transition-colors",

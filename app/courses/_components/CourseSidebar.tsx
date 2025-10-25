@@ -35,7 +35,6 @@ export const CourseSidebar = ({
   onClose,
 }: CourseSidebarProps) => {
   const [expandedChapters, setExpandedChapters] = React.useState<string[]>(
-    // به صورت پیش‌فرض اولین فصل را باز نگه می‌داریم
     [learningPath.levels[0]?.chapters[0]?.id].filter(Boolean)
   );
 
@@ -84,7 +83,6 @@ export const CourseSidebar = ({
 
               return (
                 <div key={chapter.id} className="border-b">
-                  {/* +++ این بخش به طور کامل بازگردانده شد +++ */}
                   <button
                     onClick={() => toggleChapter(chapter.id)}
                     className="w-full p-4 flex items-center justify-between hover:bg-slate-50 text-right"
@@ -116,7 +114,7 @@ export const CourseSidebar = ({
                               id={section.id}
                               label={section.title}
                               duration={section.duration}
-                              learningPathId={learningPath.id}
+                              learningPathId={learningPath.id} // این هنوز id است و مشکلی ندارد
                               isCompleted={!!section.progress?.[0]?.isCompleted}
                               isFree={section.isFree}
                               isChapterFree={chapter.isFree} 
@@ -126,7 +124,8 @@ export const CourseSidebar = ({
                             {hasQuiz && (
                               <CourseQuizItem
                                 quizId={section.quiz!.id}
-                                learningPathId={learningPath.id}
+                                // +++ از learningPath.slug استفاده می‌کنیم +++
+                                courseSlug={learningPath.slug} 
                               />
                             )}
                           </React.Fragment>
