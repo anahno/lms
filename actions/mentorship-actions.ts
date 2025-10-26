@@ -92,6 +92,9 @@ export const updateMentorProfile = async (data: {
 /**
  * بازه‌های زمانی جدید برای یک مدرس ایجاد می‌کند
  */
+/**
+ * بازه‌های زمانی جدید برای یک مدرس ایجاد می‌کند
+ */
 export const createTimeSlots = async (formData: FormData) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
@@ -100,7 +103,7 @@ export const createTimeSlots = async (formData: FormData) => {
   const userId = session.user.id;
 
   try {
-    const date = formData.get("date") as string;
+    const date = formData.get("date") as string;       // e.g., "2025-10-26"
     const startTime = formData.get("startTime") as string; // e.g., "09:00"
     const endTime = formData.get("endTime") as string;   // e.g., "17:00"
     
@@ -108,11 +111,24 @@ export const createTimeSlots = async (formData: FormData) => {
       return { error: "تاریخ و ساعات شروع و پایان الزامی است." };
     }
 
-    const startDateTime = new Date(`${date}T${startTime}:00`);
-    const endDateTime = new Date(`${date}T${endTime}:00`);
+    // +++ شروع اصلاح اصلی برای حل مشکل منطقه زمانی +++
+
+    // 1. رشته‌های تاریخ و ساعت را به اجزای عددی تبدیل می‌کنیم
+    const [year, month, day] = date.split('-').map(Number);
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
     
+    // 2. آبجکت‌های Date را با استفاده از اجزای عددی می‌سازیم.
+    // این روش به جای تفسیر رشته (که ممکن است به UTC تبدیل شود)، تاریخ را در منطقه زمانی خود سرور می‌سازد که قابل اعتمادتر است.
+    // نکته: ماه در جاوااسکریپت از 0 شروع می‌شود، پس یکی از آن کم می‌کنیم.
+    const startDateTime = new Date(year, month - 1, day, startHour, startMinute);
+    const endDateTime = new Date(year, month - 1, day, endHour, endMinute);
+
+    // +++ پایان اصلاح اصلی +++
+    
+    // این شرط حالا به درستی کار خواهد کرد
     if (startDateTime >= endDateTime || startDateTime < new Date()) {
-        return { error: "بازه زمانی نامعتبر است." };
+        return { error: "بازه زمانی نامعتبر است. (زمان شروع نمی‌تواند در گذشته یا بعد از زمان پایان باشد)" };
     }
 
     const slotsToCreate = [];
@@ -136,7 +152,7 @@ export const createTimeSlots = async (formData: FormData) => {
 
     await db.timeSlot.createMany({
       data: slotsToCreate,
-      skipDuplicates: true, // از ایجاد بازه‌های تکراری جلوگیری می‌کند
+      skipDuplicates: true,
     });
     
     revalidatePath("/dashboard/mentorship");
