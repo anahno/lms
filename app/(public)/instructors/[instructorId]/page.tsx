@@ -11,18 +11,26 @@ import { authOptions } from "@/lib/auth";
 import { Role } from "@prisma/client";
 import { MentorshipBookingSection } from "./_components/MentorshipBookingSection";
 
+// +++ ۱. اکشن جدید را وارد می‌کنیم +++
+import { cleanupExpiredMentorshipBookings } from "@/actions/booking-actions";
+
+
 export default async function InstructorProfilePage({
   params,
 }: {
-  // +++ ۱. نوع params را برای هماهنگی با Next.js به Promise تغییر می‌دهیم +++
   params: Promise<{ instructorId: string }>;
 }) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 
-  // +++ ۲. قبل از استفاده، params را await می‌کنیم +++
   const { instructorId } = await params;
 
+  // +++ ۲. قبل از واکشی داده‌ها، تابع پاک‌سازی را اجرا می‌کنیم +++
+  // این تضمین می‌کند که داده‌هایی که در ادامه واکشی می‌کنیم، تمیز و به‌روز هستند.
+  await cleanupExpiredMentorshipBookings(instructorId);
+
+
+  // از اینجا به بعد، بقیه کد بدون تغییر است
   const instructor = await db.user.findUnique({
     where: {
       id: instructorId,

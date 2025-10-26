@@ -20,7 +20,7 @@ async function releaseMentorshipSlots(purchaseId: string) {
     if (bookings.length > 0) {
       const timeSlotIds = bookings.map(b => b.timeSlotId);
       await db.timeSlot.updateMany({
-        where: { id: { in: timeSlotIds }, status: 'BOOKED' }, // فقط آنهایی که رزرو شده‌اند را آزاد کن
+        where: { id: { in: timeSlotIds }, status: 'BOOKED' },
         data: { status: "AVAILABLE" },
       });
       console.log(`[Payment Cancelled/Failed] Released ${timeSlotIds.length} time slots for purchase ${purchaseId}`);
@@ -36,15 +36,32 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("Status");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
-  const purchase = authority ? await db.purchase.findUnique({ where: { authority } }) : null;
+  // +++ شروع اصلاح اصلی: پیدا کردن Purchase با purchaseId +++
+  const purchaseId = searchParams.get("purchaseId");
+  let purchase = null;
 
-  if (status !== "OK" || !authority || !purchase) {
-    console.log("تراکنش لغو شد یا نامعتبر است.");
+  if (purchaseId) {
+    purchase = await db.purchase.findUnique({ where: { id: purchaseId } });
+  } else if (authority) {
+    // این به عنوان fallback باقی می‌ماند
+    purchase = await db.purchase.findUnique({ where: { authority } });
+  }
+  // +++ پایان اصلاح اصلی +++
+
+  if (status !== "OK") { // این شرط به تنهایی برای تشخیص انصراف/خطا کافی است
+    console.log("تراکنش لغو شد یا با خطا مواجه شد.");
     if (purchase && purchase.type === PurchaseType.MENTORSHIP) {
       await releaseMentorshipSlots(purchase.id);
     }
     return NextResponse.redirect(`${appUrl}/payment-result?status=failed`);
   }
+
+  // اگر پرداخت موفق بود اما purchase پیدا نشد، یک خطای جدی رخ داده
+  if (!purchase || !authority) {
+      console.error("Invalid callback: Status is OK but purchase or authority not found.");
+      return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=invalid_callback`);
+  }
+
 
   try {
     if (purchase.status === 'COMPLETED') {
@@ -56,14 +73,11 @@ export async function GET(req: NextRequest) {
         ? process.env.ZARINPAL_SANDBOX_MERCHANT_ID 
         : process.env.ZARINPAL_MERCHANT_ID;
 
-    // +++ شروع اصلاح اصلی و حیاتی +++
-    // مبلغی که برای تایید ارسال می‌شود باید به ریال باشد
     const amountInRialsForVerify = Math.round(purchase.amount) * 10;
-    // +++ پایان اصلاح اصلی +++
 
     const response = await axios.post(ZARINPAL_API_VERIFY, {
       merchant_id: merchantId,
-      amount: amountInRialsForVerify, // <-- از مبلغ به ریال استفاده می‌کنیم
+      amount: amountInRialsForVerify,
       authority: authority,
     });
 
@@ -83,7 +97,7 @@ export async function GET(req: NextRequest) {
         } else if (purchase.type === PurchaseType.MENTORSHIP) {
           await prisma.booking.updateMany({
             where: { purchaseId: purchase.id },
-            data: { status: "CONFIRMED" }, // وضعیت صحیح CONFIRMED است
+            data: { status: "CONFIRMED" },
           });
         }
       });

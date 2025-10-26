@@ -43,11 +43,16 @@ export const createZarinpalRequest = async (
   try {
     const amountInRials = Math.round(amount) * 10;
     
+    // +++ شروع اصلاح اصلی +++
+    // purchaseId را به عنوان یک پارامتر کوئری به URL بازگشت اضافه می‌کنیم
+    const callbackUrlWithId = `${callbackUrl}?purchaseId=${purchaseId}`;
+    // +++ پایان اصلاح اصلی +++
+
     const requestBody = {
       merchant_id: merchantId,
       amount: amountInRials,
       description: description,
-      callback_url: callbackUrl,
+      callback_url: callbackUrlWithId, // <-- از URL جدید استفاده می‌کنیم
       metadata: { email: email },
     };
     
@@ -72,15 +77,12 @@ export const createZarinpalRequest = async (
       console.error(`[Zarinpal Error]`, response.data.errors);
       return { success: false, error: `خطا در ارتباط با درگاه پرداخت: ${errorMsg}` };
     }
-  // +++ شروع اصلاح +++
-  } catch (error: unknown) { // <-- تغییر از any به unknown
-    // با استفاده از isAxiosError، نوع خطا را به صورت امن بررسی می‌کنیم
+  } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
       console.error("[ZARINPAL_AXIOS_ERROR_DATA]", error.response?.data);
     } else {
       console.error("[ZARINPAL_REQUEST_ERROR]", error);
     }
-  // +++ پایان اصلاح +++
     return { success: false, error: "خطای داخلی سرور هنگام ایجاد درخواست پرداخت." };
   }
 };

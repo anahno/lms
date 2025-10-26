@@ -196,6 +196,9 @@ import { createPaymentRequest } from "@/lib/payment/payment-service";
 // در فایل actions/mentorship-actions.ts
 // فقط تابع createMentorshipBooking را با این نسخه جایگزین کنید
 
+// در فایل actions/mentorship-actions.ts
+// فقط تابع createMentorshipBooking را با این نسخه جایگزین کنید
+
 export const createMentorshipBooking = async (timeSlotIds: string[]) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -208,12 +211,9 @@ export const createMentorshipBooking = async (timeSlotIds: string[]) => {
     return { error: "هیچ بازه زمانی انتخاب نشده است." };
   }
 
-  // +++ شروع اصلاح اصلی برای مدیریت خطا +++
-  // یک متغیر برای نگهداری نتیجه تراکنش تعریف می‌کنیم
   let transactionResult; 
 
   try {
-    // مرحله اول: تراکنش دیتابیس
     transactionResult = await db.$transaction(async (prisma) => {
       const timeSlots = await prisma.timeSlot.findMany({
         where: { id: { in: timeSlotIds }, status: "AVAILABLE", startTime: { gte: new Date() } },
@@ -257,7 +257,6 @@ export const createMentorshipBooking = async (timeSlotIds: string[]) => {
       return { purchase, amount: totalAmount, mentorName };
     });
 
-    // مرحله دوم: ایجاد درخواست پرداخت
     const paymentResponse = await createPaymentRequest("zarinpal", {
       userId: studentId,
       email: studentEmail,
@@ -267,7 +266,6 @@ export const createMentorshipBooking = async (timeSlotIds: string[]) => {
       callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/payment/verify`,
     });
     
-    // اگر درخواست پرداخت به زرین پال ناموفق بود، تراکنش دیتابیس را برگردان
     if (!paymentResponse.success) {
         throw new Error(paymentResponse.error || "خطا در ایجاد درخواست پرداخت.");
     }
@@ -277,17 +275,25 @@ export const createMentorshipBooking = async (timeSlotIds: string[]) => {
   } catch (error: any) {
     console.error("[CREATE_MENTORSHIP_BOOKING_ERROR]", error);
 
-    // اگر خطایی رخ داد (چه در تراکنش و چه در درخواست پرداخت)، بازه‌های زمانی را آزاد کن
+    // +++ شروع اصلاح اصلی در بلوک catch +++
+    // اگر خطایی رخ داد، تمام رکوردهای ایجاد شده در این فرآیند ناموفق را پاک می‌کنیم
+    if (transactionResult?.purchase?.id) {
+        const purchaseId = transactionResult.purchase.id;
+        console.log(`[ROLLBACK] Cleaning up failed purchase: ${purchaseId}`);
+        // به ترتیب معکوس حذف می‌کنیم
+        await db.booking.deleteMany({ where: { purchaseId } });
+        await db.purchase.delete({ where: { id: purchaseId } });
+    }
+    
+    // و بازه‌های زمانی را دوباره آزاد می‌کنیم
     await db.timeSlot.updateMany({
         where: { id: { in: timeSlotIds }, status: 'BOOKED' },
         data: { status: 'AVAILABLE' }
     });
-    // رکوردهای purchase و booking ناموفق در دیتابیس باقی می‌مانند که می‌توان بعدا آن‌ها را پاک کرد.
-    // مهم آزاد شدن بازه زمانی است.
+    // +++ پایان اصلاح اصلی +++
 
     return { error: error.message || "خطایی در فرآیند رزرو رخ داد." };
   }
-  // +++ پایان اصلاح اصلی +++
 };
 /**
  * لینک جلسه آنلاین را به یک رزرو اضافه می‌کند
