@@ -1,7 +1,5 @@
-
-
 // ═══════════════════════════════════════════════════════════════════════════
-// 📁 فایل دوم: TimeSlotManager.tsx
+// 📁 فایل: TimeSlotManager.tsx
 // 📍 مسیر: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -30,14 +28,9 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showManualForm, setShowManualForm] = useState(false);
 
-  // ✅ ایجاد از روی تقویم
-  const handleCreateFromCalendar = async (date: string, startTime: string, endTime: string) => {
+  // تابع عمومی برای ارسال به سرور
+  const handleCreateSlots = (formData: FormData) => {
     startTransition(async () => {
-      const formData = new FormData();
-      formData.append("date", date);
-      formData.append("startTime", startTime);
-      formData.append("endTime", endTime);
-
       const result = await createTimeSlots(formData);
       if (result.success) {
         toast.success(result.success);
@@ -45,6 +38,16 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
         toast.error(result.error || "خطا در ایجاد بازه‌ها.");
       }
     });
+  };
+
+  // ✅ ایجاد از روی تقویم (با عنوان)
+  const handleCreateFromCalendar = (date: string, startTime: string, endTime: string, title: string) => {
+    const formData = new FormData();
+    formData.append("date", date);
+    formData.append("startTime", startTime);
+    formData.append("endTime", endTime);
+    formData.append("title", title); // +++ عنوان به فرم اضافه شد
+    handleCreateSlots(formData);
   };
 
   // ✅ ایجاد دستی (با فرم)
@@ -55,15 +58,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
     }
     const dateString = selectedDate.toISOString().split('T')[0];
     formData.append("date", dateString);
-
-    startTransition(async () => {
-      const result = await createTimeSlots(formData);
-      if (result.success) {
-        toast.success(result.success);
-      } else {
-        toast.error(result.error || "خطا در ایجاد بازه‌ها.");
-      }
-    });
+    handleCreateSlots(formData);
   };
 
   const handleDeleteSlot = (id: string) => {
@@ -95,7 +90,6 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
           </div>
         )}
 
-        {/* دکمه نمایش فرم دستی */}
         <div className="mb-6">
           <Button
             type="button"
@@ -108,45 +102,36 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
           </Button>
         </div>
 
-        {/* فرم ایجاد دستی */}
         {showManualForm && (
           <form action={handleCreateManual} className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-6">
-            <h4 className="font-semibold flex items-center gap-2">
-              <PlusCircle className="w-5 h-5 text-sky-600"/> 
-              افزودن بازه‌های زمانی برای یک روز کامل
-            </h4>
+            <h4 className="font-semibold">افزودن بازه‌های زمانی برای یک روز کامل</h4>
+
+            {/* +++ فیلد عنوان به فرم دستی اضافه شد +++ */}
+            <div className="space-y-2">
+              <Label htmlFor="title">عنوان (اختیاری)</Label>
+              <Input
+                id="title"
+                name="title"
+                placeholder="مثال: مشاوره انتخاب رشته"
+                className="bg-white"
+              />
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>تاریخ</Label>
-                <JalaliDatePicker 
-                  date={selectedDate} 
-                  onDateChange={setSelectedDate}
-                  placeholder="انتخاب تاریخ"
-                />
+                <JalaliDatePicker date={selectedDate} onDateChange={setSelectedDate} placeholder="انتخاب تاریخ" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="startTime">از ساعت</Label>
-                <Input 
-                  id="startTime" 
-                  name="startTime" 
-                  type="time" 
-                  required 
-                  defaultValue="09:00"
-                  className="bg-white"
-                />
+                <Input id="startTime" name="startTime" type="time" required defaultValue="09:00" className="bg-white" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="endTime">تا ساعت</Label>
-                <Input 
-                  id="endTime" 
-                  name="endTime" 
-                  type="time" 
-                  required 
-                  defaultValue="17:00"
-                  className="bg-white"
-                />
+                <Input id="endTime" name="endTime" type="time" required defaultValue="17:00" className="bg-white" />
               </div>
             </div>
+            
             <p className="text-xs text-muted-foreground">
               💡 مثال: اگر از ساعت 09:00 تا 17:00 انتخاب کنید، 8 بازه زمانی یک ساعته ایجاد می‌شود.
             </p>

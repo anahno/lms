@@ -1,4 +1,8 @@
-// فایل: actions/mentorship-actions.ts
+// ═══════════════════════════════════════════════════════════════════════════
+// 📁 فایل: mentorship-actions.ts
+// 📍 مسیر: actions/mentorship-actions.ts
+// ═══════════════════════════════════════════════════════════════════════════
+
 "use server";
 
 import { db } from "@/lib/db";
@@ -6,33 +10,21 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { Role } from "@prisma/client";
+import { createPaymentRequest } from "@/lib/payment/payment-service";
 
 /**
  * اطلاعات کامل منتورشیپ یک مدرس را واکشی می‌کند
- * (پروفایل، بازه‌های زمانی آزاد، و جلسات رزرو شده)
  */
 export const getMentorshipData = async (userId: string) => {
   try {
     const [mentorProfile, availableTimeSlots, confirmedBookings] = await Promise.all([
-      db.mentorProfile.findUnique({
-        where: { userId },
-      }),
+      db.mentorProfile.findUnique({ where: { userId } }),
       db.timeSlot.findMany({
-        where: {
-          mentorId: userId,
-          status: "AVAILABLE",
-          startTime: { gte: new Date() } // فقط بازه‌های زمانی آینده
-        },
+        where: { mentorId: userId, status: "AVAILABLE", startTime: { gte: new Date() } },
         orderBy: { startTime: "asc" },
       }),
       db.booking.findMany({
-        where: {
-          mentorId: userId,
-          status: "CONFIRMED",
-          timeSlot: {
-            startTime: { gte: new Date() } // فقط جلسات آینده
-          }
-        },
+        where: { mentorId: userId, status: "CONFIRMED", timeSlot: { startTime: { gte: new Date() } } },
         include: {
           student: { select: { name: true, email: true } },
           timeSlot: { select: { startTime: true, endTime: true } },
@@ -40,7 +32,6 @@ export const getMentorshipData = async (userId: string) => {
         orderBy: { timeSlot: { startTime: "asc" } },
       }),
     ]);
-
     return { mentorProfile, availableTimeSlots, confirmedBookings };
   } catch (error) {
     console.error("[GET_MENTORSHIP_DATA_ERROR]", error);
@@ -49,12 +40,11 @@ export const getMentorshipData = async (userId: string) => {
 };
 
 /**
- * تنظیمات پروفایل منتورشیپ یک مدرس را ایجاد یا به‌روزرسانی می‌کند
+ * تنظیمات پروفایل منتورشیپ را به‌روزرسانی می‌کند
  */
-// +++ فقط این تابع را آپدیت کنید +++
 export const updateMentorProfile = async (data: {
   isEnabled: boolean;
-  hourlyRate?: number | null; // <-- نوع را برای پذیرش null آپدیت کنید
+  hourlyRate?: number | null;
   mentorshipDescription?: string;
 }) => {
   const session = await getServerSession(authOptions);
@@ -62,13 +52,11 @@ export const updateMentorProfile = async (data: {
     return { error: "دسترسی غیرمجاز." };
   }
   const userId = session.user.id;
-
   try {
     await db.mentorProfile.upsert({
       where: { userId },
       update: {
         isEnabled: data.isEnabled,
-        // اینجا چون ورودی می‌تواند null باشد، منطق ساده‌تر می‌شود
         hourlyRate: data.hourlyRate,
         mentorshipDescription: data.mentorshipDescription,
       },
@@ -79,7 +67,6 @@ export const updateMentorProfile = async (data: {
         mentorshipDescription: data.mentorshipDescription,
       },
     });
-
     revalidatePath("/dashboard/mentorship");
     return { success: "تنظیمات با موفقیت ذخیره شد." };
   } catch (error) {
@@ -88,10 +75,6 @@ export const updateMentorProfile = async (data: {
   }
 };
 
-
-/**
- * بازه‌های زمانی جدید برای یک مدرس ایجاد می‌کند
- */
 /**
  * بازه‌های زمانی جدید برای یک مدرس ایجاد می‌کند
  */
@@ -101,53 +84,44 @@ export const createTimeSlots = async (formData: FormData) => {
     return { error: "دسترسی غیرمجاز." };
   }
   const userId = session.user.id;
-
   try {
-    const date = formData.get("date") as string;       // e.g., "2025-10-26"
-    const startTime = formData.get("startTime") as string; // e.g., "09:00"
-    const endTime = formData.get("endTime") as string;   // e.g., "17:00"
-    
+    const date = formData.get("date") as string;
+    const startTime = formData.get("startTime") as string;
+    const endTime = formData.get("endTime") as string;
+    const title = formData.get("title") as string | null;
+
     if (!date || !startTime || !endTime) {
       return { error: "تاریخ و ساعات شروع و پایان الزامی است." };
     }
 
-    // +++ شروع اصلاح اصلی برای حل مشکل منطقه زمانی +++
-
-    // 1. رشته‌های تاریخ و ساعت را به اجزای عددی تبدیل می‌کنیم
     const [year, month, day] = date.split('-').map(Number);
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const [endHour, endMinute] = endTime.split(':').map(Number);
     
-    // 2. آبجکت‌های Date را با استفاده از اجزای عددی می‌سازیم.
-    // این روش به جای تفسیر رشته (که ممکن است به UTC تبدیل شود)، تاریخ را در منطقه زمانی خود سرور می‌سازد که قابل اعتمادتر است.
-    // نکته: ماه در جاوااسکریپت از 0 شروع می‌شود، پس یکی از آن کم می‌کنیم.
     const startDateTime = new Date(year, month - 1, day, startHour, startMinute);
     const endDateTime = new Date(year, month - 1, day, endHour, endMinute);
 
-    // +++ پایان اصلاح اصلی +++
-    
-    // این شرط حالا به درستی کار خواهد کرد
     if (startDateTime >= endDateTime || startDateTime < new Date()) {
-        return { error: "بازه زمانی نامعتبر است. (زمان شروع نمی‌تواند در گذشته یا بعد از زمان پایان باشد)" };
+      return { error: "بازه زمانی نامعتبر است. (زمان شروع نمی‌تواند در گذشته یا بعد از زمان پایان باشد)" };
     }
 
     const slotsToCreate = [];
     let currentSlotStart = startDateTime;
 
     while (currentSlotStart < endDateTime) {
-      const currentSlotEnd = new Date(currentSlotStart.getTime() + 60 * 60 * 1000); // 1 hour slots
+      const currentSlotEnd = new Date(currentSlotStart.getTime() + 60 * 60 * 1000);
       if (currentSlotEnd > endDateTime) break;
-
       slotsToCreate.push({
         mentorId: userId,
         startTime: currentSlotStart,
         endTime: currentSlotEnd,
+        title: title || null,
       });
       currentSlotStart = currentSlotEnd;
     }
     
     if (slotsToCreate.length === 0) {
-        return { error: "هیچ بازه زمانی کاملی در این محدوده یافت نشد." };
+      return { error: "هیچ بازه زمانی کاملی در این محدوده یافت نشد." };
     }
 
     await db.timeSlot.createMany({
@@ -157,7 +131,6 @@ export const createTimeSlots = async (formData: FormData) => {
     
     revalidatePath("/dashboard/mentorship");
     return { success: `${slotsToCreate.length} بازه زمانی جدید با موفقیت ایجاد شد.` };
-
   } catch (error) {
     console.error("[CREATE_TIME_SLOTS_ERROR]", error);
     return { error: "خطایی در ایجاد بازه‌های زمانی رخ داد." };
@@ -197,25 +170,14 @@ export const deleteTimeSlot = async (timeSlotId: string) => {
       console.error("[DELETE_TIME_SLOT_ERROR]", error);
       return { error: "خطایی در حذف بازه زمانی رخ داد." };
     }
-  };
-  // این کد را به انتهای فایل actions/mentorship-actions.ts اضافه کنید
-
-import { createPaymentRequest } from "@/lib/payment/payment-service";
+};
 
 /**
- * یک درخواست رزرو برای یک جلسه منتورشیپ ایجاد کرده و کاربر را به درگاه پرداخت هدایت می‌کند
+ * یک درخواست رزرو برای جلسه منتورشیپ ایجاد می‌کند
  */
-// در فایل actions/mentorship-actions.ts
-// در فایل actions/mentorship-actions.ts
-// فقط تابع createMentorshipBooking را با این نسخه جایگزین کنید
-
-// در فایل actions/mentorship-actions.ts
-// فقط تابع createMentorshipBooking را با این نسخه جایگزین کنید
-
-// در فایل actions/mentorship-actions.ts
-// فقط تابع createMentorshipBooking را با این نسخه جایگزین کنید
-
 export const createMentorshipBooking = async (timeSlotIds: string[]) => {
+  // ... این تابع بدون تغییر است ...
+  // (منطق کامل آن در اینجا قرار می‌گیرد)
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { error: "برای رزرو جلسه ابتدا باید وارد شوید." };
@@ -291,37 +253,33 @@ export const createMentorshipBooking = async (timeSlotIds: string[]) => {
   } catch (error: any) {
     console.error("[CREATE_MENTORSHIP_BOOKING_ERROR]", error);
 
-    // +++ شروع اصلاح اصلی در بلوک catch +++
-    // اگر خطایی رخ داد، تمام رکوردهای ایجاد شده در این فرآیند ناموفق را پاک می‌کنیم
     if (transactionResult?.purchase?.id) {
         const purchaseId = transactionResult.purchase.id;
         console.log(`[ROLLBACK] Cleaning up failed purchase: ${purchaseId}`);
-        // به ترتیب معکوس حذف می‌کنیم
         await db.booking.deleteMany({ where: { purchaseId } });
         await db.purchase.delete({ where: { id: purchaseId } });
     }
     
-    // و بازه‌های زمانی را دوباره آزاد می‌کنیم
     await db.timeSlot.updateMany({
         where: { id: { in: timeSlotIds }, status: 'BOOKED' },
         data: { status: 'AVAILABLE' }
     });
-    // +++ پایان اصلاح اصلی +++
 
     return { error: error.message || "خطایی در فرآیند رزرو رخ داد." };
   }
 };
+
 /**
  * لینک جلسه آنلاین را به یک رزرو اضافه می‌کند
  */
 export const addMeetingLinkToBooking = async (bookingId: string, meetingLink: string) => {
+  // ... این تابع بدون تغییر است ...
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { error: "دسترسی غیرمجاز." };
   }
   const userId = session.user.id;
 
-  // اعتبارسنجی اولیه لینک
   if (!meetingLink.trim() || !meetingLink.startsWith("http")) {
     return { error: "لینک جلسه نامعتبر است." };
   }
@@ -331,7 +289,6 @@ export const addMeetingLinkToBooking = async (bookingId: string, meetingLink: st
       where: { id: bookingId },
     });
 
-    // بررسی اینکه آیا کاربر فعلی، منتور این جلسه است یا خیر
     if (!booking || booking.mentorId !== userId) {
       return { error: "رزرو یافت نشد یا شما منتور این جلسه نیستید." };
     }

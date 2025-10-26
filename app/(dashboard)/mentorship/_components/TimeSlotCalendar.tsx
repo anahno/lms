@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// 📁 فایل اول: TimeSlotCalendar.tsx
+// 📁 فایل: TimeSlotCalendar.tsx
 // 📍 مسیر: app/(dashboard)/mentorship/_components/TimeSlotCalendar.tsx
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -9,37 +9,37 @@ import { useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction"; // DateSelectArg از اینجا حذف شد
-import { EventClickArg, EventContentArg, DateSelectArg } from "@fullcalendar/core"; // DateSelectArg به اینجا اضافه شد
+import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 import faLocale from "@fullcalendar/core/locales/fa";
+import { EventClickArg, EventContentArg, DateSelectArg } from "@fullcalendar/core";
 import { TimeSlot } from "@prisma/client";
 import { toast } from "react-hot-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface TimeSlotCalendarProps {
   timeSlots: TimeSlot[];
   onDelete: (id: string) => void;
-  onCreate: (date: string, startTime: string, endTime: string) => void;
+  onCreate: (date: string, startTime: string, endTime: string, title: string) => void;
 }
 
 export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCalendarProps) => {
   const [slotToDelete, setSlotToDelete] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [newSlotTitle, setNewSlotTitle] = useState("");
 
-  // محاسبه آمار
   const availableCount = timeSlots.filter(s => s.status === "AVAILABLE").length;
   const bookedCount = timeSlots.filter(s => s.status === "BOOKED").length;
 
   const events = timeSlots.map((slot) => {
     const start = new Date(slot.startTime);
     const end = new Date(slot.endTime);
-    const timeStr = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')} - ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
-    const dateStr = start.toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
     
     return {
       id: slot.id,
-      title: slot.status === "AVAILABLE" ? `✓ آزاد` : `✗ رزرو`,
+      title: slot.title || (slot.status === "AVAILABLE" ? "زمان آزاد" : "رزرو شده"),
       start,
       end,
       backgroundColor: slot.status === "AVAILABLE" ? "#10b981" : "#64748b",
@@ -47,7 +47,6 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
       textColor: "#ffffff",
       extendedProps: {
         status: slot.status,
-        tooltip: `${dateStr}\n${timeStr}\nوضعیت: ${slot.status === "AVAILABLE" ? "آزاد" : "رزرو شده"}`,
       },
     };
   });
@@ -64,22 +63,20 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
     const start = new Date(selectInfo.start);
     const end = new Date(selectInfo.end);
     
-    console.log('Selected range:', { start, end }); // برای دیباگ
-    
-    // بررسی که زمان انتخابی در گذشته نباشد
-    const now = new Date();
-    if (start < now) {
+    if (start < new Date()) {
       toast.error("نمی‌توانید بازه زمانی در گذشته ایجاد کنید.");
+      selectInfo.view.calendar.unselect();
       return;
     }
     
-    // بررسی که حداقل یک ساعت انتخاب شده باشد
     const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
     if (diffHours < 1) {
       toast.error("حداقل یک ساعت باید انتخاب کنید.");
+      selectInfo.view.calendar.unselect();
       return;
     }
     
+    setNewSlotTitle("");
     setSelectedRange({ start, end });
     setShowCreateModal(true);
   };
@@ -87,12 +84,11 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
   const confirmCreate = () => {
     if (selectedRange) {
       const { start, end } = selectedRange;
-      
       const date = start.toISOString().split('T')[0];
       const startTime = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`;
       const endTime = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
       
-      onCreate(date, startTime, endTime);
+      onCreate(date, startTime, endTime, newSlotTitle);
       setShowCreateModal(false);
       setSelectedRange(null);
     }
@@ -114,18 +110,8 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
             <h3 className="text-lg font-semibold mb-2">حذف بازه زمانی</h3>
             <p className="text-gray-600 mb-6">آیا از حذف این بازه زمانی اطمینان دارید؟</p>
             <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setSlotToDelete(null)}
-                className="px-4 py-2 rounded-lg border hover:bg-gray-50"
-              >
-                انصراف
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-              >
-                حذف
-              </button>
+              <button onClick={() => setSlotToDelete(null)} className="px-4 py-2 rounded-lg border hover:bg-gray-50">انصراف</button>
+              <button onClick={confirmDelete} className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700">حذف</button>
             </div>
           </div>
         </div>
@@ -133,38 +119,35 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
 
       {/* مودال ایجاد */}
       {showCreateModal && selectedRange && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowCreateModal(false); setSelectedRange(null); }}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateModal(false)}>
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-2">ایجاد بازه‌های زمانی</h3>
-            <div className="space-y-3 mb-6">
-              <p className="text-gray-600">
-                <strong>تاریخ:</strong> {selectedRange.start.toLocaleDateString('fa-IR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            <h3 className="text-lg font-semibold mb-4">ایجاد بازه‌های زمانی</h3>
+            
+            <div className="space-y-4 mb-6">
+              <div className="space-y-2">
+                <Label htmlFor="slotTitle">عنوان (اختیاری)</Label>
+                <Input
+                  id="slotTitle"
+                  value={newSlotTitle}
+                  onChange={(e) => setNewSlotTitle(e.target.value)}
+                  placeholder="مثال: رفع اشکال پروژه ری‌اکت"
+                />
+              </div>
+
+              <p className="text-gray-600 text-sm">
+                <strong>تاریخ:</strong> {selectedRange.start.toLocaleDateString('fa-IR', { weekday: 'long', day: 'numeric', month: 'long' })}
               </p>
-              <p className="text-gray-600">
-                <strong>از ساعت:</strong>{' '}
-                {selectedRange.start.getHours().toString().padStart(2, '0')}:
-                {selectedRange.start.getMinutes().toString().padStart(2, '0')}
-                {' '}<strong>تا ساعت:</strong>{' '}
-                {selectedRange.end.getHours().toString().padStart(2, '0')}:
-                {selectedRange.end.getMinutes().toString().padStart(2, '0')}
-              </p>
-              <p className="text-sm text-blue-600 bg-blue-50 p-3 rounded">
-                💡 {Math.floor((selectedRange.end.getTime() - selectedRange.start.getTime()) / (1000 * 60 * 60))} بازه زمانی یک ساعته ایجاد خواهد شد.
+              <p className="text-gray-600 text-sm">
+                <strong>ساعت:</strong>
+                {' '}{selectedRange.start.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}
+                {' '} تا {' '}
+                {selectedRange.end.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
+
             <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => { setShowCreateModal(false); setSelectedRange(null); }}
-                className="px-4 py-2 rounded-lg border hover:bg-gray-50"
-              >
-                انصراف
-              </button>
-              <button
-                onClick={confirmCreate}
-                className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
-              >
-                ایجاد
-              </button>
+              <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-lg border hover:bg-gray-50">انصراف</button>
+              <button onClick={confirmCreate} className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">ایجاد</button>
             </div>
           </div>
         </div>
@@ -230,7 +213,7 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
             .fc-event {
               cursor: pointer;
               border-radius: 6px;
-              padding: 4px 6px;
+              padding: 2px 4px;
               font-size: 0.75rem;
               font-weight: 600;
               transition: all 0.2s ease;
@@ -245,16 +228,15 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
             .fc-timegrid-event-harness {
               margin-bottom: 2px;
             }
-            .fc-event-title {
-              font-weight: 700;
-            }
             .fc-highlight {
               background-color: rgba(14, 165, 233, 0.15) !important;
               border: 2px dashed #0ea5e9 !important;
             }
-            .fc-timegrid-slot {
-              height: 3rem;
+            /* +++ راه‌حل قطعی: هدف‌گیری سطر جدول برای کنترل ارتفاع +++ */
+            .fc-timegrid-body tr {
+              height: 7rem; /* این مقدار را می‌توانید به دلخواه تغییر دهید */
             }
+            /* +++ پایان راه‌حل قطعی +++ */
             .fc-col-header-cell {
               padding: 0.75rem 0.5rem;
               font-weight: 600;
@@ -310,36 +292,35 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
             }}
             noEventsText="هیچ بازه زمانی برای نمایش وجود ندارد"
             themeSystem="standard"
-            eventTimeFormat={{
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false,
-            }}
-            slotLabelFormat={{
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false,
-            }}
             selectConstraint={{
               start: '00:00',
               end: '24:00',
             }}
             eventContent={(arg: EventContentArg) => {
-              const start = arg.event.start;
-              const end = arg.event.end;
-              if (!start || !end) return null;
-              
-              const timeStr = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')} - ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
-              
               return (
-                <div className="fc-event-main-frame" title={arg.event.extendedProps.tooltip as string}>
-                  <div className="fc-event-title-container">
-                    <div className="fc-event-title fc-sticky font-semibold">
-                      {arg.event.title}
-                    </div>
-                    <div className="text-[10px] opacity-90 mt-0.5">
-                      {timeStr}
-                    </div>
+                <div 
+                  title={arg.event.title}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                    width: '100%',
+                    padding: '2px 4px',
+                    boxSizing: 'border-box',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div style={{
+                    fontWeight: 'bold',
+                    fontSize: '12px',
+                    color: 'inherit',
+                    textAlign: 'center',
+                    wordBreak: 'break-word',
+                    width: '100%'
+                  }}>
+                    {arg.event.title}
                   </div>
                 </div>
               );

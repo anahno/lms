@@ -416,6 +416,8 @@ model MentorProfile {
 // بازه‌های زمانی در دسترس برای هر منتور
 model TimeSlot {
   id        String         @id @default(cuid())
+  title     String?        // +++ این خط را اضافه کنید +++
+
   mentorId  String
   mentor    User           @relation("MentorTimeSlots", fields: [mentorId], references: [id], onDelete: Cascade)
   startTime DateTime
