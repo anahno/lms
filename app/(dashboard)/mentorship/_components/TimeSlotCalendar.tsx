@@ -5,23 +5,28 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 import faLocale from "@fullcalendar/core/locales/fa";
-import { EventClickArg, EventContentArg, DateSelectArg } from "@fullcalendar/core";
+import { EventClickArg, DateSelectArg } from "@fullcalendar/core";
 import { TimeSlot } from "@prisma/client";
 import { toast } from "react-hot-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// +++ تعریف نوع جدید با color: string | null برای مطابقت با Prisma +++ //
+type TimeSlotWithColor = TimeSlot & {
+  color: string | null;
+};
+
 interface TimeSlotCalendarProps {
-  timeSlots: TimeSlot[];
+  timeSlots: TimeSlotWithColor[];
   onDelete: (id: string) => void;
-  onCreate: (date: string, startTime: string, endTime: string, title: string) => void;
+  onCreate: (date: string, startTime: string, endTime: string, title: string, color: string) => void;
 }
 
 export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCalendarProps) => {
@@ -29,6 +34,33 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
   const [newSlotTitle, setNewSlotTitle] = useState("");
+  const [newSlotColor, setNewSlotColor] = useState("#10b981");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const calendarRef = useRef<FullCalendar>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const calendarApi = calendarRef.current?.getApi();
+      if (calendarApi) {
+        if (window.innerWidth < 768) {
+          if (calendarApi.view.type !== 'listWeek') {
+            calendarApi.changeView('listWeek');
+          }
+        } else {
+          if (calendarApi.view.type !== 'timeGridWeek') {
+            calendarApi.changeView('timeGridWeek');
+          }
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const availableCount = timeSlots.filter(s => s.status === "AVAILABLE").length;
   const bookedCount = timeSlots.filter(s => s.status === "BOOKED").length;
@@ -42,9 +74,11 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
       title: slot.title || (slot.status === "AVAILABLE" ? "زمان آزاد" : "رزرو شده"),
       start,
       end,
-      backgroundColor: slot.status === "AVAILABLE" ? "#10b981" : "#64748b",
-      borderColor: slot.status === "AVAILABLE" ? "#059669" : "#475569",
+      // +++ منطق رنگ‌دهی برای null بودن رنگ +++ //
+      backgroundColor: slot.color || (slot.status === "AVAILABLE" ? "#10b981" : "#64748b"),
+      borderColor: slot.color || (slot.status === "AVAILABLE" ? "#059669" : "#475569"),
       textColor: "#ffffff",
+      classNames: ['cursor-pointer', 'transition-all', 'hover:opacity-80'],
       extendedProps: {
         status: slot.status,
       },
@@ -77,6 +111,7 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
     }
     
     setNewSlotTitle("");
+    setNewSlotColor("#10b981");
     setSelectedRange({ start, end });
     setShowCreateModal(true);
   };
@@ -88,7 +123,7 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
       const startTime = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`;
       const endTime = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
       
-      onCreate(date, startTime, endTime, newSlotTitle);
+      onCreate(date, startTime, endTime, newSlotTitle, newSlotColor);
       setShowCreateModal(false);
       setSelectedRange(null);
     }
@@ -105,7 +140,7 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
     <>
       {/* مودال حذف */}
       {slotToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSlotToDelete(null)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]" onClick={() => setSlotToDelete(null)}>
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">حذف بازه زمانی</h3>
             <p className="text-gray-600 mb-6">آیا از حذف این بازه زمانی اطمینان دارید؟</p>
@@ -119,7 +154,7 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
 
       {/* مودال ایجاد */}
       {showCreateModal && selectedRange && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateModal(false)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]" onClick={() => setShowCreateModal(false)}>
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">ایجاد بازه‌های زمانی</h3>
             
@@ -132,6 +167,20 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
                   onChange={(e) => setNewSlotTitle(e.target.value)}
                   placeholder="مثال: رفع اشکال پروژه ری‌اکت"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="slotColor">رنگ بازه زمانی</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="slotColor"
+                    type="color"
+                    value={newSlotColor}
+                    onChange={(e) => setNewSlotColor(e.target.value)}
+                    className="h-10 w-20 p-1 border rounded cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-600 font-mono">{newSlotColor}</span>
+                </div>
               </div>
 
               <p className="text-gray-600 text-sm">
@@ -148,6 +197,65 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
             <div className="flex gap-3 justify-end">
               <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-lg border hover:bg-gray-50">انصراف</button>
               <button onClick={confirmCreate} className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">ایجاد</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* مودال تمام‌صفحه */}
+      {isFullscreen && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" onClick={() => setIsFullscreen(false)}>
+          <div className="bg-white rounded-lg w-full h-full max-w-7xl max-h-[95vh] flex flex-col relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="absolute top-4 left-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 z-10 transition-colors"
+              title="بستن"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+            
+            <div className="time-slot-calendar-container flex-grow overflow-hidden">
+              <FullCalendar
+                plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+                initialView="timeGridWeek"
+                headerToolbar={{
+                  left: "prev,next today,fullscreenButton",
+                  center: "title",
+                  right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+                }}
+                customButtons={{
+                  fullscreenButton: {
+                    text: 'بزرگنمایی',
+                    click: () => setIsFullscreen(true),
+                  }
+                }}
+                locale={faLocale}
+                firstDay={6}
+                allDaySlot={false}
+                height="100%"
+                events={events}
+                eventClick={handleEventClick}
+                select={handleSelect}
+                selectable={true}
+                selectMirror={true}
+                selectMinDistance={5}
+                selectOverlap={false}
+                nowIndicator={true}
+                slotMinTime="06:00:00"
+                slotMaxTime="24:00:00"
+                slotDuration="01:00:00"
+                snapDuration="01:00:00"
+                scrollTime="08:00:00"
+                buttonText={{
+                  today: "امروز",
+                  month: "ماه",
+                  week: "هفته",
+                  day: "روز",
+                  list: "لیست",
+                }}
+                noEventsText="هیچ بازه زمانی برای نمایش وجود ندارد"
+                themeSystem="standard"
+              />
             </div>
           </div>
         </div>
@@ -176,95 +284,115 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
           <ul className="text-sm text-blue-800 space-y-1.5">
             <li>• برای <strong>ایجاد بازه زمانی</strong>: در نمای هفته/روز، روی ساعت شروع کلیک کنید و تا ساعت پایان بکشید</li>
             <li>• برای <strong>حذف بازه زمانی</strong>: روی بازه زمان آزاد (سبز) کلیک کنید</li>
-            <li>• برای <strong>ایجاد چندین بازه برای یک روز</strong>: از دکمه &quot;ایجاد دستی&quot; بالای صفحه استفاده کنید</li>
             <li>• بازه‌های <span className="inline-flex items-center gap-1"><span className="w-3 h-3 bg-green-600 rounded"></span> سبز</span>: زمان آزاد | بازه‌های <span className="inline-flex items-center gap-1"><span className="w-3 h-3 bg-gray-600 rounded"></span> خاکستری</span>: رزرو شده</li>
             <li className="text-amber-700 font-medium">⚠️ نکته: برای انتخاب در تقویم، حتماً در نمای &quot;هفته&quot; یا &quot;روز&quot; باشید</li>
           </ul>
         </div>
 
-        <div className="calendar-container bg-white p-4 rounded-lg border shadow-sm" dir="rtl">
+        {/* کانتینر تقویم */}
+        <div className="time-slot-calendar-container bg-white p-4 rounded-lg border shadow-sm" dir="rtl">
           <style jsx global>{`
-            .fc {
+            .time-slot-calendar-container .fc {
               direction: rtl;
             }
-            .fc .fc-toolbar.fc-header-toolbar {
-              flex-direction: row-reverse;
-              margin-bottom: 1.5rem;
+            .time-slot-calendar-container .fc .fc-toolbar.fc-header-toolbar {
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 0.5rem;
+              margin-bottom: 1rem;
             }
-            .fc .fc-toolbar-title {
-              font-size: 1.25rem;
-              font-weight: 700;
+            .time-slot-calendar-container .fc .fc-toolbar-title {
+              font-size: 1rem;
+              font-weight: 600;
               color: #1e293b;
             }
-            .fc .fc-button-primary {
+            .time-slot-calendar-container .fc .fc-button-primary {
               background-color: #0ea5e9;
               border-color: #0ea5e9;
-              padding: 0.5rem 1rem;
-              font-weight: 600;
+              padding: 0.25rem 0.75rem;
+              font-weight: 500;
+              font-size: 0.875rem;
             }
-            .fc .fc-button-primary:hover {
+            .time-slot-calendar-container .fc .fc-button-primary:hover {
               background-color: #0284c7;
               border-color: #0284c7;
             }
-            .fc .fc-button-active {
+            .time-slot-calendar-container .fc .fc-button-active {
               background-color: #0369a1 !important;
               border-color: #0369a1 !important;
             }
-            .fc-event {
+            .time-slot-calendar-container .fc-fullscreenButton-button {
+              background-color: #fb923c;
+              border-color: #fb923c;
+              padding: 0.25rem 0.75rem;
+              font-weight: 500;
+              font-size: 0.875rem;
+            }
+            .time-slot-calendar-container .fc-fullscreenButton-button:hover {
+              background-color: #f97316;
+              border-color: #f97316;
+            }
+            .time-slot-calendar-container .fc-event {
               cursor: pointer;
               border-radius: 6px;
-              padding: 2px 4px;
+              padding: 2px 6px;
               font-size: 0.75rem;
               font-weight: 600;
               transition: all 0.2s ease;
             }
-            .fc-event:hover {
+            .time-slot-calendar-container .fc-event:hover {
               transform: scale(1.02);
               box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             }
-            .fc-v-event {
-              border-width: 2px !important;
-            }
-            .fc-timegrid-event-harness {
-              margin-bottom: 2px;
-            }
-            .fc-highlight {
-              background-color: rgba(14, 165, 233, 0.15) !important;
+            .time-slot-calendar-container .fc-highlight {
+              background: rgba(14, 165, 233, 0.15) !important;
               border: 2px dashed #0ea5e9 !important;
             }
-            /* +++ راه‌حل قطعی: هدف‌گیری سطر جدول برای کنترل ارتفاع +++ */
-            .fc-timegrid-body tr {
-              height: 7rem; /* این مقدار را می‌توانید به دلخواه تغییر دهید */
-            }
-            /* +++ پایان راه‌حل قطعی +++ */
-            .fc-col-header-cell {
+            .time-slot-calendar-container .fc-col-header-cell {
               padding: 0.75rem 0.5rem;
               font-weight: 600;
               background-color: #f8fafc;
             }
-            .fc-scrollgrid {
+            .time-slot-calendar-container .fc-scrollgrid {
               border-color: #e2e8f0 !important;
             }
-            .fc-theme-standard td, .fc-theme-standard th {
+            .time-slot-calendar-container .fc-theme-standard td, .time-slot-calendar-container .fc-theme-standard th {
               border-color: #e2e8f0;
             }
-            .fc-daygrid-day-number {
+            .time-slot-calendar-container .fc-daygrid-day-number {
               padding: 0.5rem;
               font-weight: 600;
             }
-            .fc-timegrid-slot-label {
+            .time-slot-calendar-container .fc-timegrid-slot-label {
               font-size: 0.875rem;
               font-weight: 500;
+            }
+            
+            @media (min-width: 768px) {
+              .time-slot-calendar-container .fc .fc-toolbar.fc-header-toolbar {
+                flex-direction: row-reverse;
+                justify-content: space-between;
+              }
+              .time-slot-calendar-container .fc-event {
+                font-size: 0.8rem;
+              }
             }
           `}</style>
 
           <FullCalendar
+            ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
             initialView="timeGridWeek"
             headerToolbar={{
-              left: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+              left: "prev,next today,fullscreenButton",
               center: "title",
-              right: "today prev,next",
+              right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+            }}
+            customButtons={{
+              fullscreenButton: {
+                text: 'بزرگنمایی',
+                click: () => setIsFullscreen(true),
+              }
             }}
             locale={faLocale}
             firstDay={6}
@@ -292,39 +420,6 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
             }}
             noEventsText="هیچ بازه زمانی برای نمایش وجود ندارد"
             themeSystem="standard"
-            selectConstraint={{
-              start: '00:00',
-              end: '24:00',
-            }}
-            eventContent={(arg: EventContentArg) => {
-              return (
-                <div 
-                  title={arg.event.title}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100%',
-                    width: '100%',
-                    padding: '2px 4px',
-                    boxSizing: 'border-box',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div style={{
-                    fontWeight: 'bold',
-                    fontSize: '12px',
-                    color: 'inherit',
-                    textAlign: 'center',
-                    wordBreak: 'break-word',
-                    width: '100%'
-                  }}>
-                    {arg.event.title}
-                  </div>
-                </div>
-              );
-            }}
           />
         </div>
       </div>

@@ -89,6 +89,8 @@ export const createTimeSlots = async (formData: FormData) => {
     const startTime = formData.get("startTime") as string;
     const endTime = formData.get("endTime") as string;
     const title = formData.get("title") as string | null;
+    // +++ ۱. رنگ را از فرم داده بخوان و یک مقدار پیش‌فرض برایش در نظر بگیر +++ //
+    const color = (formData.get("color") as string) || "#10b981";
 
     if (!date || !startTime || !endTime) {
       return { error: "تاریخ و ساعات شروع و پایان الزامی است." };
@@ -116,6 +118,8 @@ export const createTimeSlots = async (formData: FormData) => {
         startTime: currentSlotStart,
         endTime: currentSlotEnd,
         title: title || null,
+        // +++ ۲. رنگ را به آبجکت‌هایی که باید ساخته شوند اضافه کن +++ //
+        color: color,
       });
       currentSlotStart = currentSlotEnd;
     }
@@ -136,6 +140,7 @@ export const createTimeSlots = async (formData: FormData) => {
     return { error: "خطایی در ایجاد بازه‌های زمانی رخ داد." };
   }
 };
+
 
 /**
  * یک بازه زمانی در دسترس را حذف می‌کند

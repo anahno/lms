@@ -28,7 +28,6 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showManualForm, setShowManualForm] = useState(false);
 
-  // تابع عمومی برای ارسال به سرور
   const handleCreateSlots = (formData: FormData) => {
     startTransition(async () => {
       const result = await createTimeSlots(formData);
@@ -40,17 +39,17 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
     });
   };
 
-  // ✅ ایجاد از روی تقویم (با عنوان)
-  const handleCreateFromCalendar = (date: string, startTime: string, endTime: string, title: string) => {
+  // +++ تابع onCreate برای تقویم، رنگ را هم دریافت می‌کند +++ //
+  const handleCreateFromCalendar = (date: string, startTime: string, endTime: string, title: string, color: string) => {
     const formData = new FormData();
     formData.append("date", date);
     formData.append("startTime", startTime);
     formData.append("endTime", endTime);
-    formData.append("title", title); // +++ عنوان به فرم اضافه شد
+    formData.append("title", title);
+    formData.append("color", color); // +++ رنگ به فرم اضافه شد +++ //
     handleCreateSlots(formData);
   };
 
-  // ✅ ایجاد دستی (با فرم)
   const handleCreateManual = (formData: FormData) => {
     if (!selectedDate) {
       toast.error("لطفاً یک تاریخ انتخاب کنید.");
@@ -106,7 +105,6 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
           <form action={handleCreateManual} className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-6">
             <h4 className="font-semibold">افزودن بازه‌های زمانی برای یک روز کامل</h4>
 
-            {/* +++ فیلد عنوان به فرم دستی اضافه شد +++ */}
             <div className="space-y-2">
               <Label htmlFor="title">عنوان (اختیاری)</Label>
               <Input
@@ -114,6 +112,18 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
                 name="title"
                 placeholder="مثال: مشاوره انتخاب رشته"
                 className="bg-white"
+              />
+            </div>
+
+            {/* +++ انتخابگر رنگ برای فرم دستی +++ */}
+            <div className="space-y-2">
+              <Label htmlFor="manualColor">رنگ (اختیاری)</Label>
+              <Input
+                id="manualColor"
+                name="color"
+                type="color"
+                defaultValue="#10b981"
+                className="bg-white h-10 w-20 p-1 border rounded cursor-pointer"
               />
             </div>
             

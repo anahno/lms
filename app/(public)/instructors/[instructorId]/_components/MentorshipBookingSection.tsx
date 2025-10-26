@@ -7,9 +7,10 @@ import toast from "react-hot-toast";
 import { User, MentorProfile, TimeSlot } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, Info, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Info, Loader2 } from "lucide-react";
 import { createMentorshipBooking } from "@/actions/mentorship-actions"; 
+// +++ وارد کردن کامپوننت تقویم جدید +++
+import { BookingCalendar } from "./BookingCalendar";
 
 type MentorWithProfile = User & {
   mentorProfile: MentorProfile | null;
@@ -22,12 +23,10 @@ interface MentorshipBookingSectionProps {
 }
 
 export const MentorshipBookingSection = ({ mentor, isOwner }: MentorshipBookingSectionProps) => {
-  // +++ ۱. state را به آرایه‌ای از ID ها تغییر می‌دهیم +++
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  // +++ ۲. تابع برای مدیریت انتخاب/حذف انتخاب بازه‌ها +++
   const handleSlotToggle = (slotId: string) => {
     setSelectedSlots(prev => 
       prev.includes(slotId)
@@ -40,7 +39,6 @@ export const MentorshipBookingSection = ({ mentor, isOwner }: MentorshipBookingS
     if (selectedSlots.length === 0) return;
     
     startTransition(async () => {
-      // +++ ۳. آرایه ID ها را به اکشن سرور پاس می‌دهیم +++
       const result = await createMentorshipBooking(selectedSlots);
       
       if (result && 'success' in result && result.success && result.url) {
@@ -48,30 +46,16 @@ export const MentorshipBookingSection = ({ mentor, isOwner }: MentorshipBookingS
         window.location.href = result.url;
       } else {
         toast.error(result.error || "خطایی در فرآیند رزرو رخ داد.");
+        setSelectedSlots([]); // +++ ریست کردن انتخاب‌ها در صورت خطا
         router.refresh();
       }
     });
   };
-
-  const groupedSlots = mentor.mentorTimeSlots.reduce((acc, slot) => {
-    const date = new Date(slot.startTime).toLocaleDateString('fa-IR', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-    if (!acc[date]) {
-      acc[date] = [];
-    }
-    acc[date].push(slot);
-    return acc;
-  }, {} as Record<string, TimeSlot[]>);
-
+  
   if (isOwner) {
     return null; 
   }
 
-  // +++ ۴. محاسبه هزینه کل +++
   const totalCost = (mentor.mentorProfile?.hourlyRate || 0) * selectedSlots.length;
 
   return (
@@ -88,46 +72,24 @@ export const MentorshipBookingSection = ({ mentor, isOwner }: MentorshipBookingS
           </div>
         )}
 
+        {/* +++ جایگزینی لیست قدیمی با تقویم جدید +++ */}
         <div>
-          <h4 className="font-semibold mb-4">۱. بازه‌های زمانی مورد نظر خود را انتخاب کنید:</h4>
-          {mentor.mentorTimeSlots.length > 0 ? (
-            <div className="space-y-4">
-              {Object.entries(groupedSlots).map(([date, slots]) => (
-                <div key={date}>
-                  <h5 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-slate-500" />
-                    {date}
-                  </h5>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                    {slots.map(slot => (
-                      <Button
-                        key={slot.id}
-                        variant="outline"
-                        className={cn(
-                          "flex items-center gap-2 justify-center h-auto py-2",
-                          selectedSlots.includes(slot.id) && "bg-sky-100 border-sky-500 text-sky-800"
-                        )}
-                        onClick={() => handleSlotToggle(slot.id)}
-                      >
-                        <Clock className="w-4 h-4" />
-                        {`${new Date(slot.startTime).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })} الی ${new Date(slot.endTime).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}`}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-sm text-muted-foreground py-8">
-              متاسفانه این مدرس در حال حاضر هیچ زمان آزادی برای مشاوره ثبت نکرده است.
-            </p>
-          )}
+          <h4 className="font-semibold mb-2">۱. بازه‌های زمانی آزاد را انتخاب کنید:</h4>
+          <p className="text-sm text-muted-foreground mb-4">
+            روی بازه‌های زمانی سبز رنگ در تقویم کلیک کنید تا به سبد خرید شما اضافه شوند. در موبایل، تقویم به صورت لیستی نمایش داده می‌شود.
+          </p>
+          <BookingCalendar 
+            timeSlots={mentor.mentorTimeSlots}
+            selectedSlots={selectedSlots}
+            onSlotToggle={handleSlotToggle}
+          />
         </div>
 
+        {/* این بخش بدون تغییر باقی می‌ماند */}
         {selectedSlots.length > 0 && (
           <div className="pt-6 border-t">
             <h4 className="font-semibold mb-4">۲. تایید و پرداخت</h4>
-            <div className="flex flex-col sm:flex-row items-center justify-between p-4 border rounded-lg bg-white">
+            <div className="flex flex-col sm:flex-row items-center justify-between p-4 border rounded-lg bg-white shadow-inner">
               <div>
                 <p className="text-sm text-slate-600">
                   شما {selectedSlots.length} جلسه انتخاب کرده‌اید. هزینه کل:
