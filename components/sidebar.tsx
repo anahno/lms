@@ -13,7 +13,8 @@ import {
   Users,
   UserCog,
   User,
-  FileDown
+  FileDown,
+  Award,
 } from "lucide-react"; 
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -34,6 +35,11 @@ const mainRoutes = [
     icon: MessageSquare,
     href: "/qa-center",
     label: "مرکز پرسش و پاسخ",
+  },
+    {
+    icon: Award,
+    href: "/mentorship",
+    label: "مدیریت منتورشیپ",
   },
   {
     icon: FileDown, 

@@ -76,12 +76,32 @@ enum SubmissionStatus {
   GRADED
 }
 
-// +++ Enum جدید برای وضعیت خرید +++
 enum PurchaseStatus {
   PENDING
   COMPLETED
   FAILED
 }
+
+// +++ ۱. Enum جدید برای نوع خرید +++
+enum PurchaseType {
+  COURSE
+  MENTORSHIP
+}
+
+// +++ ۲. Enum جدید برای وضعیت بازه‌های زمانی +++
+enum TimeSlotStatus {
+  AVAILABLE
+  BOOKED
+}
+
+// +++ ۳. Enum جدید برای وضعیت رزروها +++
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
 
 // --- مدل‌های اصلی برنامه ---
 
@@ -107,7 +127,13 @@ model User {
   enrollments   Enrollment[]
   submissions   QuizSubmission[]
   discussions   Discussion[]
-  purchases     Purchase[] // <--- رابطه دوطرفه با خریدها اضافه شد
+  purchases     Purchase[]
+
+  // +++ ۴. افزودن روابط جدید برای منتورشیپ +++
+  mentorProfile    MentorProfile?  @relation("MentorToProfile")
+  mentorTimeSlots  TimeSlot[]      @relation("MentorTimeSlots")
+  mentorBookings   Booking[]       @relation("MentorBookings")
+  studentBookings  Booking[]       @relation("StudentBookings")
 }
 
 enum CourseLevel {
@@ -120,10 +146,7 @@ enum CourseLevel {
 model LearningPath {
   id               String       @id @default(cuid())
   title            String
-  // --- شروع اصلاح کلیدی ---
-  // ما یک مقدار پیش‌فرض موقت اضافه می‌کنیم و از cuid() برای اطمینان از یکتا بودن استفاده می‌کنیم
   slug             String       @unique
-  // --- پایان اصلاح کلیدی ---
   subtitle         String?      @db.Text
   description      String?      @db.Text
   imageUrl         String?
@@ -195,7 +218,7 @@ model Chapter {
   title       String
   position    Int
   isPublished Boolean @default(false)
-  isFree      Boolean @default(false) // +++ این خط را اضافه کنید +++
+  isFree      Boolean @default(false) 
 
   levelId   String
   level     Level     @relation(fields: [levelId], references: [id], onDelete: Cascade)
@@ -229,9 +252,7 @@ model UserProgress {
   userId      String
   isCompleted Boolean @default(false)
   score       Float?
-
-  // فیلد امتیازدهی که در کد اصلی شما بود و من حفظش کردم
-  rating Int?
+  rating      Int?
 
   sectionId String
   section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
@@ -241,8 +262,6 @@ model UserProgress {
 
   @@unique([userId, sectionId])
 }
-
-// --- مدل‌های جدید و انعطاف‌پذیر برای سیستم آزمون ---
 
 model Quiz {
   id             String           @id @default(cuid())
@@ -269,12 +288,9 @@ model Question {
   type        QuestionType
   description String?      @db.Text
   
-  // +++ شروع تغییرات +++
-  // سه فیلد جدید برای ذخیره لینک‌های چندرسانه‌ای
   imageUrl    String?      @db.Text
   videoUrl    String?      @db.Text
   audioUrl    String?      @db.Text
-  // +++ پایان تغییرات +++
 
   quizId      String
   quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
@@ -283,7 +299,6 @@ model Question {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
-
 
 model Option {
   id          String       @id @default(cuid())
@@ -329,7 +344,6 @@ model UserAnswer {
   @@unique([submissionId, questionId])
 }
 
-// +++ مدل جدید برای سیستم پرسش و پاسخ +++
 model Discussion {
   id        String       @id @default(cuid())
   content   String       @db.Text
@@ -344,7 +358,6 @@ model Discussion {
   replies   Discussion[] @relation("Replies")
 }
 
-// +++ شروع مدل‌های جدید برای گیمیفیکیشن +++
 model Badge {
   id          String      @id @default(cuid())
   name        String      @unique
@@ -364,19 +377,72 @@ model UserBadge {
   @@id([userId, badgeId])
 }
 
-// +++ مدل جدید و نهایی برای مدیریت پرداخت‌ها +++
 model Purchase {
   id             String         @id @default(cuid())
   userId         String
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  learningPathId String
-  learningPath   LearningPath   @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  
+  // +++ ۵. اصلاح مدل Purchase برای پشتیبانی از انواع خرید +++
+  type           PurchaseType   @default(COURSE)
+  learningPathId String? // برای خرید دوره
+  learningPath   LearningPath?  @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  
   amount         Float
   status         PurchaseStatus @default(PENDING)
   authority      String?        @unique
   refId          String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  
+  booking        Booking? // یک خرید می‌تواند به یک رزرو منتورشیپ متصل باشد
 
-  @@unique([userId, learningPathId])
+  // ترکیب learningPathId و userId دیگر نباید unique باشد چون یک کاربر ممکن است
+  // چندین خرید متفرقه (مثل منتورشیپ) داشته باشد.
 }
+
+
+// --- +++ ۶. شروع مدل‌های جدید برای منتورشیپ +++ ---
+
+// پروفایل منتورشیپ برای هر مدرس
+model MentorProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation("MentorToProfile", fields: [userId], references: [id], onDelete: Cascade)
+  isEnabled             Boolean  @default(false)
+  hourlyRate            Float?
+  mentorshipDescription String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// بازه‌های زمانی در دسترس برای هر منتور
+model TimeSlot {
+  id        String         @id @default(cuid())
+  mentorId  String
+  mentor    User           @relation("MentorTimeSlots", fields: [mentorId], references: [id], onDelete: Cascade)
+  startTime DateTime
+  endTime   DateTime
+  status    TimeSlotStatus @default(AVAILABLE)
+  booking   Booking?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+// اطلاعات یک جلسه رزرو شده
+model Booking {
+  id          String        @id @default(cuid())
+  studentId   String
+  student     User          @relation("StudentBookings", fields: [studentId], references: [id], onDelete: Cascade)
+  mentorId    String
+  mentor      User          @relation("MentorBookings", fields: [mentorId], references: [id], onDelete: Cascade)
+  timeSlotId  String        @unique
+  timeSlot    TimeSlot      @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+  status      BookingStatus @default(PENDING_PAYMENT)
+  purchaseId  String?       @unique
+  purchase    Purchase?     @relation(fields: [purchaseId], references: [id])
+  meetingLink String?       @db.Text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// --- پایان مدل‌های جدید برای منتورشیپ ---
