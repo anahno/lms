@@ -4,8 +4,7 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "./ui/button";
-import { LogIn, LayoutDashboard, User, LogOut, BookOpen, UserCog } from "lucide-react";
-import {
+import { LogIn, LayoutDashboard, User, LogOut, BookOpen, UserCog, Video /* <--- آیکون جدید */ } from "lucide-react"; import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -73,6 +72,13 @@ export const PublicNavbar = ({ dynamicRoutes }: PublicNavbarProps) => {
                     <span>حساب کاربری</span>
                   </DropdownMenuItem>
                 </Link>
+                {/* +++ این بخش جدید را اضافه کنید +++ */}
+<Link href="/my-account/sessions">
+  <DropdownMenuItem>
+    <Video className="w-4 h-4 ml-2" />
+    <span>جلسات مشاوره من</span>
+  </DropdownMenuItem>
+</Link>
                 {user.role === Role.INSTRUCTOR && (
                   <Link href={`/instructors/${user.id}`}>
                       <DropdownMenuItem>

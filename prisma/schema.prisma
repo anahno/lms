@@ -382,9 +382,8 @@ model Purchase {
   userId         String
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // +++ ۵. اصلاح مدل Purchase برای پشتیبانی از انواع خرید +++
   type           PurchaseType   @default(COURSE)
-  learningPathId String? // برای خرید دوره
+  learningPathId String?
   learningPath   LearningPath?  @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
   
   amount         Float
@@ -394,12 +393,11 @@ model Purchase {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   
-  booking        Booking? // یک خرید می‌تواند به یک رزرو منتورشیپ متصل باشد
-
-  // ترکیب learningPathId و userId دیگر نباید unique باشد چون یک کاربر ممکن است
-  // چندین خرید متفرقه (مثل منتورشیپ) داشته باشد.
+  // +++ شروع اصلاح ۱: تعریف رابطه یک-به-چند +++
+  // یک خرید می‌تواند چندین رزرو داشته باشد
+  bookings       Booking[]      // <--- این booking? را به bookings Booking[] تغییر دادیم
+  // +++ پایان اصلاح ۱ +++
 }
-
 
 // --- +++ ۶. شروع مدل‌های جدید برای منتورشیپ +++ ---
 
@@ -435,11 +433,17 @@ model Booking {
   student     User          @relation("StudentBookings", fields: [studentId], references: [id], onDelete: Cascade)
   mentorId    String
   mentor      User          @relation("MentorBookings", fields: [mentorId], references: [id], onDelete: Cascade)
+  
+  // +++ شروع اصلاح +++
+  // ما onDelete: Cascade را به رابطه با TimeSlot اضافه می‌کنیم
+  // این یعنی اگر یک TimeSlot حذف شد، Booking مرتبط با آن هم خودکار حذف شود.
   timeSlotId  String        @unique
   timeSlot    TimeSlot      @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+  // +++ پایان اصلاح +++
+
   status      BookingStatus @default(PENDING_PAYMENT)
-  purchaseId  String?       @unique
-  purchase    Purchase?     @relation(fields: [purchaseId], references: [id])
+  purchaseId  String?       
+  purchase    Purchase?     @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
   meetingLink String?       @db.Text
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

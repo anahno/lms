@@ -1,10 +1,11 @@
+
 // فایل: app/(dashboard)/mentorship/page.tsx
 "use server";
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { Role } from "@prisma/client";
+// import { Role } from "@prisma/client"; // --- این import استفاده نشده و حذف می‌شود ---
 import { getMentorshipData } from "@/actions/mentorship-actions";
 
 import { MentorshipSettingsForm } from "./_components/MentorshipSettingsForm";
@@ -14,12 +15,10 @@ import { UpcomingBookingsList } from "./_components/UpcomingBookingsList";
 export default async function MentorshipPage() {
   const session = await getServerSession(authOptions);
   
-  // دسترسی فقط برای اساتید و ادمین‌ها
   if (!session?.user?.id || (session.user.role !== "INSTRUCTOR" && session.user.role !== "ADMIN")) {
     return redirect("/dashboard");
   }
 
-  // واکشی تمام داده‌های مورد نیاز با استفاده از اکشن سرور
   const { mentorProfile, availableTimeSlots, confirmedBookings } = await getMentorshipData(session.user.id);
 
   return (
@@ -32,7 +31,6 @@ export default async function MentorshipPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* ستون اصلی (راست) */}
         <div className="lg:col-span-2 space-y-8">
           <MentorshipSettingsForm initialData={mentorProfile} />
           <TimeSlotManager 
@@ -41,7 +39,6 @@ export default async function MentorshipPage() {
           />
         </div>
         
-        {/* ستون کناری (چپ) */}
         <div className="lg:col-span-1">
           <UpcomingBookingsList initialData={confirmedBookings} />
         </div>

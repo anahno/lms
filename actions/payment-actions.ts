@@ -2,11 +2,12 @@
 "use server";
 
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth"; // مسیر authOptions را بررسی کنید صحیح باشد
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import axios from "axios";
+// +++ ۱. وارد کردن Enum های جدید +++
+import { PurchaseStatus, PurchaseType } from "@prisma/client";
 
-// آدرس‌های API زرین‌پال
 const ZARINPAL_API_REQUEST = "https://api.zarinpal.com/pg/v4/payment/request.json";
 const ZARINPAL_START_PAY_URL = "https://www.zarinpal.com/pg/StartPay/";
 
@@ -16,21 +17,17 @@ const ZARINPAL_START_PAY_URL = "https://www.zarinpal.com/pg/StartPay/";
  * @returns آبجکتی شامل لینک پرداخت در صورت موفقیت، یا پیام خطا در صورت شکست.
  */
 export const createPaymentRequest = async (learningPathId: string) => {
-  // +++ ۱. بررسی حیاتی: چک کردن وجود Merchant ID +++
   if (!process.env.ZARINPAL_MERCHANT_ID) {
     console.error("[FATAL_PAYMENT_ERROR] ZARINPAL_MERCHANT_ID is not set in environment variables.");
     return { error: "تنظیمات درگاه پرداخت صحیح نیست. لطفاً با پشتیبانی تماس بگیرید." };
   }
-  // +++ پایان بررسی +++
 
-  // 1. بررسی نشست و احراز هویت کاربر
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { error: "برای خرید دوره ابتدا باید وارد شوید." };
   }
   const userId = session.user.id;
 
-  // 2. پیدا کردن دوره و بررسی شرایط اولیه
   const course = await db.learningPath.findUnique({
     where: { id: learningPathId, status: "PUBLISHED" },
   });
@@ -43,7 +40,6 @@ export const createPaymentRequest = async (learningPathId: string) => {
     return { error: "این دوره رایگان است و نیازی به پرداخت ندارد." };
   }
   
-  // 3. بررسی اینکه آیا کاربر قبلا این دوره را خریده یا در آن ثبت‌نام کرده است
   const existingEnrollment = await db.enrollment.findUnique({
     where: { userId_learningPathId: { userId, learningPathId } },
   });
@@ -52,23 +48,42 @@ export const createPaymentRequest = async (learningPathId: string) => {
     return { error: "شما قبلاً در این دوره ثبت‌نام کرده‌اید." };
   }
 
-  const amount = course.price; // مبلغ به تومان
+  const amount = course.price;
   const description = `خرید دوره: ${course.title}`;
   const callback_url = `${process.env.NEXT_PUBLIC_APP_URL}/api/payment/verify`;
 
   try {
-    // 4. ایجاد یک رکورد خرید موقت در دیتابیس با وضعیت "در انتظار"
-    const purchase = await db.purchase.upsert({
-      where: { userId_learningPathId: { userId, learningPathId } },
-      update: { amount },
-      create: {
+    // +++ ۲. شروع بازنویسی کامل منطق ایجاد Purchase +++
+
+    // ابتدا چک می‌کنیم آیا یک خرید در حال انتظار برای این دوره و این کاربر وجود دارد یا خیر
+    let purchase = await db.purchase.findFirst({
+      where: {
         userId,
         learningPathId,
-        amount,
+        status: PurchaseStatus.PENDING,
       },
     });
 
-    // 5. ارسال درخواست به سرور زرین‌پال
+    if (purchase) {
+      // اگر وجود داشت، فقط مبلغ و authority آن را آپدیت می‌کنیم
+      purchase = await db.purchase.update({
+        where: { id: purchase.id },
+        data: { amount, authority: null }, // authority را null می‌کنیم تا برای پرداخت جدید استفاده شود
+      });
+    } else {
+      // اگر وجود نداشت، یک رکورد خرید جدید ایجاد می‌کنیم
+      purchase = await db.purchase.create({
+        data: {
+          userId,
+          learningPathId,
+          amount,
+          type: PurchaseType.COURSE, // نوع خرید را مشخص می‌کنیم
+          status: PurchaseStatus.PENDING,
+        },
+      });
+    }
+    // +++ پایان بازنویسی +++
+
     const response = await axios.post(ZARINPAL_API_REQUEST, {
       merchant_id: process.env.ZARINPAL_MERCHANT_ID,
       amount,
@@ -79,11 +94,9 @@ export const createPaymentRequest = async (learningPathId: string) => {
       },
     });
 
-    // 6. پردازش پاسخ زرین‌پال
     if (response.data.data.code === 100) {
       const authority = response.data.data.authority;
 
-      // 7. ذخیره کد authority
       await db.purchase.update({
         where: { id: purchase.id },
         data: { authority },
@@ -93,7 +106,6 @@ export const createPaymentRequest = async (learningPathId: string) => {
       
       console.log(`[Payment] User ${userId} redirected to: ${paymentUrl}`);
       
-      // 8. بازگرداندن لینک پرداخت
       return { success: true, url: paymentUrl };
 
     } else {

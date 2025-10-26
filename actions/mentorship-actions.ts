@@ -51,9 +51,10 @@ export const getMentorshipData = async (userId: string) => {
 /**
  * تنظیمات پروفایل منتورشیپ یک مدرس را ایجاد یا به‌روزرسانی می‌کند
  */
+// +++ فقط این تابع را آپدیت کنید +++
 export const updateMentorProfile = async (data: {
   isEnabled: boolean;
-  hourlyRate?: number;
+  hourlyRate?: number | null; // <-- نوع را برای پذیرش null آپدیت کنید
   mentorshipDescription?: string;
 }) => {
   const session = await getServerSession(authOptions);
@@ -67,13 +68,14 @@ export const updateMentorProfile = async (data: {
       where: { userId },
       update: {
         isEnabled: data.isEnabled,
-        hourlyRate: data.hourlyRate ? Number(data.hourlyRate) : null,
+        // اینجا چون ورودی می‌تواند null باشد، منطق ساده‌تر می‌شود
+        hourlyRate: data.hourlyRate,
         mentorshipDescription: data.mentorshipDescription,
       },
       create: {
         userId,
         isEnabled: data.isEnabled,
-        hourlyRate: data.hourlyRate ? Number(data.hourlyRate) : null,
+        hourlyRate: data.hourlyRate,
         mentorshipDescription: data.mentorshipDescription,
       },
     });
@@ -85,6 +87,7 @@ export const updateMentorProfile = async (data: {
     return { error: "خطایی در ذخیره تنظیمات رخ داد." };
   }
 };
+
 
 /**
  * بازه‌های زمانی جدید برای یک مدرس ایجاد می‌کند
@@ -179,3 +182,147 @@ export const deleteTimeSlot = async (timeSlotId: string) => {
       return { error: "خطایی در حذف بازه زمانی رخ داد." };
     }
   };
+  // این کد را به انتهای فایل actions/mentorship-actions.ts اضافه کنید
+
+import { createPaymentRequest } from "@/lib/payment/payment-service";
+
+/**
+ * یک درخواست رزرو برای یک جلسه منتورشیپ ایجاد کرده و کاربر را به درگاه پرداخت هدایت می‌کند
+ */
+// در فایل actions/mentorship-actions.ts
+// در فایل actions/mentorship-actions.ts
+// فقط تابع createMentorshipBooking را با این نسخه جایگزین کنید
+
+// در فایل actions/mentorship-actions.ts
+// فقط تابع createMentorshipBooking را با این نسخه جایگزین کنید
+
+export const createMentorshipBooking = async (timeSlotIds: string[]) => {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { error: "برای رزرو جلسه ابتدا باید وارد شوید." };
+  }
+  const studentId = session.user.id;
+  const studentEmail = session.user.email;
+
+  if (!timeSlotIds || timeSlotIds.length === 0) {
+    return { error: "هیچ بازه زمانی انتخاب نشده است." };
+  }
+
+  // +++ شروع اصلاح اصلی برای مدیریت خطا +++
+  // یک متغیر برای نگهداری نتیجه تراکنش تعریف می‌کنیم
+  let transactionResult; 
+
+  try {
+    // مرحله اول: تراکنش دیتابیس
+    transactionResult = await db.$transaction(async (prisma) => {
+      const timeSlots = await prisma.timeSlot.findMany({
+        where: { id: { in: timeSlotIds }, status: "AVAILABLE", startTime: { gte: new Date() } },
+        include: { mentor: { select: { name: true, id: true } } },
+      });
+
+      if (timeSlots.length !== timeSlotIds.length) {
+        throw new Error("یک یا چند بازه زمانی انتخاب شده دیگر در دسترس نیست. لطفاً صفحه را رفرش کنید.");
+      }
+
+      const mentorId = timeSlots[0].mentorId;
+      const mentorName = timeSlots[0].mentor.name;
+      
+      const mentorProfile = await prisma.mentorProfile.findUnique({ where: { userId: mentorId } });
+
+      if (!mentorProfile || !mentorProfile.isEnabled || mentorProfile.hourlyRate === null) {
+        throw new Error("اطلاعات منتورشیپ برای این مدرس کامل نیست یا این قابلیت غیرفعال است.");
+      }
+
+      if (studentId === mentorId) {
+        throw new Error("شما نمی‌توانید خودتان را رزرو کنید.");
+      }
+
+      const totalAmount = timeSlots.length * mentorProfile.hourlyRate;
+
+      const purchase = await prisma.purchase.create({
+        data: { userId: studentId, type: "MENTORSHIP", amount: totalAmount },
+      });
+
+      await prisma.booking.createMany({
+        data: timeSlots.map(slot => ({
+          studentId, mentorId, timeSlotId: slot.id, purchaseId: purchase.id, status: "PENDING_PAYMENT",
+        })),
+      });
+
+      await prisma.timeSlot.updateMany({
+        where: { id: { in: timeSlotIds } },
+        data: { status: "BOOKED" },
+      });
+
+      return { purchase, amount: totalAmount, mentorName };
+    });
+
+    // مرحله دوم: ایجاد درخواست پرداخت
+    const paymentResponse = await createPaymentRequest("zarinpal", {
+      userId: studentId,
+      email: studentEmail,
+      amount: transactionResult.amount,
+      purchaseId: transactionResult.purchase.id,
+      description: `رزرو ${timeSlotIds.length} جلسه مشاوره با ${transactionResult.mentorName}`,
+      callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/payment/verify`,
+    });
+    
+    // اگر درخواست پرداخت به زرین پال ناموفق بود، تراکنش دیتابیس را برگردان
+    if (!paymentResponse.success) {
+        throw new Error(paymentResponse.error || "خطا در ایجاد درخواست پرداخت.");
+    }
+    
+    return paymentResponse;
+
+  } catch (error: any) {
+    console.error("[CREATE_MENTORSHIP_BOOKING_ERROR]", error);
+
+    // اگر خطایی رخ داد (چه در تراکنش و چه در درخواست پرداخت)، بازه‌های زمانی را آزاد کن
+    await db.timeSlot.updateMany({
+        where: { id: { in: timeSlotIds }, status: 'BOOKED' },
+        data: { status: 'AVAILABLE' }
+    });
+    // رکوردهای purchase و booking ناموفق در دیتابیس باقی می‌مانند که می‌توان بعدا آن‌ها را پاک کرد.
+    // مهم آزاد شدن بازه زمانی است.
+
+    return { error: error.message || "خطایی در فرآیند رزرو رخ داد." };
+  }
+  // +++ پایان اصلاح اصلی +++
+};
+/**
+ * لینک جلسه آنلاین را به یک رزرو اضافه می‌کند
+ */
+export const addMeetingLinkToBooking = async (bookingId: string, meetingLink: string) => {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { error: "دسترسی غیرمجاز." };
+  }
+  const userId = session.user.id;
+
+  // اعتبارسنجی اولیه لینک
+  if (!meetingLink.trim() || !meetingLink.startsWith("http")) {
+    return { error: "لینک جلسه نامعتبر است." };
+  }
+
+  try {
+    const booking = await db.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    // بررسی اینکه آیا کاربر فعلی، منتور این جلسه است یا خیر
+    if (!booking || booking.mentorId !== userId) {
+      return { error: "رزرو یافت نشد یا شما منتور این جلسه نیستید." };
+    }
+
+    await db.booking.update({
+      where: { id: bookingId },
+      data: { meetingLink },
+    });
+
+    revalidatePath("/dashboard/mentorship");
+    return { success: "لینک جلسه با موفقیت ثبت شد." };
+  } catch (error) {
+    console.error("[ADD_MEETING_LINK_ERROR]", error);
+    return { error: "خطایی در ثبت لینک رخ داد." };
+  }
+};

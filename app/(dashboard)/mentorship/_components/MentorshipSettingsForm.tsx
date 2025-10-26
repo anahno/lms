@@ -16,11 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
+// schema ساده بدون transform
 const formSchema = z.object({
   isEnabled: z.boolean(),
-  hourlyRate: z.coerce.number().min(0, "قیمت نمی‌تواند منفی باشد.").optional(),
+  hourlyRate: z.number().min(0, "قیمت نمی‌تواند منفی باشد.").optional().nullable(),
   mentorshipDescription: z.string().optional(),
 });
+
+type FormValues = z.infer<typeof formSchema>;
 
 interface MentorshipSettingsFormProps {
   initialData: MentorProfile | null;
@@ -29,11 +32,11 @@ interface MentorshipSettingsFormProps {
 export const MentorshipSettingsForm = ({ initialData }: MentorshipSettingsFormProps) => {
   const [isPending, startTransition] = useTransition();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       isEnabled: initialData?.isEnabled || false,
-      hourlyRate: initialData?.hourlyRate || undefined,
+      hourlyRate: initialData?.hourlyRate ?? null,
       mentorshipDescription: initialData?.mentorshipDescription || "",
     },
   });
@@ -41,12 +44,12 @@ export const MentorshipSettingsForm = ({ initialData }: MentorshipSettingsFormPr
   const { isDirty } = form.formState;
   const isEnabled = form.watch("isEnabled");
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
+  const onSubmit = (values: FormValues) => {
     startTransition(async () => {
       const result = await updateMentorProfile(values);
       if (result.success) {
         toast.success(result.success);
-        form.reset(values); // Reset form state to make isDirty false
+        form.reset(values);
       } else {
         toast.error(result.error || "خطایی رخ داد.");
       }
@@ -77,9 +80,16 @@ export const MentorshipSettingsForm = ({ initialData }: MentorshipSettingsFormPr
                 <Input
                   id="hourlyRate"
                   type="number"
-                  placeholder="مثال: 250000"
-                  {...form.register("hourlyRate")}
+                  placeholder="برای رایگان، خالی بگذارید یا 0 وارد کنید"
+                  {...form.register("hourlyRate", { 
+                    setValueAs: (v) => v === "" ? null : parseFloat(v) 
+                  })}
                 />
+                {form.formState.errors.hourlyRate && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {form.formState.errors.hourlyRate.message}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="mentorshipDescription">توضیحات (در صفحه پروفایل شما نمایش داده می‌شود)</Label>

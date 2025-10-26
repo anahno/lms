@@ -8,29 +8,29 @@ import { CourseCatalogCard } from "@/components/CourseCatalogCard";
 import { BookOpen } from "lucide-react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Role } from "@prisma/client"; // +++ ۱. وارد کردن Role +++
+import { Role } from "@prisma/client";
+import { MentorshipBookingSection } from "./_components/MentorshipBookingSection";
 
 export default async function InstructorProfilePage({
   params,
 }: {
-  params: { instructorId: string };
+  // +++ ۱. نوع params را برای هماهنگی با Next.js به Promise تغییر می‌دهیم +++
+  params: Promise<{ instructorId: string }>;
 }) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 
-  const { instructorId } = params;
+  // +++ ۲. قبل از استفاده، params را await می‌کنیم +++
+  const { instructorId } = await params;
 
-  // +++ ۲. شروع تغییرات اصلی در کوئری +++
   const instructor = await db.user.findUnique({
     where: {
       id: instructorId,
-      // به جای یک نقش، هر دو نقش استاد و ادمین را مجاز می‌دانیم
       OR: [
         { role: Role.INSTRUCTOR },
         { role: Role.ADMIN }
       ],
     },
-    // +++ پایان تغییرات اصلی در کوئری +++
     include: {
       learningPaths: {
         where: { status: 'PUBLISHED' },
@@ -49,6 +49,16 @@ export default async function InstructorProfilePage({
           },
         },
       },
+      mentorProfile: true,
+      mentorTimeSlots: {
+        where: {
+          status: 'AVAILABLE',
+          startTime: { gte: new Date() }
+        },
+        orderBy: {
+          startTime: 'asc'
+        }
+      }
     },
   });
 
@@ -56,9 +66,10 @@ export default async function InstructorProfilePage({
     return redirect("/");
   }
 
+  const isOwner = userId === instructorId;
+
   return (
     <div className="container mx-auto px-4 py-12">
-      {/* بخش اطلاعات پروفایل (بدون تغییر) */}
       <div className="flex flex-col md:flex-row items-center md:items-start gap-8 border-b pb-12 mb-12">
         <div className="relative w-40 h-40 flex-shrink-0">
           <Image
@@ -70,7 +81,6 @@ export default async function InstructorProfilePage({
         </div>
         <div className="text-center md:text-right">
           <h1 className="text-4xl font-extrabold text-slate-800">{instructor.name}</h1>
-          {/* +++ ۳. نمایش برچسب مناسب بر اساس نقش +++ */}
           <p className="text-lg text-sky-600 font-semibold mt-1">
             {instructor.role === Role.ADMIN ? "ادمین و مدرس" : "مدرس و متخصص"}
           </p>
@@ -80,7 +90,13 @@ export default async function InstructorProfilePage({
         </div>
       </div>
 
-      {/* بخش دوره‌های مدرس */}
+      {instructor.mentorProfile?.isEnabled && (
+        <MentorshipBookingSection
+          mentor={instructor}
+          isOwner={isOwner}
+        />
+      )}
+
       <div>
         <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
             <BookOpen className="w-8 h-8 text-sky-600" />

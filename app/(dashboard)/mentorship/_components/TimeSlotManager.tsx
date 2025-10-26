@@ -1,7 +1,7 @@
 // فایل: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import toast from "react-hot-toast";
 import { TimeSlot } from "@prisma/client";
 import { createTimeSlots, deleteTimeSlot } from "@/actions/mentorship-actions";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, Clock, Trash2, PlusCircle } from "lucide-react";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { cn } from "@/lib/utils";
+import { JalaliDatePicker } from "@/components/ui/jalali-date-picker";
 
 interface TimeSlotManagerProps {
   initialData: TimeSlot[];
@@ -21,8 +22,17 @@ interface TimeSlotManagerProps {
 
 export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps) => {
   const [isPending, startTransition] = useTransition();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   const handleCreateSlots = (formData: FormData) => {
+    if (!selectedDate) {
+      toast.error("لطفاً یک تاریخ انتخاب کنید.");
+      return;
+    }
+    // تاریخ را به فرمت YYYY-MM-DD تبدیل کرده و به formData اضافه می‌کنیم
+    const dateString = selectedDate.toISOString().split('T')[0];
+    formData.append("date", dateString);
+
     startTransition(async () => {
       const result = await createTimeSlots(formData);
       if (result.success) {
@@ -57,42 +67,87 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
           </div>
         )}
         
+        {/* فرم افزودن بازه‌های زمانی با تقویم شمسی */}
         <form action={handleCreateSlots} className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-8">
-          <h4 className="font-semibold flex items-center gap-2"><PlusCircle className="w-5 h-5 text-sky-600"/> افزودن بازه‌های زمانی جدید</h4>
+          <h4 className="font-semibold flex items-center gap-2">
+            <PlusCircle className="w-5 h-5 text-sky-600"/> 
+            افزودن بازه‌های زمانی جدید
+          </h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="date">تاریخ</Label>
-              <Input id="date" name="date" type="date" required />
+              <Label>تاریخ</Label>
+              <JalaliDatePicker 
+                date={selectedDate} 
+                onDateChange={setSelectedDate}
+                placeholder="انتخاب تاریخ"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="startTime">از ساعت</Label>
-              <Input id="startTime" name="startTime" type="time" required />
+              <Input 
+                id="startTime" 
+                name="startTime" 
+                type="time" 
+                required 
+                defaultValue="09:00"
+                className="bg-white"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="endTime">تا ساعت</Label>
-              <Input id="endTime" name="endTime" type="time" required />
+              <Input 
+                id="endTime" 
+                name="endTime" 
+                type="time" 
+                required 
+                defaultValue="17:00"
+                className="bg-white"
+              />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">سیستم به صورت خودکار این محدوده را به بازه‌های یک ساعته تقسیم می‌کند.</p>
+          <p className="text-xs text-muted-foreground">
+            سیستم به صورت خودکار این محدوده را به بازه‌های یک ساعته تقسیم می‌کند.
+          </p>
           <div className="flex justify-end">
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || !selectedDate}>
               {isPending ? "در حال ایجاد..." : "ایجاد بازه‌ها"}
             </Button>
           </div>
         </form>
 
+        {/* لیست بازه‌های زمانی موجود */}
         <div>
           <h4 className="font-semibold mb-4">بازه‌های زمانی در دسترس شما</h4>
           {initialData.length > 0 ? (
             <div className="space-y-2">
               {initialData.map(slot => (
-                <div key={slot.id} className="flex items-center justify-between p-3 border rounded-md bg-white">
+                <div 
+                  key={slot.id} 
+                  className="flex items-center justify-between p-3 border rounded-md bg-white hover:bg-slate-50 transition"
+                >
                   <div className="flex items-center gap-4 text-sm font-medium">
-                    <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-slate-500" /> {new Date(slot.startTime).toLocaleDateString('fa-IR')}</span>
-                    <span className="flex items-center gap-2"><Clock className="w-4 h-4 text-slate-500" /> {new Date(slot.startTime).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })} - {new Date(slot.endTime).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-slate-500" /> 
+                      {new Date(slot.startTime).toLocaleDateString('fa-IR')}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-slate-500" /> 
+                      {new Date(slot.startTime).toLocaleTimeString('fa-IR', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })} - {new Date(slot.endTime).toLocaleTimeString('fa-IR', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
                   </div>
                   <ConfirmModal onConfirm={() => handleDeleteSlot(slot.id)}>
-                    <Button variant="ghost" size="icon" className="w-8 h-8" disabled={isPending}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="w-8 h-8" 
+                      disabled={isPending}
+                    >
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </Button>
                   </ConfirmModal>
@@ -100,10 +155,11 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
               ))}
             </div>
           ) : (
-            <p className="text-center text-sm text-muted-foreground py-8">هنوز هیچ بازه زمانی آزادی ثبت نکرده‌اید.</p>
+            <div className="text-center text-sm text-muted-foreground py-8 border rounded-md bg-slate-50">
+              هنوز هیچ بازه زمانی آزادی ثبت نکرده‌اید.
+            </div>
           )}
         </div>
-
       </CardContent>
     </Card>
   );
