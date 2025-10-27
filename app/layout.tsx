@@ -14,8 +14,8 @@ const vazir = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "سیستم مدیریت یادگیری (LMS)",
-  description: "پروژه ساخت LMS با Next.js",
+  title: "Learning Management System (LMS)",
+  description: "A project to build an LMS with Next.js",
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fa" dir="rtl">
+    <html lang="en" dir="ltr">
       {/* ۳. کلاس فونت را به تگ body اعمال کنید */}
       <body className={vazir.className}>
         <Providers>{children}</Providers>

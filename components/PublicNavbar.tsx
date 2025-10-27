@@ -26,7 +26,7 @@ export const PublicNavbar = ({ dynamicRoutes }: PublicNavbarProps) => {
   const isAdminOrInstructor = user?.role === Role.ADMIN || user?.role === Role.INSTRUCTOR;
 
   const getInitials = (name?: string | null) => {
-    if (!name) return "؟";
+    if (!name) return "?";
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
@@ -35,11 +35,11 @@ export const PublicNavbar = ({ dynamicRoutes }: PublicNavbarProps) => {
     <header className="bg-white/80 backdrop-blur-lg sticky top-0 z-50 border-b px-6 md:px-12 py-3">
       <div className="flex items-center justify-between">
         <Link href="/">
-          <h1 className="text-2xl font-bold text-slate-800">LMS پلتفرم</h1>
+          <h1 className="text-2xl font-bold text-slate-800">LMS Platform</h1>
         </Link>
         <div className="flex items-center gap-4">
           <Link href="/courses">
-            <Button variant="ghost">کاتالوگ دوره‌ها</Button>
+            <Button variant="ghost">Course Catalog</Button>
           </Link>
           {status === "loading" && (
               <div className="h-10 w-24 bg-slate-200 rounded-md animate-pulse" />
@@ -62,43 +62,43 @@ export const PublicNavbar = ({ dynamicRoutes }: PublicNavbarProps) => {
                 <DropdownMenuSeparator />
                 <Link href="/my-courses">
                   <DropdownMenuItem>
-                    <BookOpen className="w-4 h-4 ml-2" />
-                    <span>دوره‌های من</span>
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    <span>My Courses</span>
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/my-account">
                   <DropdownMenuItem>
-                    <UserCog className="w-4 h-4 ml-2" />
-                    <span>حساب کاربری</span>
+                    <UserCog className="w-4 h-4 mr-2" />
+                    <span>My Account</span>
                   </DropdownMenuItem>
                 </Link>
                 {/* +++ این بخش جدید را اضافه کنید +++ */}
 <Link href="/my-account/sessions">
   <DropdownMenuItem>
-    <Video className="w-4 h-4 ml-2" />
-    <span>جلسات مشاوره من</span>
+    <Video className="w-4 h-4 mr-2" />
+    <span>My Consultation Sessions</span>
   </DropdownMenuItem>
 </Link>
                 {user.role === Role.INSTRUCTOR && (
                   <Link href={`/instructors/${user.id}`}>
                       <DropdownMenuItem>
-                          <User className="w-4 h-4 ml-2" />
-                          <span>پروفایل عمومی من</span>
+                          <User className="w-4 h-4 mr-2" />
+                          <span>My Public Profile</span>
                       </DropdownMenuItem>
                   </Link>
                 )}
                 {isAdminOrInstructor && (
                   <Link href="/dashboard">
                     <DropdownMenuItem>
-                      <LayoutDashboard className="w-4 h-4 ml-2" />
-                      <span>پنل مدیریت</span>
+                      <LayoutDashboard className="w-4 h-4 mr-2" />
+                      <span>Admin Panel</span>
                     </DropdownMenuItem>
                   </Link>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })}>
-                  <LogOut className="w-4 h-4 ml-2 text-red-500" />
-                  <span className="text-red-500">خروج از حساب</span>
+                  <LogOut className="w-4 h-4 mr-2 text-red-500" />
+                  <span className="text-red-500">Sign Out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -106,8 +106,8 @@ export const PublicNavbar = ({ dynamicRoutes }: PublicNavbarProps) => {
           {status === "unauthenticated" && (
             <Link href="/login">
               <Button>
-                <LogIn className="h-4 w-4 ml-2" />
-                ورود | ثبت‌نام
+                <LogIn className="h-4 w-4 mr-2" />
+                Login | Register
               </Button>
             </Link>
           )}

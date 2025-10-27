@@ -21,14 +21,14 @@ export default function Header() {
 
   // تابعی برای گرفتن حروف اول نام برای آواتار
   const getInitials = (name?: string | null) => {
-    if (!name) return "؟";
+    if (!name) return "?";
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
   return (
     <header className="flex items-center justify-between h-16 px-6 border-b bg-white">
       <div>
-        <h2 className="font-semibold">داشبورد</h2>
+        <h2 className="font-semibold">Dashboard</h2>
       </div>
 
       <div className="flex items-center gap-4">
@@ -61,8 +61,8 @@ export default function Header() {
               {/* ===== لینک به صفحه مدیریت حساب کاربری ===== */}
               <Link href="/my-account">
                 <DropdownMenuItem>
-                  <UserCog className="w-4 h-4 ml-2" />
-                  <span>حساب کاربری</span>
+                  <UserCog className="w-4 h-4 mr-2" />
+                  <span>My Account</span>
                 </DropdownMenuItem>
               </Link>
               
@@ -70,8 +70,8 @@ export default function Header() {
               {user.role === Role.INSTRUCTOR && (
                 <Link href={`/instructors/${user.id}`}>
                     <DropdownMenuItem>
-                        <User className="w-4 h-4 ml-2" />
-                        <span>پروفایل عمومی من</span>
+                        <User className="w-4 h-4 mr-2" />
+                        <span>My Public Profile</span>
                     </DropdownMenuItem>
                 </Link>
               )}
@@ -79,15 +79,15 @@ export default function Header() {
               {/* لینک برای بازگشت به صفحه اصلی سایت */}
                <Link href="/">
                 <DropdownMenuItem>
-                  <Home className="w-4 h-4 ml-2" />
-                  <span>بازگشت به سایت</span>
+                  <Home className="w-4 h-4 mr-2" />
+                  <span>Back to Site</span>
                 </DropdownMenuItem>
               </Link>
               
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })}>
-                <LogOut className="w-4 h-4 ml-2 text-red-500" />
-                <span className="text-red-500">خروج</span>
+                <LogOut className="w-4 h-4 mr-2 text-red-500" />
+                <span className="text-red-500">Sign Out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

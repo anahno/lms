@@ -29,7 +29,7 @@ const CourseSection = ({ title, courses, icon: Icon }: { title: string, courses:
       </div>
       <Link href="/courses">
         <Button variant="outline" size="lg" className="hover:bg-sky-50 hover:text-sky-700 hover:border-sky-300">
-          مشاهده همه دوره‌ها
+          View all courses
         </Button>
       </Link>
     </div>
@@ -44,7 +44,7 @@ const CourseSection = ({ title, courses, icon: Icon }: { title: string, courses:
               title={course.title}
               imageUrl={course.imageUrl}
               chaptersLength={totalChapters}
-              category={course.category?.name || "بدون دسته‌بندی"}
+              category={course.category?.name || "Uncategorized"}
               isEnrolled={course.enrollments.length > 0}
               // +++ شروع اصلاح نهایی +++
               price={course.price}
@@ -56,7 +56,7 @@ const CourseSection = ({ title, courses, icon: Icon }: { title: string, courses:
       </div>
     ) : (
       <div className="text-center py-12 bg-slate-50 rounded-xl">
-        <p className="text-slate-500 text-lg">در حال حاضر دوره‌ای برای نمایش وجود ندارد.</p>
+        <p className="text-slate-500 text-lg">There are currently no courses to display.</p>
       </div>
     )}
   </section>
@@ -106,17 +106,17 @@ export default async function HomePage() {
   ]);
 
   const stats = [
-    { icon: Users, value: `${(studentCount || 0).toLocaleString()}+`, label: "دانشجو فعال" },
-    { icon: Clapperboard, value: `${(courseCount || 0).toLocaleString()}+`, label: "دوره آموزشی" },
-    { icon: School, value: `${(instructorCount || 0).toLocaleString()}+`, label: "مدرس متخصص" },
-    { icon: BookOpen, value: `${mainCategories.length}+`, label: "حوزه تخصصی" },
+    { icon: Users, value: `${(studentCount || 0).toLocaleString()}+`, label: "Active Students" },
+    { icon: Clapperboard, value: `${(courseCount || 0).toLocaleString()}+`, label: "Courses" },
+    { icon: School, value: `${(instructorCount || 0).toLocaleString()}+`, label: "Expert Instructors" },
+    { icon: BookOpen, value: `${mainCategories.length}+`, label: "Specialized Fields" },
   ];
 
   const features = [
-    { icon: Target, title: "مسیر یادگیری هدفمند", description: "با مسیرهای یادگیری ساختاریافته به اهداف خود برسید" },
-    { icon: Award, title: "گواهینامه معتبر", description: "دریافت گواهینامه پایان دوره برای تقویت رزومه" },
-    { icon: Clock, title: "یادگیری در هر زمان", description: "دسترسی نامحدود و مادام‌العمر به محتوای آموزشی" },
-    { icon: TrendingUp, title: "به‌روز و کاربردی", description: "محتوای به‌روز شده با جدیدترین تکنولوژی‌های روز دنیا" }
+    { icon: Target, title: "Targeted Learning Paths", description: "Achieve your goals with structured learning paths." },
+    { icon: Award, title: "Valid Certification", description: "Receive a certificate of completion to enhance your resume." },
+    { icon: Clock, title: "Learn Anytime", description: "Unlimited and lifetime access to educational content." },
+    { icon: TrendingUp, title: "Up-to-date and Practical", description: "Content updated with the latest technologies in the world." }
   ];
 
   return (
@@ -128,20 +128,20 @@ export default async function HomePage() {
         <div className="container mx-auto px-4 py-20 md:py-28">
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-block mb-4 px-4 py-2 bg-sky-100 text-sky-700 rounded-full text-sm font-semibold">
-              🎓 پلتفرم یادگیری آنلاین
+              🎓 Online Learning Platform
             </div>
             
             <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 mb-4">
-              با هزاران آموزش کاربردی،
+              With thousands of practical tutorials,
             </h1>
             <h2 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-blue-600">
-                همین امروز شروع کن و آینده رو بساز
+                start today and build the future.
               </span>
             </h2>
             
             <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto">
-              دسترسی به بیش از {courseCount} دوره آموزشی با کیفیت بالا در زمینه‌های مختلف فناوری و کسب‌وکار
+              Access to over {courseCount} high-quality training courses in various fields of technology and business.
             </p>
 
             <HomePageSearch />
@@ -178,8 +178,8 @@ export default async function HomePage() {
         {/* بخش ویژگی‌ها */}
         <section className="py-16">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">چرا ما را انتخاب کنید؟</h2>
-            <p className="text-slate-600 text-lg">بهترین تجربه یادگیری آنلاین را با ما تجربه کنید</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">Why Choose Us?</h2>
+            <p className="text-slate-600 text-lg">Experience the best online learning with us</p>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -198,8 +198,8 @@ export default async function HomePage() {
         {/* بخش دسته‌بندی‌ها */}
         <section className="py-16 bg-gradient-to-br from-slate-50 to-sky-50 rounded-3xl my-10 px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">دسته‌بندی‌های آموزشی</h2>
-            <p className="text-slate-600 text-lg">حوزه موردنظر خود را انتخاب کنید</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">Course Categories</h2>
+            <p className="text-slate-600 text-lg">Choose your desired field</p>
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
@@ -214,10 +214,10 @@ export default async function HomePage() {
         </section>
         
         {/* بخش دوره‌های پرمخاطب */}
-        <CourseSection title="محبوب‌ترین دوره‌ها" courses={popularCourses} icon={TrendingUp} />
+        <CourseSection title="Most Popular Courses" courses={popularCourses} icon={TrendingUp} />
         
         {/* بخش جدیدترین دوره‌ها */}
-        <CourseSection title="جدیدترین دوره‌ها" courses={publishedCourses} icon={Clock} />
+        <CourseSection title="Latest Courses" courses={publishedCourses} icon={Clock} />
 
         {/* بخش Call to Action */}
         <section className="py-20" style={{ backgroundColor: '#f7f9fa' }}>
@@ -225,19 +225,19 @@ export default async function HomePage() {
             <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.5))]"></div>
             
             <div className="relative z-10 max-w-3xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">آماده شروع یادگیری هستید؟</h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to start learning?</h2>
               <p className="text-xl text-sky-100 mb-8">
-                همین الان ثبت‌نام کنید و به هزاران دوره آموزشی دسترسی پیدا کنید
+                Sign up now and get access to thousands of training courses
               </p>
               <div className="flex gap-4 justify-center flex-wrap">
                 <Link href="/register">
                   <Button size="lg" variant="secondary" className="text-lg px-8 py-6 rounded-xl">
-                    ثبت‌نام رایگان
+                    Free Registration
                   </Button>
                 </Link>
                 <Link href="/courses">
                   <Button size="lg" variant="outline" className="text-lg px-8 py-6 rounded-xl bg-white/10 hover:bg-white/20 text-white border-white">
-                    مشاهده دوره‌ها
+                    View Courses
                   </Button>
                 </Link>
               </div>
