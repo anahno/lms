@@ -453,3 +453,13 @@ model Booking {
 }
 
 // --- پایان مدل‌های جدید برای منتورشیپ ---
+
+
+// مدل جدید برای ذخیره تنظیمات درگاه‌های پرداخت
+model PaymentGatewaySetting {
+  id        String  @id @default(cuid())
+  gatewayId String  @unique // شناسه منحصر به فرد درگاه مثل "zarinpal" یا "nextpay"
+  title     String  // نامی که به کاربر نمایش داده می‌شود، مثلا "پرداخت امن با زرین‌پال"
+  isEnabled Boolean @default(false) // آیا این درگاه فعال است یا خیر؟
+  apiKey    String? @db.Text // برای ذخیره کلید API درگاه‌هایی مثل NextPay
+}

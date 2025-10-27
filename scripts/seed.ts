@@ -88,6 +88,27 @@ async function main() {
     });
     console.log("نشان‌های اولیه با موفقیت ایجاد شدند.");
     // +++ پایان کد جدید +++
+    // +++ این قسمت جدید را اضافه کنید +++
+// ... کد اصلاح شده ...
+    await db.paymentGatewaySetting.createMany({
+      data: [
+        {
+          gatewayId: "zarinpal",
+          title: "پرداخت امن با زرین‌پال",
+          isEnabled: true,
+          apiKey: null, // این خط اضافه شد
+        },
+        {
+          gatewayId: "nextpay",
+          title: "پرداخت از طریق نکست‌پی",
+          isEnabled: false,
+          apiKey: "YOUR_API_KEY_HERE",
+        },
+      ],
+      skipDuplicates: true,
+    });
+    console.log("تنظیمات اولیه درگاه‌های پرداخت ایجاد شد.");
+    // +++ پایان قسمت جدید +++
     console.log("عملیات Seed با موفقیت به پایان رسید.");
 
   } catch (error) {

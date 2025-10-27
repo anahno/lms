@@ -1,13 +1,14 @@
 // فایل: lib/payment/payment-service.ts
 
 import { createZarinpalRequest } from "./providers/zarinpal";
+import { createNextPayRequest } from "./providers/nextpay"; // ۱. منطق نکست‌پی را وارد می‌کنیم
 
 export interface PaymentRequestPayload {
   userId: string;
   email?: string | null;
   amount: number;
   description: string;
-  purchaseId: string; // ID رکورد Purchase برای اتصال
+  purchaseId: string;
   callbackUrl: string;
 }
 
@@ -17,8 +18,8 @@ export interface PaymentResponse {
   error?: string;
 }
 
-// در حال حاضر فقط یک نوع درگاه داریم، اما این ساختار قابل گسترش است
-export type PaymentGateway = "zarinpal" | "nextpay" | "idpay";
+// ۲. 'nextpay' را به عنوان یک درگاه معتبر به سیستم معرفی می‌کنیم
+export type PaymentGateway = "zarinpal" | "nextpay";
 
 /**
  * بر اساس درگاه انتخابی، یک درخواست پرداخت ایجاد می‌کند.
@@ -32,9 +33,9 @@ export const createPaymentRequest = async (
     case "zarinpal":
       return await createZarinpalRequest(payload);
     
-    // در آینده می‌توانید درگاه‌های دیگر را به اینجا اضافه کنید
-    // case "nextpay":
-    //   return await createNextPayRequest(payload);
+    // ۳. اگر ورودی 'nextpay' بود، تابع مربوط به آن را فراخوانی کن
+    case "nextpay":
+      return await createNextPayRequest(payload);
     
     default:
       return {

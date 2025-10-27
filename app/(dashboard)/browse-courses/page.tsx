@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Prisma, Role } from "@prisma/client";
 import { CourseListItem } from "./_components/CourseListItem";
+import { CourseImportClient } from "./_components/CourseImportClient"; // ۱. کامپوننت جدید را import کنید
 
 export default async function BrowseCoursesPage() {
     const session = await getServerSession(authOptions);
@@ -24,39 +25,21 @@ export default async function BrowseCoursesPage() {
         where: whereClause,
         include: {
             user: true,
-            _count: {
-                select: { enrollments: true },
-            },
-            // +++ شروع تغییر اصلی: واکشی عمیق امتیازات +++
-            levels: {
-                include: {
-                    chapters: {
-                        where: { isPublished: true }, // فقط فصل‌های منتشر شده
-                        include: {
-                            sections: {
-                                where: { isPublished: true }, // فقط بخش‌های منتشر شده
-                                include: {
-                                    // امتیازات مربوط به هر بخش را واکشی کن
-                                    progress: {
-                                        where: { rating: { not: null } },
-                                        select: { rating: true },
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            // +++ پایان تغییر اصلی +++
+            _count: { select: { enrollments: true } },
+            levels: { include: { chapters: { where: { isPublished: true }, include: { sections: { where: { isPublished: true }, include: { progress: { where: { rating: { not: null } }, select: { rating: true } } } } } } } }
         },
-        orderBy: {
-            createdAt: "desc",
-        },
+        orderBy: { createdAt: "desc" },
     });
 
     return (
         <div className="p-6">
-            <h1 className="text-2xl font-bold mb-6">فهرست دوره‌ها</h1>
+            {/* ========== شروع بخش جدید ========== */}
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold">فهرست دوره‌ها</h1>
+                <CourseImportClient />
+            </div>
+            {/* ========== پایان بخش جدید ========== */}
+
             {courses.length > 0 ? (
                 <div className="space-y-4">
                     {courses.map(course => (

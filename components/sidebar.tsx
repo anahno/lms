@@ -15,6 +15,8 @@ import {
   User,
   FileDown,
   Award,
+    Settings, // <-- ۱. آیکون جدید را وارد کنید
+
 } from "lucide-react"; 
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -59,6 +61,8 @@ const mainRoutes = [
     label: "دسته‌بندی‌ها",
     adminOnly: true,
   },
+
+  // ========== پایان کد جدید ==========
   {
     icon: Edit,
     href: "/grading",
@@ -68,6 +72,13 @@ const mainRoutes = [
     icon: Archive,
     href: "/grading/archive",
     label: "آرشیو نمرات",
+  },
+      // ========== شروع کد جدید ==========
+  {
+    icon: Settings, // <-- ۲. از آیکون جدید استفاده کنید
+    href: "/admin/settings",
+    label: "تنظیمات درگاه‌های پرداخت",
+    adminOnly: true,
   },
 ];
 

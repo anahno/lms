@@ -1,3 +1,4 @@
+// فایل: app/(dashboard)/admin/users/_components/UserActions.tsx
 "use client";
 
 import { useState } from "react";
@@ -10,6 +11,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator, // ۱. Separator را وارد می‌کنیم
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Trash, Users } from "lucide-react";
@@ -51,31 +53,41 @@ export const UserActions = ({ user }: UserActionsProps) => {
   };
 
   return (
-    <div className="flex items-center gap-x-2">
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0" disabled={isLoading}>
-                    <span className="sr-only">باز کردن منو</span>
-                    <MoreHorizontal className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onRoleChange(Role.INSTRUCTOR)} disabled={user.role === Role.INSTRUCTOR}>
-                    <Users className="h-4 w-4 ml-2" />
-                    ارتقا به استاد
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onRoleChange(Role.USER)} disabled={user.role === Role.USER}>
-                    <Users className="h-4 w-4 ml-2" />
-                    تنزل به دانشجو
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
-
-        <ConfirmModal onConfirm={onDelete}>
-            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" disabled={isLoading}>
-                <Trash className="w-4 h-4" />
+    // ۲. دکمه حذف جداگانه حذف و منطق آن با منو ادغام شد
+    <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0" disabled={isLoading}>
+                <span className="sr-only">باز کردن منو</span>
+                <MoreHorizontal className="h-4 w-4" />
             </Button>
-        </ConfirmModal>
-    </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onRoleChange(Role.INSTRUCTOR)} disabled={user.role === Role.INSTRUCTOR}>
+                {/* ۳. آیکون به سمت راست متن منتقل شد */}
+                <Users className="h-4 w-4 mr-2" />
+                ارتقا به استاد
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onRoleChange(Role.USER)} disabled={user.role === Role.USER}>
+                <Users className="h-4 w-4 mr-2" />
+                تنزل به دانشجو
+            </DropdownMenuItem>
+            
+            {/* ۴. یک خط جداکننده برای زیبایی بیشتر اضافه شد */}
+            <DropdownMenuSeparator />
+
+            {/* ۵. گزینه حذف به داخل منو منتقل شد */}
+            <ConfirmModal onConfirm={onDelete}>
+              <DropdownMenuItem
+                // برای جلوگیری از بسته شدن منو هنگام کلیک
+                onSelect={(e) => e.preventDefault()}
+                className="text-red-600 focus:text-red-600 focus:bg-red-100"
+              >
+                  <Trash className="h-4 w-4 mr-2" />
+                  حذف کاربر
+              </DropdownMenuItem>
+            </ConfirmModal>
+
+        </DropdownMenuContent>
+    </DropdownMenu>
   );
 };

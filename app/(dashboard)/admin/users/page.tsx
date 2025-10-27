@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { UserActions } from "./_components/UserActions";
 import { Role } from '@prisma/client';
 
+// آبجکت استایل‌دهی نقش‌ها بدون تغییر باقی می‌ماند
 const roleDisplay: Record<Role, { text: string; className: string }> = {
     [Role.ADMIN]: { text: "ادمین", className: "bg-red-600" },
     [Role.INSTRUCTOR]: { text: "استاد", className: "bg-sky-600" },
@@ -29,7 +30,11 @@ export default async function UsersPage() {
 
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">مدیریت کاربران</h1>
+      {/* ========== ۱. اصلاح هدر صفحه ========== */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">مدیریت کاربران</h1>
+        {/* اینجا می‌توانید در آینده دکمه "افزودن کاربر جدید" را قرار دهید */}
+      </div>
       
       {users.length === 0 ? (
         <div className="text-center text-gray-500 py-16">
@@ -40,25 +45,27 @@ export default async function UsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>نام</TableHead>
-                <TableHead>ایمیل</TableHead>
-                <TableHead>نقش</TableHead>
-                <TableHead className="text-left">عملیات</TableHead>
+                {/* ========== ۲. راست‌چین کردن سرستون‌ها ========== */}
+                <TableHead className="text-right">نام</TableHead>
+                <TableHead className="text-right">ایمیل</TableHead>
+                <TableHead className="text-right">نقش</TableHead>
+                <TableHead className="text-center">عملیات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium text-right">
                     {user.name || "بی‌نام"}
                   </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-right">{user.email}</TableCell>
+                  <TableCell className="text-right">
                     <Badge className={roleDisplay[user.role].className}>
                       {roleDisplay[user.role].text}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-left">
+                  {/* ========== ۳. وسط‌چین کردن ستون عملیات ========== */}
+                  <TableCell className="text-center">
                     <UserActions user={user} />
                   </TableCell>
                 </TableRow>

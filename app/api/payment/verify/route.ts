@@ -3,13 +3,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import axios from "axios";
-import { PurchaseType } from "@prisma/client";
+import { PurchaseType, PurchaseStatus } from "@prisma/client";
 
-const isSandbox = process.env.ZARINPAL_MODE === "sandbox";
-const ZARINPAL_API_VERIFY = isSandbox 
-    ? "https://sandbox.zarinpal.com/pg/v4/payment/verify.json" 
+// آدرس‌های API برای هر دو درگاه
+const NEXTPAY_API_VERIFY = "https://nextpay.org/nx/gateway/verify";
+const ZARINPAL_API_VERIFY = process.env.ZARINPAL_MODE === "sandbox"
+    ? "https://sandbox.zarinpal.com/pg/v4/payment/verify.json"
     : "https://api.zarinpal.com/pg/v4/payment/verify.json";
 
+// تابع کمکی برای آزاد کردن اسلات‌های رزرو شده در صورت شکست پرداخت
 async function releaseMentorshipSlots(purchaseId: string) {
   try {
     const bookings = await db.booking.findMany({
@@ -23,107 +25,111 @@ async function releaseMentorshipSlots(purchaseId: string) {
         where: { id: { in: timeSlotIds }, status: 'BOOKED' },
         data: { status: "AVAILABLE" },
       });
-      console.log(`[Payment Cancelled/Failed] Released ${timeSlotIds.length} time slots for purchase ${purchaseId}`);
+      console.log(`[Payment Failed] Released ${timeSlotIds.length} time slots for purchase ${purchaseId}`);
     }
   } catch (error) {
     console.error("[RELEASE_SLOTS_ERROR]", error);
   }
 }
 
-export async function GET(req: NextRequest) {
-  const searchParams = req.nextUrl.searchParams;
-  const authority = searchParams.get("Authority");
-  const status = searchParams.get("Status");
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-
-  // +++ شروع اصلاح اصلی: پیدا کردن Purchase با purchaseId +++
-  const purchaseId = searchParams.get("purchaseId");
-  let purchase = null;
-
-  if (purchaseId) {
-    purchase = await db.purchase.findUnique({ where: { id: purchaseId } });
-  } else if (authority) {
-    // این به عنوان fallback باقی می‌ماند
-    purchase = await db.purchase.findUnique({ where: { authority } });
-  }
-  // +++ پایان اصلاح اصلی +++
-
-  if (status !== "OK") { // این شرط به تنهایی برای تشخیص انصراف/خطا کافی است
-    console.log("تراکنش لغو شد یا با خطا مواجه شد.");
-    if (purchase && purchase.type === PurchaseType.MENTORSHIP) {
-      await releaseMentorshipSlots(purchase.id);
-    }
-    return NextResponse.redirect(`${appUrl}/payment-result?status=failed`);
-  }
-
-  // اگر پرداخت موفق بود اما purchase پیدا نشد، یک خطای جدی رخ داده
-  if (!purchase || !authority) {
-      console.error("Invalid callback: Status is OK but purchase or authority not found.");
-      return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=invalid_callback`);
-  }
-
-
-  try {
-    if (purchase.status === 'COMPLETED') {
-        const redirectUrl = purchase.type === PurchaseType.COURSE ? '/my-courses' : '/my-account/sessions';
-        return NextResponse.redirect(`${appUrl}${redirectUrl}`);
-    }
-    
-    const merchantId = isSandbox 
-        ? process.env.ZARINPAL_SANDBOX_MERCHANT_ID 
-        : process.env.ZARINPAL_MERCHANT_ID;
-
-    const amountInRialsForVerify = Math.round(purchase.amount) * 10;
-
-    const response = await axios.post(ZARINPAL_API_VERIFY, {
-      merchant_id: merchantId,
-      amount: amountInRialsForVerify,
-      authority: authority,
+// تابع کمکی برای انجام عملیات پس از پرداخت موفق
+async function handleSuccessfulPurchase(purchaseId: string, refId: string) {
+  await db.$transaction(async (prisma) => {
+    const purchase = await prisma.purchase.update({
+      where: { id: purchaseId },
+      data: { status: PurchaseStatus.COMPLETED, refId: refId },
     });
 
-    if (response.data.data.code === 100 || response.data.data.code === 101) {
-      const refId = response.data.data.ref_id;
-      
-      await db.$transaction(async (prisma) => {
-        await prisma.purchase.update({
-          where: { id: purchase.id },
-          data: { status: "COMPLETED", refId: refId.toString() },
-        });
+    if (purchase.type === PurchaseType.COURSE && purchase.learningPathId) {
+      await prisma.enrollment.create({
+        data: { userId: purchase.userId, learningPathId: purchase.learningPathId },
+      });
+    } else if (purchase.type === PurchaseType.MENTORSHIP) {
+      await prisma.booking.updateMany({
+        where: { purchaseId: purchase.id },
+        data: { status: "CONFIRMED" },
+      });
+    }
+  });
+}
 
-        if (purchase.type === PurchaseType.COURSE && purchase.learningPathId) {
-          await prisma.enrollment.create({
-            data: { userId: purchase.userId, learningPathId: purchase.learningPathId },
-          });
-        } else if (purchase.type === PurchaseType.MENTORSHIP) {
-          await prisma.booking.updateMany({
-            where: { purchaseId: purchase.id },
-            data: { status: "CONFIRMED" },
-          });
-        }
+export async function GET(req: NextRequest) {
+  const searchParams = req.nextUrl.searchParams;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+  // --- تشخیص درگاه بر اساس پارامترهای URL ---
+  const zarinpalAuthority = searchParams.get("Authority");
+  const zarinpalStatus = searchParams.get("Status");
+
+  const nextpayTransId = searchParams.get("trans_id");
+  const nextpayOrderId = searchParams.get("order_id");
+
+  // ========= منطق برای NextPay =========
+  if (nextpayTransId && nextpayOrderId) {
+    const purchase = await db.purchase.findUnique({ where: { id: nextpayOrderId } });
+    if (!purchase) {
+      return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=invalid_order`);
+    }
+
+    // اگر تراکنش ناموفق بود یا کاربر انصراف داد
+    if (searchParams.get("np_status") !== "OK") {
+        await db.purchase.update({ where: { id: purchase.id }, data: { status: PurchaseStatus.FAILED } });
+        if (purchase.type === PurchaseType.MENTORSHIP) await releaseMentorshipSlots(purchase.id);
+        return NextResponse.redirect(`${appUrl}/payment-result?status=failed`);
+    }
+
+    try {
+      const response = await axios.post(NEXTPAY_API_VERIFY, {
+        api_key: process.env.NEXTPAY_API_KEY,
+        amount: Math.round(purchase.amount), // نکست‌پی در تایید، تومان می‌گیرد
+        trans_id: nextpayTransId,
       });
 
-      console.log(`تراکنش با موفقیت تایید شد. کد پیگیری: ${refId}`);
-      return NextResponse.redirect(`${appUrl}/payment-result?status=success&purchaseId=${purchase.id}`);
-    } else {
-      await db.purchase.update({
-        where: { id: purchase.id },
-        data: { status: "FAILED" },
-      });
-      if (purchase.type === PurchaseType.MENTORSHIP) {
-        await releaseMentorshipSlots(purchase.id);
+      if (response.data.code.toString() === "0") {
+        await handleSuccessfulPurchase(purchase.id, response.data.Shaparak_Ref_Id);
+        return NextResponse.redirect(`${appUrl}/payment-result?status=success&purchaseId=${purchase.id}`);
+      } else {
+        await db.purchase.update({ where: { id: purchase.id }, data: { status: PurchaseStatus.FAILED } });
+        if (purchase.type === PurchaseType.MENTORSHIP) await releaseMentorshipSlots(purchase.id);
+        return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=${response.data.code}`);
       }
-      const errorCode = response.data.errors.code;
-      console.error(`تایید تراکنش ناموفق بود. کد خطا: ${errorCode}`);
-      return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=${errorCode}`);
+    } catch (error) {
+      console.error("[NEXTPAY_VERIFY_ERROR]", error);
+      if (purchase.type === PurchaseType.MENTORSHIP) await releaseMentorshipSlots(purchase.id);
+      return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=server`);
     }
-  } catch (error) {
-    console.error("[PAYMENT_VERIFY_ERROR]", error);
-    if (axios.isAxiosError(error)) {
-        console.error("[AXIOS_ERROR_DATA_VERIFY]", error.response?.data);
-    }
-    if (purchase && purchase.type === PurchaseType.MENTORSHIP) {
-        await releaseMentorshipSlots(purchase.id);
-    }
-    return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=server`);
   }
+
+  // ========= منطق برای Zarinpal =========
+  if (zarinpalAuthority) {
+    const purchase = await db.purchase.findUnique({ where: { authority: zarinpalAuthority } });
+    if (zarinpalStatus !== "OK" || !purchase) {
+      if (purchase && purchase.type === PurchaseType.MENTORSHIP) await releaseMentorshipSlots(purchase.id);
+      return NextResponse.redirect(`${appUrl}/payment-result?status=failed`);
+    }
+
+    try {
+      const response = await axios.post(ZARINPAL_API_VERIFY, {
+        merchant_id: process.env.ZARINPAL_MERCHANT_ID,
+        amount: Math.round(purchase.amount), // زرین‌پال در تایید، تومان می‌گیرد
+        authority: zarinpalAuthority,
+      });
+
+      if (response.data.data.code === 100 || response.data.data.code === 101) {
+        await handleSuccessfulPurchase(purchase.id, response.data.data.ref_id.toString());
+        return NextResponse.redirect(`${appUrl}/payment-result?status=success&purchaseId=${purchase.id}`);
+      } else {
+        await db.purchase.update({ where: { id: purchase.id }, data: { status: PurchaseStatus.FAILED } });
+        if (purchase.type === PurchaseType.MENTORSHIP) await releaseMentorshipSlots(purchase.id);
+        return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=${response.data.errors.code}`);
+      }
+    } catch (error) {
+      console.error("[ZARINPAL_VERIFY_ERROR]", error);
+      if (purchase.type === PurchaseType.MENTORSHIP) await releaseMentorshipSlots(purchase.id);
+      return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=server`);
+    }
+  }
+
+  // اگر هیچکدام از پارامترهای مورد انتظار وجود نداشت
+  return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=invalid_request`);
 }

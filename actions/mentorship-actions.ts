@@ -10,7 +10,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { Role } from "@prisma/client";
-import { createPaymentRequest } from "@/lib/payment/payment-service";
+// === ۱. این دو import را اضافه می‌کنیم ===
+import { createPaymentRequest, PaymentGateway } from "@/lib/payment/payment-service";
 
 /**
  * اطلاعات کامل منتورشیپ یک مدرس را واکشی می‌کند
@@ -184,9 +185,8 @@ export const deleteTimeSlot = async (timeSlotId: string) => {
 /**
  * یک درخواست رزرو برای جلسه منتورشیپ ایجاد می‌کند
  */
-export const createMentorshipBooking = async (timeSlotIds: string[]) => {
-  // ... این تابع بدون تغییر است ...
-  // (منطق کامل آن در اینجا قرار می‌گیرد)
+// === ۲. پارامتر gateway به تابع اضافه شد ===
+export const createMentorshipBooking = async (timeSlotIds: string[], gateway: PaymentGateway) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { error: "برای رزرو جلسه ابتدا باید وارد شوید." };
@@ -244,7 +244,8 @@ export const createMentorshipBooking = async (timeSlotIds: string[]) => {
       return { purchase, amount: totalAmount, mentorName };
     });
 
-    const paymentResponse = await createPaymentRequest("zarinpal", {
+    // === ۳. از پارامتر gateway در اینجا استفاده می‌شود ===
+    const paymentResponse = await createPaymentRequest(gateway, {
       userId: studentId,
       email: studentEmail,
       amount: transactionResult.amount,
@@ -282,7 +283,6 @@ export const createMentorshipBooking = async (timeSlotIds: string[]) => {
  * لینک جلسه آنلاین را به یک رزرو اضافه می‌کند
  */
 export const addMeetingLinkToBooking = async (bookingId: string, meetingLink: string) => {
-  // ... این تابع بدون تغییر است ...
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { error: "دسترسی غیرمجاز." };
