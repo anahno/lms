@@ -60,7 +60,8 @@ export default async function InstructorProfilePage({
       mentorProfile: true,
       mentorTimeSlots: {
         where: {
-          status: 'AVAILABLE',
+                    status: { in: ['AVAILABLE', 'BOOKED'] }, // <-- اصلاح اصلی
+
           startTime: { gte: new Date() }
         },
         orderBy: {

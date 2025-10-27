@@ -18,7 +18,6 @@ import { toast } from "react-hot-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// +++ تعریف نوع جدید با color: string | null برای مطابقت با Prisma +++ //
 type TimeSlotWithColor = TimeSlot & {
   color: string | null;
 };
@@ -65,25 +64,28 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
   const availableCount = timeSlots.filter(s => s.status === "AVAILABLE").length;
   const bookedCount = timeSlots.filter(s => s.status === "BOOKED").length;
 
+  // ========== شروع تغییرات اصلی ==========
   const events = timeSlots.map((slot) => {
-    const start = new Date(slot.startTime);
-    const end = new Date(slot.endTime);
-    
+    const isBooked = slot.status === "BOOKED";
     return {
       id: slot.id,
-      title: slot.title || (slot.status === "AVAILABLE" ? "زمان آزاد" : "رزرو شده"),
-      start,
-      end,
-      // +++ منطق رنگ‌دهی برای null بودن رنگ +++ //
-      backgroundColor: slot.color || (slot.status === "AVAILABLE" ? "#10b981" : "#64748b"),
-      borderColor: slot.color || (slot.status === "AVAILABLE" ? "#059669" : "#475569"),
-      textColor: "#ffffff",
-      classNames: ['cursor-pointer', 'transition-all', 'hover:opacity-80'],
+      title: slot.title || (isBooked ? "رزرو شده" : "زمان آزاد"),
+      start: new Date(slot.startTime),
+      end: new Date(slot.endTime),
+      backgroundColor: isBooked ? 'transparent' : (slot.color || '#10b981'), // شفاف برای رزرو شده
+      borderColor: isBooked ? '#64748b' : (slot.color || '#059669'),
+      textColor: isBooked ? '#475569' : "#ffffff", // تغییر رنگ متن برای رزرو شده
+      classNames: [
+        isBooked ? 'fc-event-booked' : 'cursor-pointer', // اضافه کردن کلاس برای هاشور
+        'transition-all',
+        'hover:opacity-80'
+      ],
       extendedProps: {
         status: slot.status,
       },
     };
   });
+  // ========== پایان تغییرات اصلی ==========
 
   const handleEventClick = (info: EventClickArg) => {
     if (info.event.extendedProps.status === "AVAILABLE") {
@@ -368,6 +370,19 @@ export const TimeSlotCalendar = ({ timeSlots, onDelete, onCreate }: TimeSlotCale
               font-weight: 500;
             }
             
+            /* ========== استایل جدید برای هاشور زدن ========== */
+            .time-slot-calendar-container .fc-event-booked {
+              background-color: #e2e8f0; /* رنگ پایه */
+              background-image: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 8px,
+                rgba(100, 116, 139, 0.4) 8px, /* رنگ خطوط */
+                rgba(100, 116, 139, 0.4) 16px
+              );
+            }
+            /* ============================================== */
+
             @media (min-width: 768px) {
               .time-slot-calendar-container .fc .fc-toolbar.fc-header-toolbar {
                 flex-direction: row-reverse;

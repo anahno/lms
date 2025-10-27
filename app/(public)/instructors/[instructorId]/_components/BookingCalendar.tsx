@@ -9,7 +9,6 @@ import listPlugin from "@fullcalendar/list";
 import faLocale from "@fullcalendar/core/locales/fa";
 import { TimeSlot } from "@prisma/client";
 
-// +++ تعریف نوع جدید با color: string | null برای مطابقت با Prisma +++ //
 type TimeSlotWithColor = TimeSlot & {
   color: string | null;
 };
@@ -48,26 +47,29 @@ export const BookingCalendar = ({ timeSlots, selectedSlots, onSlotToggle }: Book
   }, []);
 
   const events = timeSlots.map((slot) => {
-    const defaultColor = "#10b981";
-    const defaultBorderColor = "#059669";
-    // +++ منطق رنگ‌دهی برای null بودن رنگ +++ //
-    const slotColor = slot.color || defaultColor;
-    const slotBorderColor = slot.color || defaultBorderColor;
+    const isBooked = slot.status === 'BOOKED';
+    const isSelected = selectedSlots.includes(slot.id);
 
     return {
       id: slot.id,
-      title: slot.title || "زمان آزاد",
+      title: isBooked ? "رزرو شده" : (slot.title || "زمان آزاد"),
       start: new Date(slot.startTime),
       end: new Date(slot.endTime),
-      backgroundColor: selectedSlots.includes(slot.id) ? "#0ea5e9" : slotColor,
-      borderColor: selectedSlots.includes(slot.id) ? "#0284c7" : slotBorderColor,
-      classNames: ['cursor-pointer', 'transition-all', 'hover:opacity-80'],
+     backgroundColor: isSelected ? "#0ea5e9" : (isBooked ? "#e2e8f0" : (slot.color || "#10b981")),
+      borderColor: isSelected ? "#0284c7" : (isBooked ? "#94a3b8" : (slot.color || "#059669")),
+      classNames: [
+        isBooked ? 'cursor-not-allowed fc-event-booked' : 'cursor-pointer',
+        'transition-all', 
+        'hover:opacity-80'
+      ],
+      extendedProps: {
+        status: slot.status
+      }
     };
   });
 
   return (
     <div className="booking-calendar-container" dir="rtl">
-      {/* استایل‌های سفارشی و ریسپانسیو */}
       <style jsx global>{`
         .booking-calendar-container .fc {
           direction: rtl;
@@ -83,22 +85,37 @@ export const BookingCalendar = ({ timeSlots, selectedSlots, onSlotToggle }: Book
           font-weight: 700;
         }
         .booking-calendar-container .fc-event-main {
-          font-size: 0.75rem; /* اندازه فونت کوچک‌تر برای موبایل */
+          font-size: 0.75rem;
         }
         .booking-calendar-container .fc-event-title {
           font-weight: 600;
         }
         .booking-calendar-container .fc .fc-list-event-title a {
-          color: inherit; /* ارث‌بری رنگ از رویداد */
+          color: inherit;
         }
-        /* استایل‌های مخصوص دسکتاپ */
+
+        /* ========== شروع کد جدید برای هاشور زدن ========== */
+        .booking-calendar-container .fc-event-booked {
+          background-color: #e2e8f0; /* رنگ پایه خاکستری روشن */
+          background-image: repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 8px,
+            rgba(100, 116, 139, 0.4) 8px, /* رنگ خطوط هاشور */
+            rgba(100, 116, 139, 0.4) 16px
+          );
+          border-color: #94a3b8; /* رنگ حاشیه */
+          color: #475569 !important; /* رنگ متن */
+        }
+        /* ========== پایان کد جدید برای هاشور زدن ========== */
+
         @media (min-width: 768px) {
           .booking-calendar-container .fc .fc-toolbar.fc-header-toolbar {
             flex-direction: row-reverse;
             justify-content: space-between;
           }
           .booking-calendar-container .fc-event-main {
-            font-size: 0.8rem; /* فونت کمی بزرگتر در دسکتاپ */
+            font-size: 0.8rem;
           }
         }
       `}</style>
@@ -107,19 +124,21 @@ export const BookingCalendar = ({ timeSlots, selectedSlots, onSlotToggle }: Book
         ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
         locale={faLocale}
-        firstDay={6} // شنبه
+        firstDay={6}
         headerToolbar={{
           left: "prev,next today",
           center: "title",
-          right: "timeGridWeek,listWeek", // نماهای موجود
+          right: "timeGridWeek,listWeek",
         }}
-        initialView="timeGridWeek" // نمای پیش‌فرض
+        initialView="timeGridWeek"
         allDaySlot={false}
         height="auto"
         events={events}
         eventClick={(info) => {
-          info.jsEvent.preventDefault(); // جلوگیری از رفتار پیش‌فرض
-          onSlotToggle(info.event.id);
+          info.jsEvent.preventDefault();
+          if (info.event.extendedProps.status === 'AVAILABLE') {
+            onSlotToggle(info.event.id);
+          }
         }}
         slotMinTime="07:00:00"
         scrollTime="08:00:00"

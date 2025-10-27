@@ -20,7 +20,11 @@ export const getMentorshipData = async (userId: string) => {
     const [mentorProfile, availableTimeSlots, confirmedBookings] = await Promise.all([
       db.mentorProfile.findUnique({ where: { userId } }),
       db.timeSlot.findMany({
-        where: { mentorId: userId, status: "AVAILABLE", startTime: { gte: new Date() } },
+        where: { 
+          mentorId: userId, 
+          status: { in: ["AVAILABLE", "BOOKED"] }, // <-- اصلاح اصلی
+          startTime: { gte: new Date() } 
+        },
         orderBy: { startTime: "asc" },
       }),
       db.booking.findMany({
