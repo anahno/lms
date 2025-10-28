@@ -2,17 +2,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { TimeSlot } from "@prisma/client";
-import { createTimeSlots, deleteTimeSlot } from "@/actions/mentorship-actions";
+import { deleteTimeSlot } from "@/actions/mentorship-actions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, PlusCircle, Loader2 } from "lucide-react";
+import { CalendarDays, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { JalaliDatePicker } from "@/components/ui/jalali-date-picker";
 import { WeeklyScheduler } from "./WeeklyScheduler";
+import { CreateSlotsForm } from "./CreateSlotsForm"; // کامپوننت جدید را وارد می‌کنیم
 
 interface TimeSlotManagerProps {
   initialData: TimeSlot[];
@@ -20,57 +19,16 @@ interface TimeSlotManagerProps {
 }
 
 export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps) => {
-  const [slots, setSlots] = useState<TimeSlot[]>(initialData);
   const [isPending, startTransition] = useTransition();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showManualForm, setShowManualForm] = useState(false);
+  const router = useRouter();
 
-  // تابع جدید برای واکشی داده‌های تازه از API Route
-  const fetchAndUpdateSlots = async () => {
-    try {
-      const response = await fetch('/api/mentorship/slots');
-      if (!response.ok) {
-        throw new Error('Failed to fetch slots');
-      }
-      const newSlots = await response.json();
-      setSlots(newSlots);
-    } catch (error) {
-      toast.error("خطا در به‌روزرسانی لیست بازه‌های زمانی.");
-      console.error(error);
-    }
-  };
-
-  const handleCreateSlots = (formData: FormData) => {
-    startTransition(async () => {
-      const result = await createTimeSlots(formData);
-      if (result.success) {
-        toast.success(result.success);
-        setShowManualForm(false);
-        await fetchAndUpdateSlots(); // واکشی داده‌های تازه
-      } else {
-        toast.error(result.error || "خطایی رخ داد.");
-      }
-    });
-  };
-
-  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    if (!selectedDate) {
-      toast.error("لطفاً یک تاریخ انتخاب کنید.");
-      return;
-    }
-    const dateString = selectedDate.toISOString().split('T')[0];
-    formData.append("date", dateString);
-    handleCreateSlots(formData);
-  };
-  
   const handleDeleteSlot = (id: string) => {
     startTransition(async () => {
       const result = await deleteTimeSlot(id);
       if (result.success) {
         toast.success(result.success);
-        await fetchAndUpdateSlots(); // واکشی داده‌های تازه
+        router.refresh(); // مهم: درخواست داده‌های جدید از سرور
       } else {
         toast.error(result.error || "خطا در حذف بازه.");
       }
@@ -85,25 +43,22 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
       </CardHeader>
       <CardContent className={cn(!isEnabled && "pointer-events-none opacity-50")}>
         {!isEnabled && (<div className="text-center text-sm text-amber-700 bg-amber-50 p-4 rounded-md mb-6">برای مدیریت برنامه‌زمانی، ابتدا قابلیت منتورشیپ را از بخش تنظیمات فعال کنید.</div>)}
-        <div className="mb-6"><Button type="button" variant="outline" onClick={() => setShowManualForm(!showManualForm)} className="w-full"><PlusCircle className="w-4 h-4 mr-2" />{showManualForm ? "بستن فرم ایجاد" : "ایجاد دستی بازه‌های زمانی"}</Button></div>
+        
+        <div className="mb-6">
+          <Button type="button" variant="outline" onClick={() => setShowManualForm(!showManualForm)} className="w-full">
+            <PlusCircle className="w-4 h-4 mr-2" />
+            {showManualForm ? "بستن فرم ایجاد" : "ایجاد دستی بازه‌های زمانی"}
+          </Button>
+        </div>
+        
         {showManualForm && (
-          <form onSubmit={handleFormSubmit} className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-6">
-            <h4 className="font-semibold">افزودن بازه‌های زمانی برای یک روز</h4>
-            <div className="space-y-2"><Label htmlFor="title">عنوان (اختیاری)</Label><Input id="title" name="title" className="bg-white" /></div>
-            <div className="space-y-2"><Label htmlFor="manualColor">رنگ (اختیاری)</Label><Input id="manualColor" name="color" type="color" defaultValue="#10b981" className="bg-white h-10 w-20 p-1" /></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2"><Label>تاریخ</Label><JalaliDatePicker date={selectedDate} onDateChange={setSelectedDate} /></div>
-              <div className="space-y-2"><Label htmlFor="startTime">از ساعت</Label><Input id="startTime" name="startTime" type="time" required defaultValue="09:00" className="bg-white" /></div>
-              <div className="space-y-2"><Label htmlFor="endTime">تا ساعت</Label><Input id="endTime" name="endTime" type="time" required defaultValue="17:00" className="bg-white" /></div>
-            </div>
-            <p className="text-xs text-muted-foreground">💡 مثال: اگر از ساعت 09:00 تا 17:00 انتخاب کنید، 8 بازه زمانی یک ساعته ایجاد می‌شود.</p>
-            <div className="flex justify-end"><Button type="submit" disabled={isPending || !selectedDate}>{isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "ایجاد بازه‌ها"}</Button></div>
-          </form>
+          <CreateSlotsForm onFormSuccess={() => setShowManualForm(false)} />
         )}
+        
         <WeeklyScheduler 
-            timeSlots={slots} 
-            onDelete={handleDeleteSlot} 
-            onCreate={handleCreateSlots} 
+          timeSlots={initialData} 
+          onDelete={handleDeleteSlot} 
+          onCreate={() => { /* onCreate is now handled by the dedicated form */ }}
         />
       </CardContent>
     </Card>

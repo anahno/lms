@@ -1,4 +1,4 @@
-// فایل نهایی و کامل: actions/mentorship-actions.ts
+// فایل نهایی و قطعی: actions/mentorship-actions.ts
 "use server";
 
 import { db } from "@/lib/db";
@@ -8,83 +8,38 @@ import { revalidatePath } from "next/cache";
 import { Role } from "@prisma/client";
 import { createPaymentRequest, PaymentGateway } from "@/lib/payment/payment-service";
 
-/**
- * اطلاعات کامل منتورشیپ یک مدرس را واکشی می‌کند
- */
-export const getMentorshipData = async (userId: string) => {
-  try {
-    const [mentorProfile, availableTimeSlots, confirmedBookings] = await Promise.all([
-      db.mentorProfile.findUnique({ where: { userId } }),
-      db.timeSlot.findMany({
-        where: { 
-          mentorId: userId, 
-          status: { in: ["AVAILABLE", "BOOKED"] },
-          startTime: { gte: new Date() } 
-        },
-        orderBy: { startTime: "asc" },
-      }),
-      db.booking.findMany({
-        where: { mentorId: userId, status: "CONFIRMED", timeSlot: { startTime: { gte: new Date() } } },
-        include: {
-          student: { select: { name: true, email: true } },
-          timeSlot: { select: { startTime: true, endTime: true } },
-        },
-        orderBy: { timeSlot: { startTime: "asc" } },
-      }),
-    ]);
-    return { mentorProfile, availableTimeSlots, confirmedBookings };
-  } catch (error) {
-    console.error("[GET_MENTORSHIP_DATA_ERROR]", error);
-    return { mentorProfile: null, availableTimeSlots: [], confirmedBookings: [] };
-  }
+// +++ افزودن لاگ‌های دقیق برای دیباگ در Vercel +++
+const log = (message: string, data?: any) => {
+  console.log(`[Mentorship Action] ${new Date().toISOString()} - ${message}`, data || '');
 };
 
-/**
- * تنظیمات پروفایل منتورشیپ را به‌روزرسانی می‌کند
- */
-export const updateMentorProfile = async (data: {
-  isEnabled: boolean;
-  hourlyRate?: number | null;
-  mentorshipDescription?: string;
-}) => {
+const logError = (message: string, error: any) => {
+  console.error(`[Mentorship Action ERROR] ${new Date().toISOString()} - ${message}`, error);
+};
+
+export const createTimeSlots = async (previousState: any, formData: FormData) => {
+  log("Attempting to create time slots...");
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
+  if (!session?.user?.id) {
+    logError("Unauthorized access attempt.", null);
     return { error: "دسترسی غیرمجاز." };
   }
   const userId = session.user.id;
-  try {
-    await db.mentorProfile.upsert({
-      where: { userId },
-      update: data,
-      create: { userId, ...data },
-    });
-    revalidatePath("/dashboard/mentorship");
-    return { success: "تنظیمات با موفقیت ذخیره شد." };
-  } catch (error) {
-    console.error("[UPDATE_MENTOR_PROFILE_ERROR]", error);
-    return { error: "خطایی در ذخیره تنظیمات رخ داد." };
-  }
-};
-
-/**
- * بازه‌های زمانی جدید ایجاد می‌کند
- */
-export const createTimeSlots = async (formData: FormData) => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
-    return { error: "دسترسی غیرمجاز." };
-  }
-  const userId = session.user.id;
+  
   try {
     const date = formData.get("date") as string;
     const startTime = formData.get("startTime") as string;
     const endTime = formData.get("endTime") as string;
-    const title = formData.get("title") as string | null;
-    const color = (formData.get("color") as string) || "#10b981";
+    
+    log("Parsed form data:", { date, startTime, endTime });
 
     if (!date || !startTime || !endTime) {
-      return { error: "اطلاعات فرم ناقص است." };
+      logError("Form data is incomplete.", { date, startTime, endTime });
+      return { error: "اطلاعات ناقص است." };
     }
+
+    const title = formData.get("title") as string | null;
+    const color = (formData.get("color") as string) || "#10b981";
 
     const [year, month, day] = date.split('-').map(Number);
     const [startHour, startMinute] = startTime.split(':').map(Number);
@@ -93,6 +48,7 @@ export const createTimeSlots = async (formData: FormData) => {
     const endDateTime = new Date(year, month - 1, day, endHour, endMinute);
 
     if (startDateTime >= endDateTime || startDateTime < new Date()) {
+      logError("Invalid time range selected.", { startDateTime, endDateTime });
       return { error: "بازه زمانی نامعتبر است." };
     }
 
@@ -101,31 +57,30 @@ export const createTimeSlots = async (formData: FormData) => {
     while (currentSlotStart < endDateTime) {
       const currentSlotEnd = new Date(currentSlotStart.getTime() + 60 * 60 * 1000);
       if (currentSlotEnd > endDateTime) break;
-      slotsToCreate.push({
-        mentorId: userId,
-        startTime: currentSlotStart,
-        endTime: currentSlotEnd,
-        title: title || null,
-        color: color,
-      });
+      slotsToCreate.push({ mentorId: userId, startTime: currentSlotStart, endTime: currentSlotEnd, title: title || null, color: color });
       currentSlotStart = currentSlotEnd;
     }
     
     if (slotsToCreate.length === 0) {
-      return { error: "هیچ بازه زمانی کاملی در این محدوده یافت نشد." };
+      logError("No valid slots could be generated from the time range.", null);
+      return { error: "هیچ بازه کاملی یافت نشد." };
     }
 
+    log(`Preparing to create ${slotsToCreate.length} slots in DB.`);
     await db.timeSlot.createMany({ data: slotsToCreate, skipDuplicates: true });
+    log("Successfully created slots in DB.");
     
     revalidatePath("/dashboard/mentorship");
+    log("Path /dashboard/mentorship revalidated.");
     
-    return { success: `${slotsToCreate.length} بازه زمانی با موفقیت ایجاد شد.` };
+    return { success: `${slotsToCreate.length} بازه زمانی ایجاد شد.` };
 
   } catch (error) {
-    console.error("[CREATE_TIME_SLOTS_ERROR]", error);
-    return { error: "خطای داخلی سرور در هنگام ایجاد بازه‌های زمانی." };
+    logError("Failed to create time slots due to a catch block error.", error);
+    return { error: "خطای داخلی سرور در هنگام ایجاد بازه‌ها." };
   }
 };
+
 
 /**
  * یک بازه زمانی در دسترس را حذف می‌کند
