@@ -51,7 +51,6 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
         }
     });
   };
-
   return (
     <Card>
       <CardHeader>
