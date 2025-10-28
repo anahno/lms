@@ -1,4 +1,4 @@
-// فایل نهایی و قطعی با export های صحیح: actions/mentorship-actions.ts
+// فایل نهایی و کامل با export و return type های صحیح: actions/mentorship-actions.ts
 "use server";
 
 import { db } from "@/lib/db";
@@ -11,7 +11,6 @@ import { createPaymentRequest, PaymentGateway } from "@/lib/payment/payment-serv
 /**
  * اطلاعات کامل منتورشیپ یک مدرس را واکشی می‌کند
  */
-// +++ اصلاح اصلی: کلمه کلیدی export اضافه شد +++
 export const getMentorshipData = async (userId: string) => {
   try {
     const [mentorProfile, availableTimeSlots, confirmedBookings] = await Promise.all([
@@ -43,12 +42,11 @@ export const getMentorshipData = async (userId: string) => {
 /**
  * تنظیمات پروفایل منتورشیپ را به‌روزرسانی می‌کند
  */
-// +++ اصلاح اصلی: کلمه کلیدی export اضافه شد +++
 export const updateMentorProfile = async (data: {
   isEnabled: boolean;
   hourlyRate?: number | null;
   mentorshipDescription?: string;
-}) => {
+}): Promise<{ success?: string; error?: string; }> => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
     return { error: "دسترسی غیرمجاز." };
@@ -71,7 +69,7 @@ export const updateMentorProfile = async (data: {
 /**
  * بازه‌های زمانی جدید ایجاد می‌کند
  */
-export const createTimeSlots = async (formData: FormData) => {
+export const createTimeSlots = async (previousState: any, formData: FormData) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
     return { error: "دسترسی غیرمجاز." };

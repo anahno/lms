@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarDays, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WeeklyScheduler } from "./WeeklyScheduler";
-import { CreateSlotsForm } from "./CreateSlotsForm"; // کامپوننت جدید را وارد می‌کنیم
+import { CreateSlotsForm } from "./CreateSlotsForm";
 
 interface TimeSlotManagerProps {
   initialData: TimeSlot[];
@@ -19,7 +19,9 @@ interface TimeSlotManagerProps {
 }
 
 export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps) => {
-  const [isPending, startTransition] = useTransition();
+  // +++ شروع اصلاح اصلی: isPending حذف شد +++
+  const [, startTransition] = useTransition();
+  // +++ پایان اصلاح اصلی +++
   const [showManualForm, setShowManualForm] = useState(false);
   const router = useRouter();
 
@@ -28,7 +30,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
       const result = await deleteTimeSlot(id);
       if (result.success) {
         toast.success(result.success);
-        router.refresh(); // مهم: درخواست داده‌های جدید از سرور
+        router.refresh();
       } else {
         toast.error(result.error || "خطا در حذف بازه.");
       }
