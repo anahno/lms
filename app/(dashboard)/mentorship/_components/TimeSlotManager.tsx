@@ -19,9 +19,7 @@ interface TimeSlotManagerProps {
 }
 
 export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps) => {
-  // +++ شروع اصلاح اصلی: isPending حذف شد +++
   const [, startTransition] = useTransition();
-  // +++ پایان اصلاح اصلی +++
   const [showManualForm, setShowManualForm] = useState(false);
   const router = useRouter();
 
@@ -30,7 +28,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
       const result = await deleteTimeSlot(id);
       if (result.success) {
         toast.success(result.success);
-        router.refresh();
+        router.refresh(); // مهم: درخواست داده‌های جدید از سرور
       } else {
         toast.error(result.error || "خطا در حذف بازه.");
       }
