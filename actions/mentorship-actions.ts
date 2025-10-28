@@ -4,31 +4,31 @@
 import { db } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { revalidatePath } from "next/cache"; // +++ ۱. revalidatePath را وارد کنید +++
-import { Role } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+import { Role, TimeSlot } from "@prisma/client"; // +++ ۱. TimeSlot را وارد کنید +++
 import { createPaymentRequest, PaymentGateway } from "@/lib/payment/payment-service";
 
-/**
- * اطلاعات کامل منتورشیپ یک مدرس را واکشی می‌کند
- */
+// تابع کمکی برای واکشی اسلات‌های به‌روز
+async function getUpdatedSlots(mentorId: string): Promise<TimeSlot[]> {
+  return db.timeSlot.findMany({
+    where: { 
+      mentorId: mentorId, 
+      status: { in: ["AVAILABLE", "BOOKED"] },
+      startTime: { gte: new Date() } 
+    },
+    orderBy: { startTime: "asc" },
+  });
+}
+
+// ... تابع getMentorshipData بدون تغییر باقی می‌ماند ...
 export const getMentorshipData = async (userId: string) => {
   try {
     const [mentorProfile, availableTimeSlots, confirmedBookings] = await Promise.all([
       db.mentorProfile.findUnique({ where: { userId } }),
-      db.timeSlot.findMany({
-        where: { 
-          mentorId: userId, 
-          status: { in: ["AVAILABLE", "BOOKED"] },
-          startTime: { gte: new Date() } 
-        },
-        orderBy: { startTime: "asc" },
-      }),
+      getUpdatedSlots(userId), // از تابع کمکی استفاده می‌کنیم
       db.booking.findMany({
         where: { mentorId: userId, status: "CONFIRMED", timeSlot: { startTime: { gte: new Date() } } },
-        include: {
-          student: { select: { name: true, email: true } },
-          timeSlot: { select: { startTime: true, endTime: true } },
-        },
+        include: { student: { select: { name: true, email: true } }, timeSlot: { select: { startTime: true, endTime: true } } },
         orderBy: { timeSlot: { startTime: "asc" } },
       }),
     ]);
@@ -39,34 +39,14 @@ export const getMentorshipData = async (userId: string) => {
   }
 };
 
-/**
- * تنظیمات پروفایل منتورشیپ را به‌روزرسانی می‌کند
- */
-export const updateMentorProfile = async (data: {
-  isEnabled: boolean;
-  hourlyRate?: number | null;
-  mentorshipDescription?: string;
-}) => {
+
+// ... تابع updateMentorProfile بدون تغییر باقی می‌ماند ...
+export const updateMentorProfile = async (data: { isEnabled: boolean; hourlyRate?: number | null; mentorshipDescription?: string; }) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
-    return { error: "دسترسی غیرمجاز." };
-  }
+  if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) { return { error: "دسترسی غیرمجاز." }; }
   const userId = session.user.id;
   try {
-    await db.mentorProfile.upsert({
-      where: { userId },
-      update: {
-        isEnabled: data.isEnabled,
-        hourlyRate: data.hourlyRate,
-        mentorshipDescription: data.mentorshipDescription,
-      },
-      create: {
-        userId,
-        isEnabled: data.isEnabled,
-        hourlyRate: data.hourlyRate,
-        mentorshipDescription: data.mentorshipDescription,
-      },
-    });
+    await db.mentorProfile.upsert({ where: { userId }, update: data, create: { userId, ...data } });
     revalidatePath("/dashboard/mentorship");
     return { success: "تنظیمات با موفقیت ذخیره شد." };
   } catch (error) {
@@ -75,10 +55,11 @@ export const updateMentorProfile = async (data: {
   }
 };
 
+
 /**
  * بازه‌های زمانی جدید برای یک مدرس ایجاد می‌کند
  */
-export const createTimeSlots = async (formData: FormData) => {
+export const createTimeSlots = async (formData: FormData): Promise<{ success?: string; error?: string; updatedSlots?: TimeSlot[] }> => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
     return { error: "دسترسی غیرمجاز." };
@@ -91,48 +72,35 @@ export const createTimeSlots = async (formData: FormData) => {
     const title = formData.get("title") as string | null;
     const color = (formData.get("color") as string) || "#10b981";
 
-    if (!date || !startTime || !endTime) {
-      return { error: "تاریخ و ساعات شروع و پایان الزامی است." };
-    }
+    if (!date || !startTime || !endTime) { return { error: "تاریخ و ساعات شروع و پایان الزامی است." }; }
 
     const [year, month, day] = date.split('-').map(Number);
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const [endHour, endMinute] = endTime.split(':').map(Number);
-    
     const startDateTime = new Date(year, month - 1, day, startHour, startMinute);
     const endDateTime = new Date(year, month - 1, day, endHour, endMinute);
 
-    if (startDateTime >= endDateTime || startDateTime < new Date()) {
-      return { error: "بازه زمانی نامعتبر است." };
-    }
+    if (startDateTime >= endDateTime || startDateTime < new Date()) { return { error: "بازه زمانی نامعتبر است." }; }
 
     const slotsToCreate = [];
     let currentSlotStart = startDateTime;
-
     while (currentSlotStart < endDateTime) {
       const currentSlotEnd = new Date(currentSlotStart.getTime() + 60 * 60 * 1000);
       if (currentSlotEnd > endDateTime) break;
-      slotsToCreate.push({
-        mentorId: userId,
-        startTime: currentSlotStart,
-        endTime: currentSlotEnd,
-        title: title || null,
-        color: color,
-      });
+      slotsToCreate.push({ mentorId: userId, startTime: currentSlotStart, endTime: currentSlotEnd, title: title || null, color: color });
       currentSlotStart = currentSlotEnd;
     }
     
-    if (slotsToCreate.length === 0) {
-      return { error: "هیچ بازه زمانی کاملی در این محدوده یافت نشد." };
-    }
+    if (slotsToCreate.length === 0) { return { error: "هیچ بازه زمانی کاملی در این محدوده یافت نشد." }; }
 
-    await db.timeSlot.createMany({
-      data: slotsToCreate,
-      skipDuplicates: true,
-    });
+    await db.timeSlot.createMany({ data: slotsToCreate, skipDuplicates: true });
     
-    revalidatePath("/dashboard/mentorship"); // +++ ۲. کش این صفحه را پاک کن +++
-    return { success: `${slotsToCreate.length} بازه زمانی جدید با موفقیت ایجاد شد.` };
+    // +++ ۲. لیست به‌روز شده را واکشی کن +++
+    const updatedSlots = await getUpdatedSlots(userId);
+    
+    // +++ ۳. لیست جدید را به کلاینت برگردان +++
+    return { success: `${slotsToCreate.length} بازه زمانی جدید ایجاد شد.`, updatedSlots };
+
   } catch (error) {
     console.error("[CREATE_TIME_SLOTS_ERROR]", error);
     return { error: "خطایی در ایجاد بازه‌های زمانی رخ داد." };
@@ -142,46 +110,35 @@ export const createTimeSlots = async (formData: FormData) => {
 /**
  * یک بازه زمانی در دسترس را حذف می‌کند
  */
-export const deleteTimeSlot = async (timeSlotId: string) => {
+export const deleteTimeSlot = async (timeSlotId: string): Promise<{ success?: string; error?: string; updatedSlots?: TimeSlot[] }> => {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return { error: "دسترسی غیرمجاز." };
-    }
+    if (!session?.user?.id) { return { error: "دسترسی غیرمجاز." }; }
     const userId = session.user.id;
   
     try {
-      const slotToDelete = await db.timeSlot.findUnique({
-        where: { id: timeSlotId },
-      });
+      const slotToDelete = await db.timeSlot.findUnique({ where: { id: timeSlotId } });
+      if (!slotToDelete || slotToDelete.mentorId !== userId) { return { error: "بازه زمانی یافت نشد." }; }
+      if (slotToDelete.status !== 'AVAILABLE') { return { error: "فقط بازه‌های آزاد قابل حذف هستند." }; }
   
-      if (!slotToDelete || slotToDelete.mentorId !== userId) {
-        return { error: "بازه زمانی یافت نشد یا شما مالک آن نیستید." };
-      }
+      await db.timeSlot.delete({ where: { id: timeSlotId } });
   
-      if (slotToDelete.status !== 'AVAILABLE') {
-        return { error: "فقط بازه‌های زمانی آزاد قابل حذف هستند." };
-      }
-  
-      await db.timeSlot.delete({
-        where: { id: timeSlotId },
-      });
-  
-      revalidatePath("/dashboard/mentorship"); // +++ ۳. کش این صفحه را پاک کن +++
-      return { success: "بازه زمانی با موفقیت حذف شد." };
+      // +++ ۴. لیست به‌روز شده را واکشی کن +++
+      const updatedSlots = await getUpdatedSlots(userId);
+
+      // +++ ۵. لیست جدید را به کلاینت برگردان +++
+      return { success: "بازه زمانی با موفقیت حذف شد.", updatedSlots };
     } catch (error) {
       console.error("[DELETE_TIME_SLOT_ERROR]", error);
       return { error: "خطایی در حذف بازه زمانی رخ داد." };
     }
 };
 
-// ... بقیه توابع فایل (updateMentorProfile, createMentorshipBooking, etc.) بدون تغییر باقی می‌مانند ...
-// (من برای کامل بودن، بقیه توابع را هم در کد بالا قرار داده‌ام)
+// ... بقیه توابع فایل بدون تغییر باقی می‌مانند ...
 export const createMentorshipBooking = async (timeSlotIds: string[], gateway: PaymentGateway) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { error: "برای رزرو جلسه ابتدا باید وارد شوید." };
   }
-  // ... بقیه کد این تابع بدون تغییر است
   const studentId = session.user.id;
   const studentEmail = session.user.email;
 
@@ -252,32 +209,18 @@ export const createMentorshipBooking = async (timeSlotIds: string[], gateway: Pa
     return { error: error.message || "خطایی در فرآیند رزرو رخ داد." };
   }
 };
-
 export const addMeetingLinkToBooking = async (bookingId: string, meetingLink: string) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return { error: "دسترسی غیرمجاز." };
-  }
+  if (!session?.user?.id) { return { error: "دسترسی غیرمجاز." }; }
   const userId = session.user.id;
 
-  if (!meetingLink.trim() || !meetingLink.startsWith("http")) {
-    return { error: "لینک جلسه نامعتبر است." };
-  }
+  if (!meetingLink.trim() || !meetingLink.startsWith("http")) { return { error: "لینک جلسه نامعتبر است." }; }
 
   try {
-    const booking = await db.booking.findUnique({
-      where: { id: bookingId },
-    });
+    const booking = await db.booking.findUnique({ where: { id: bookingId } });
+    if (!booking || booking.mentorId !== userId) { return { error: "رزرو یافت نشد." }; }
 
-    if (!booking || booking.mentorId !== userId) {
-      return { error: "رزرو یافت نشد." };
-    }
-
-    await db.booking.update({
-      where: { id: bookingId },
-      data: { meetingLink },
-    });
-
+    await db.booking.update({ where: { id: bookingId }, data: { meetingLink } });
     revalidatePath("/dashboard/mentorship");
     return { success: "لینک جلسه با موفقیت ثبت شد." };
   } catch (error) {
