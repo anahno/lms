@@ -1,8 +1,7 @@
-// فایل اصلاح شده نهایی: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
+// فایل نهایی: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation"; // ۱. useRouter را دوباره وارد می‌کنیم
 import toast from "react-hot-toast";
 import { TimeSlot } from "@prisma/client";
 import { createTimeSlots, deleteTimeSlot } from "@/actions/mentorship-actions";
@@ -21,21 +20,23 @@ interface TimeSlotManagerProps {
 }
 
 export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps) => {
+  // ۱. state محلی برای مدیریت آنی اسلات‌ها
+  const [slots, setSlots] = useState<TimeSlot[]>(initialData);
   const [isPending, startTransition] = useTransition();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showManualForm, setShowManualForm] = useState(false);
-  const router = useRouter(); // ۲. هوک را فراخوانی می‌کنیم
 
   const handleCreateSlots = (formData: FormData) => {
     startTransition(async () => {
       const result = await createTimeSlots(formData);
-      if (result.success) {
+      // ۲. در صورت موفقیت، state محلی را مستقیماً آپدیت کن
+      if (result.success && result.updatedSlots) {
         toast.success(result.success);
-        setShowManualForm(false); // بستن فرم پس از ایجاد موفق
+        setSlots(result.updatedSlots);
+        setShowManualForm(false);
       } else {
         toast.error(result.error || "خطا در ایجاد بازه‌ها.");
       }
-      router.refresh(); // ۳. این خط باعث می‌شود کلاینت داده جدید را از سرور (که کش آن پاک شده) بگیرد
     });
   };
 
@@ -52,12 +53,13 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
   const handleDeleteSlot = (id: string) => {
     startTransition(async () => {
       const result = await deleteTimeSlot(id);
-      if (result.success) {
+      // ۳. در صورت موفقیت، state محلی را مستقیماً آپدیت کن
+      if (result.success && result.updatedSlots) {
         toast.success(result.success);
+        setSlots(result.updatedSlots);
       } else {
         toast.error(result.error || "خطا در حذف بازه.");
       }
-      router.refresh(); // ۴. این خط هم برای حذف ضروری است
     });
   };
 
@@ -101,9 +103,9 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
           </form>
         )}
 
-        {/* ۵. کامپوننت فرزند حالا داده‌ها را مستقیماً از props اولیه می‌خواند */}
+        {/* ۴. state محلی را به کامپوننت فرزند پاس می‌دهیم */}
         <WeeklyScheduler 
-          timeSlots={initialData} 
+          timeSlots={slots} 
           onDelete={handleDeleteSlot}
           onCreate={handleCreateSlots}
         />

@@ -4,62 +4,48 @@
 import { db } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { revalidatePath } from "next/cache"; // ۱. این import حیاتی است
-import { Role } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+import { Role, TimeSlot } from "@prisma/client";
 import { createPaymentRequest, PaymentGateway } from "@/lib/payment/payment-service";
 
-// تابع getMentorshipData بدون تغییر
+// تابع کمکی برای واکشی اسلات‌های به‌روز
+async function getUpdatedSlots(mentorId: string): Promise<TimeSlot[]> {
+  return db.timeSlot.findMany({
+    where: { 
+      mentorId: mentorId, 
+      status: { in: ["AVAILABLE", "BOOKED"] },
+      startTime: { gte: new Date() } 
+    },
+    orderBy: { startTime: "asc" },
+  });
+}
+
+// ... بقیه توابع بدون تغییر ...
 export const getMentorshipData = async (userId: string) => {
-  // ... (کد این تابع بدون تغییر باقی می‌ماند)
   try {
     const [mentorProfile, availableTimeSlots, confirmedBookings] = await Promise.all([
       db.mentorProfile.findUnique({ where: { userId } }),
-      db.timeSlot.findMany({
-        where: { 
-          mentorId: userId, 
-          status: { in: ["AVAILABLE", "BOOKED"] },
-          startTime: { gte: new Date() } 
-        },
-        orderBy: { startTime: "asc" },
-      }),
-      db.booking.findMany({
-        where: { mentorId: userId, status: "CONFIRMED", timeSlot: { startTime: { gte: new Date() } } },
-        include: {
-          student: { select: { name: true, email: true } },
-          timeSlot: { select: { startTime: true, endTime: true } },
-        },
-        orderBy: { timeSlot: { startTime: "asc" } },
-      }),
+      getUpdatedSlots(userId),
+      db.booking.findMany({ where: { mentorId: userId, status: "CONFIRMED", timeSlot: { startTime: { gte: new Date() } } }, include: { student: { select: { name: true, email: true } }, timeSlot: { select: { startTime: true, endTime: true } } }, orderBy: { timeSlot: { startTime: "asc" } } }),
     ]);
     return { mentorProfile, availableTimeSlots, confirmedBookings };
-  } catch (error) {
-    console.error("[GET_MENTORSHIP_DATA_ERROR]", error);
-    return { mentorProfile: null, availableTimeSlots: [], confirmedBookings: [] };
-  }
+  } catch (error) { console.error("[GET_MENTORSHIP_DATA_ERROR]", error); return { mentorProfile: null, availableTimeSlots: [], confirmedBookings: [] }; }
 };
-
-// تابع updateMentorProfile بدون تغییر
 export const updateMentorProfile = async (data: { isEnabled: boolean; hourlyRate?: number | null; mentorshipDescription?: string; }) => {
-  // ... (کد این تابع بدون تغییر باقی می‌ماند)
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
-    return { error: "دسترسی غیرمجاز." };
-  }
+  if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) { return { error: "دسترسی غیرمجاز." }; }
   const userId = session.user.id;
   try {
     await db.mentorProfile.upsert({ where: { userId }, update: data, create: { userId, ...data } });
     revalidatePath("/dashboard/mentorship");
     return { success: "تنظیمات با موفقیت ذخیره شد." };
-  } catch (error) {
-    console.error("[UPDATE_MENTOR_PROFILE_ERROR]", error);
-    return { error: "خطایی در ذخیره تنظیمات رخ داد." };
-  }
+  } catch (error) { console.error("[UPDATE_MENTOR_PROFILE_ERROR]", error); return { error: "خطایی در ذخیره تنظیمات رخ داد." }; }
 };
 
 /**
- * بازه‌های زمانی جدید ایجاد می‌کند
+ * ایجاد بازه‌های زمانی جدید
  */
-export const createTimeSlots = async (formData: FormData) => {
+export const createTimeSlots = async (formData: FormData): Promise<{ success?: string; error?: string; updatedSlots?: TimeSlot[] }> => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) { return { error: "دسترسی غیرمجاز." }; }
   const userId = session.user.id;
@@ -93,11 +79,14 @@ export const createTimeSlots = async (formData: FormData) => {
 
     await db.timeSlot.createMany({ data: slotsToCreate, skipDuplicates: true });
     
-    // ۲. این خط حیاتی است. کش سرور را برای این مسیر پاک می‌کند.
+    // ۱. کش سرور را باطل کن
     revalidatePath("/dashboard/mentorship");
     
-    // دیگر لیست جدید را برنمی‌گردانیم
-    return { success: `${slotsToCreate.length} بازه زمانی ایجاد شد.` };
+    // ۲. داده‌های جدید را از دیتابیس بخوان
+    const updatedSlots = await getUpdatedSlots(userId);
+    
+    // ۳. داده‌های جدید را به کلاینت برگردان
+    return { success: `${slotsToCreate.length} بازه زمانی ایجاد شد.`, updatedSlots };
 
   } catch (error) {
     console.error("[CREATE_TIME_SLOTS_ERROR]", error);
@@ -106,9 +95,9 @@ export const createTimeSlots = async (formData: FormData) => {
 };
 
 /**
- * یک بازه زمانی در دسترس را حذف می‌کند
+ * حذف یک بازه زمانی
  */
-export const deleteTimeSlot = async (timeSlotId: string) => {
+export const deleteTimeSlot = async (timeSlotId: string): Promise<{ success?: string; error?: string; updatedSlots?: TimeSlot[] }> => {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) { return { error: "دسترسی غیرمجاز." }; }
     const userId = session.user.id;
@@ -120,19 +109,21 @@ export const deleteTimeSlot = async (timeSlotId: string) => {
   
       await db.timeSlot.delete({ where: { id: timeSlotId } });
   
-      // ۳. این خط حیاتی است. کش سرور را برای این مسیر پاک می‌کند.
+      // ۱. کش سرور را باطل کن
       revalidatePath("/dashboard/mentorship");
       
-      // دیگر لیست جدید را برنمی‌گردانیم
-      return { success: "بازه زمانی با موفقیت حذف شد." };
+      // ۲. داده‌های جدید را از دیتابیس بخوان
+      const updatedSlots = await getUpdatedSlots(userId);
+
+      // ۳. داده‌های جدید را به کلاینت برگردان
+      return { success: "بازه زمانی با موفقیت حذف شد.", updatedSlots };
     } catch (error) {
       console.error("[DELETE_TIME_SLOT_ERROR]", error);
       return { error: "خطا در حذف بازه زمانی." };
     }
 };
 
-// ... بقیه توابع فایل (createMentorshipBooking و addMeetingLinkToBooking) بدون تغییر باقی می‌مانند ...
-// (کد کامل آنها برای جلوگیری از سردرگمی حذف شد، اما شما آنها را در فایل خود نگه دارید)
+// ... بقیه توابع فایل (createMentorshipBooking, etc.) بدون تغییر ...
 export const createMentorshipBooking = async (timeSlotIds: string[], gateway: PaymentGateway) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
