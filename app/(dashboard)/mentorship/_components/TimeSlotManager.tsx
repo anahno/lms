@@ -28,9 +28,8 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
   const router = useRouter();
 
   const handleCreateSlots = (formData: FormData) => {
-    // +++ شروع منطق آپدیت خوش‌بینانه برای ایجاد +++
-
-    // ۱. داده‌ها را از فرم استخراج می‌کنیم
+    const originalSlots = slots;
+    
     const date = formData.get("date") as string;
     const startTime = formData.get("startTime") as string;
     const endTime = formData.get("endTime") as string;
@@ -42,53 +41,53 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
       return;
     }
 
-    // ۲. اسلات‌های موقتی را در کلاینت می‌سازیم
     const tempSlots: TimeSlot[] = [];
     const [year, month, day] = date.split('-').map(Number);
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const [endHour, endMinute] = endTime.split(':').map(Number);
-    let current = new Date(year, month - 1, day, startHour, startMinute);
-    const end = new Date(year, month - 1, day, endHour, endMinute);
+    const startDateTime = new Date(year, month - 1, day, startHour, startMinute);
+    const endDateTime = new Date(year, month - 1, day, endHour, endMinute);
 
-    while (current < end) {
+    // +++ شروع اصلاح اصلی برای رفع خطای ESLint +++
+    let currentSlotStart = startDateTime;
+    while (currentSlotStart < endDateTime) {
+      const currentSlotEnd = new Date(currentSlotStart.getTime() + 60 * 60 * 1000);
+      if (currentSlotEnd > endDateTime) break;
+
       tempSlots.push({
-        id: `temp-${Math.random()}`, // ID موقت
-        mentorId: "", // این مقادیر در UI استفاده نمی‌شوند
-        startTime: new Date(current),
-        endTime: new Date(current.getTime() + 60 * 60 * 1000),
+        id: `temp-${Math.random()}`,
+        mentorId: "",
+        startTime: new Date(currentSlotStart),
+        endTime: currentSlotEnd,
         status: 'AVAILABLE',
         createdAt: new Date(),
         updatedAt: new Date(),
         title: title || null,
         color: color,
       });
-      current.setHours(current.getHours() + 1);
+      // متغیر currentSlotStart دوباره مقداردهی می‌شود، پس استفاده از let صحیح است
+      currentSlotStart = currentSlotEnd;
     }
+    // +++ پایان اصلاح اصلی +++
     
     if (tempSlots.length === 0) {
         toast.error("هیچ بازه زمانی معتبری برای ایجاد یافت نشد.");
         return;
     }
     
-    // ۳. UI را بلافاصله آپدیت می‌کنیم
-    const originalSlots = slots;
     setSlots(prev => [...prev, ...tempSlots].sort((a,b) => a.startTime.getTime() - b.startTime.getTime()));
     setShowManualForm(false);
 
-    // ۴. درخواست را به سرور ارسال می‌کنیم
     startTransition(async () => {
       const result = await createTimeSlots(formData);
       if (result.success) {
         toast.success(result.success);
-        // در پس‌زمینه، داده‌های واقعی را برای هماهنگی دریافت می‌کنیم
-        router.refresh();
+        router.refresh(); // برای هماهنگی نهایی در پس‌زمینه
       } else {
-        // ۵. در صورت خطا، به حالت قبل برمی‌گردیم (Rollback)
         toast.error(result.error || "خطا در ایجاد بازه‌ها.");
         setSlots(originalSlots);
       }
     });
-    // +++ پایان منطق آپدیت خوش‌بینانه +++
   };
   
   const handleCreateManual = (formData: FormData) => {
@@ -102,27 +101,20 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
   };
   
   const handleDeleteSlot = (id: string) => {
-    // +++ شروع منطق آپدیت خوش‌بینانه برای حذف +++
-    
-    // ۱. UI را بلافاصله آپدیت می‌کنیم
     const originalSlots = slots;
     setSlots(prev => prev.filter(slot => slot.id !== id));
     
-    // ۲. درخواست را به سرور ارسال می‌کنیم
     startTransition(async () => {
       const result = await deleteTimeSlot(id);
       if (result.success) {
         toast.success(result.success);
-        router.refresh(); // برای هماهنگی در پس‌زمینه
+        router.refresh();
       } else {
-        // ۳. در صورت خطا، به حالت قبل برمی‌گردیم
         toast.error(result.error || "خطا در حذف بازه.");
         setSlots(originalSlots);
       }
     });
-    // +++ پایان منطق آپدیت خوش‌بینانه +++
   };
-
 
   return (
     <Card>
