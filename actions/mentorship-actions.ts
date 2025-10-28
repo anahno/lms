@@ -1,10 +1,10 @@
-// فایل اصلاح شده: actions/mentorship-actions.ts
+// فایل اصلاح شده نهایی: actions/mentorship-actions.ts
 "use server";
 
 import { db } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "next/cache"; // +++ ۱. revalidatePath را وارد کنید +++
 import { Role } from "@prisma/client";
 import { createPaymentRequest, PaymentGateway } from "@/lib/payment/payment-service";
 
@@ -89,11 +89,7 @@ export const createTimeSlots = async (formData: FormData) => {
     const startTime = formData.get("startTime") as string;
     const endTime = formData.get("endTime") as string;
     const title = formData.get("title") as string | null;
-    
-    // +++ شروع اصلاح اصلی +++
-    // ۱. رنگ را از فرم داده بخوان و یک مقدار پیش‌فرض برایش در نظر بگیر
     const color = (formData.get("color") as string) || "#10b981";
-    // +++ پایان اصلاح اصلی +++
 
     if (!date || !startTime || !endTime) {
       return { error: "تاریخ و ساعات شروع و پایان الزامی است." };
@@ -121,10 +117,7 @@ export const createTimeSlots = async (formData: FormData) => {
         startTime: currentSlotStart,
         endTime: currentSlotEnd,
         title: title || null,
-        // +++ شروع اصلاح اصلی +++
-        // ۲. رنگ را به آبجکت‌هایی که باید ساخته شوند اضافه کن
         color: color,
-        // +++ پایان اصلاح اصلی +++
       });
       currentSlotStart = currentSlotEnd;
     }
@@ -138,14 +131,13 @@ export const createTimeSlots = async (formData: FormData) => {
       skipDuplicates: true,
     });
     
-    revalidatePath("/dashboard/mentorship");
+    revalidatePath("/dashboard/mentorship"); // +++ ۲. کش این صفحه را پاک کن +++
     return { success: `${slotsToCreate.length} بازه زمانی جدید با موفقیت ایجاد شد.` };
   } catch (error) {
     console.error("[CREATE_TIME_SLOTS_ERROR]", error);
     return { error: "خطایی در ایجاد بازه‌های زمانی رخ داد." };
   }
 };
-
 
 /**
  * یک بازه زمانی در دسترس را حذف می‌کند
@@ -174,7 +166,7 @@ export const deleteTimeSlot = async (timeSlotId: string) => {
         where: { id: timeSlotId },
       });
   
-      revalidatePath("/dashboard/mentorship");
+      revalidatePath("/dashboard/mentorship"); // +++ ۳. کش این صفحه را پاک کن +++
       return { success: "بازه زمانی با موفقیت حذف شد." };
     } catch (error) {
       console.error("[DELETE_TIME_SLOT_ERROR]", error);
@@ -182,14 +174,14 @@ export const deleteTimeSlot = async (timeSlotId: string) => {
     }
 };
 
-/**
- * یک درخواست رزرو برای جلسه منتورشیپ ایجاد می‌کند
- */
+// ... بقیه توابع فایل (updateMentorProfile, createMentorshipBooking, etc.) بدون تغییر باقی می‌مانند ...
+// (من برای کامل بودن، بقیه توابع را هم در کد بالا قرار داده‌ام)
 export const createMentorshipBooking = async (timeSlotIds: string[], gateway: PaymentGateway) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { error: "برای رزرو جلسه ابتدا باید وارد شوید." };
   }
+  // ... بقیه کد این تابع بدون تغییر است
   const studentId = session.user.id;
   const studentEmail = session.user.email;
 
@@ -261,9 +253,6 @@ export const createMentorshipBooking = async (timeSlotIds: string[], gateway: Pa
   }
 };
 
-/**
- * لینک جلسه آنلاین را به یک رزرو اضافه می‌کند
- */
 export const addMeetingLinkToBooking = async (bookingId: string, meetingLink: string) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
