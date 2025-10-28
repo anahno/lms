@@ -1,7 +1,7 @@
 // فایل نهایی و قطعی: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { TimeSlot } from "@prisma/client";
@@ -21,96 +21,40 @@ interface TimeSlotManagerProps {
 }
 
 export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps) => {
-  const [slots, setSlots] = useState<TimeSlot[]>(initialData);
   const [isPending, startTransition] = useTransition();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showManualForm, setShowManualForm] = useState(false);
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
 
-  const handleCreateSlots = (formData: FormData) => {
-    const originalSlots = slots;
-    
-    const date = formData.get("date") as string;
-    const startTime = formData.get("startTime") as string;
-    const endTime = formData.get("endTime") as string;
-    const title = formData.get("title") as string | null;
-    const color = (formData.get("color") as string) || "#10b981";
-
-    if (!date || !startTime || !endTime) {
-      toast.error("اطلاعات فرم ناقص است.");
-      return;
+  // این تابع کلاینت-ساید، Server Action را فراخوانی می‌کند
+  const clientAction = async (formData: FormData) => {
+    // برای اطمینان از اینکه تاریخ انتخاب شده در کامپوننت به فرم اضافه می‌شود
+    if (selectedDate) {
+      formData.set("date", selectedDate.toISOString().split('T')[0]);
     }
-
-    const tempSlots: TimeSlot[] = [];
-    const [year, month, day] = date.split('-').map(Number);
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const [endHour, endMinute] = endTime.split(':').map(Number);
-    const startDateTime = new Date(year, month - 1, day, startHour, startMinute);
-    const endDateTime = new Date(year, month - 1, day, endHour, endMinute);
-
-    let currentSlotStart = startDateTime;
-    while (currentSlotStart < endDateTime) {
-      const currentSlotEnd = new Date(currentSlotStart.getTime() + 60 * 60 * 1000);
-      if (currentSlotEnd > endDateTime) break;
-
-      tempSlots.push({
-        id: `temp-${Math.random()}`,
-        mentorId: "",
-        startTime: new Date(currentSlotStart),
-        endTime: currentSlotEnd,
-        status: 'AVAILABLE',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        title: title || null,
-        color: color,
-      });
-      currentSlotStart = currentSlotEnd;
-    }
-    
-    if (tempSlots.length === 0) {
-        toast.error("هیچ بازه زمانی معتبری برای ایجاد یافت نشد.");
-        return;
-    }
-    
-    setSlots(prev => [...prev, ...tempSlots].sort((a,b) => a.startTime.getTime() - b.startTime.getTime()));
-    setShowManualForm(false);
 
     startTransition(async () => {
       const result = await createTimeSlots(formData);
       if (result.success) {
         toast.success(result.success);
-        router.refresh(); 
+        setShowManualForm(false); // بستن فرم
+        formRef.current?.reset(); // ریست کردن مقادیر فرم
+        router.refresh(); // مهم: درخواست داده‌های جدید از سرور
       } else {
-        toast.error(result.error || "خطا در ایجاد بازه‌ها.");
-        setSlots(originalSlots);
+        toast.error(result.error || "خطایی رخ داد.");
       }
     });
   };
-  
-  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); // جلوگیری از رفرش صفحه
-    const formData = new FormData(event.currentTarget);
-    if (!selectedDate) {
-      toast.error("لطفاً یک تاریخ انتخاب کنید.");
-      return;
-    }
-    const dateString = selectedDate.toISOString().split('T')[0];
-    formData.append("date", dateString);
-    handleCreateSlots(formData);
-  };
-  
+
   const handleDeleteSlot = (id: string) => {
-    const originalSlots = slots;
-    setSlots(prev => prev.filter(slot => slot.id !== id));
-    
     startTransition(async () => {
       const result = await deleteTimeSlot(id);
       if (result.success) {
         toast.success(result.success);
-        router.refresh();
+        router.refresh(); // مهم: درخواست داده‌های جدید از سرور
       } else {
         toast.error(result.error || "خطا در حذف بازه.");
-        setSlots(originalSlots);
       }
     });
   };
@@ -125,10 +69,11 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
         {!isEnabled && (<div className="text-center text-sm text-amber-700 bg-amber-50 p-4 rounded-md mb-6">برای مدیریت برنامه‌زمانی، ابتدا قابلیت منتورشیپ را از بخش تنظیمات فعال کنید.</div>)}
         <div className="mb-6"><Button type="button" variant="outline" onClick={() => setShowManualForm(!showManualForm)} className="w-full"><PlusCircle className="w-4 h-4 mr-2" />{showManualForm ? "بستن فرم ایجاد" : "ایجاد دستی بازه‌های زمانی"}</Button></div>
         {showManualForm && (
-          // +++ شروع اصلاح اصلی و نهایی +++
-          // به جای action از onSubmit استفاده می‌کنیم
-          <form onSubmit={handleFormSubmit} className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-6">
-          {/* +++ پایان اصلاح اصلی و نهایی +++ */}
+          <form
+            ref={formRef}
+            action={clientAction} // اتصال مستقیم فرم به Server Action از طریق یک تابع کلاینت
+            className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-6"
+          >
             <h4 className="font-semibold">افزودن بازه‌های زمانی برای یک روز</h4>
             <div className="space-y-2"><Label htmlFor="title">عنوان (اختیاری)</Label><Input id="title" name="title" className="bg-white" /></div>
             <div className="space-y-2"><Label htmlFor="manualColor">رنگ (اختیاری)</Label><Input id="manualColor" name="color" type="color" defaultValue="#10b981" className="bg-white h-10 w-20 p-1" /></div>
@@ -142,9 +87,9 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
           </form>
         )}
         <WeeklyScheduler 
-            timeSlots={slots} 
-            onDelete={handleDeleteSlot} 
-            onCreate={handleCreateSlots} 
+          timeSlots={initialData} // همیشه از داده‌های اولیه که سرور می‌دهد استفاده می‌کند
+          onDelete={handleDeleteSlot} 
+          onCreate={clientAction} // قابلیت کلیک برای ایجاد نیز همین تابع را فراخوانی می‌کند
         />
       </CardContent>
     </Card>

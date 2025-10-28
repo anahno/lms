@@ -5,23 +5,8 @@ import { db } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { Role, TimeSlot } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { createPaymentRequest, PaymentGateway } from "@/lib/payment/payment-service";
-
-/**
- * تابع کمکی برای واکشی اسلات‌های به‌روز شده از دیتابیس.
- * این تابع پس از هر عملیات ایجاد یا حذف فراخوانی می‌شود.
- */
-async function getUpdatedSlots(mentorId: string): Promise<TimeSlot[]> {
-  return db.timeSlot.findMany({
-    where: { 
-      mentorId: mentorId, 
-      status: { in: ["AVAILABLE", "BOOKED"] },
-      startTime: { gte: new Date() } 
-    },
-    orderBy: { startTime: "asc" },
-  });
-}
 
 /**
  * اطلاعات کامل منتورشیپ یک مدرس را واکشی می‌کند
@@ -30,7 +15,14 @@ export const getMentorshipData = async (userId: string) => {
   try {
     const [mentorProfile, availableTimeSlots, confirmedBookings] = await Promise.all([
       db.mentorProfile.findUnique({ where: { userId } }),
-      getUpdatedSlots(userId), // از تابع کمکی برای اطمینان از به‌روز بودن داده‌ها استفاده می‌کنیم
+      db.timeSlot.findMany({
+        where: { 
+          mentorId: userId, 
+          status: { in: ["AVAILABLE", "BOOKED"] },
+          startTime: { gte: new Date() } 
+        },
+        orderBy: { startTime: "asc" },
+      }),
       db.booking.findMany({
         where: { mentorId: userId, status: "CONFIRMED", timeSlot: { startTime: { gte: new Date() } } },
         include: {
@@ -75,15 +67,14 @@ export const updateMentorProfile = async (data: {
 };
 
 /**
- * بازه‌های زمانی جدید ایجاد می‌کند و لیست کامل و به‌روز شده را برمی‌گرداند.
+ * بازه‌های زمانی جدید ایجاد می‌کند
  */
-export const createTimeSlots = async (formData: FormData): Promise<{ success?: string; error?: string; updatedSlots?: TimeSlot[] }> => {
+export const createTimeSlots = async (formData: FormData) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
     return { error: "دسترسی غیرمجاز." };
   }
   const userId = session.user.id;
-
   try {
     const date = formData.get("date") as string;
     const startTime = formData.get("startTime") as string;
@@ -92,7 +83,7 @@ export const createTimeSlots = async (formData: FormData): Promise<{ success?: s
     const color = (formData.get("color") as string) || "#10b981";
 
     if (!date || !startTime || !endTime) {
-      return { error: "تاریخ و ساعات شروع و پایان الزامی است." };
+      return { error: "اطلاعات فرم ناقص است." };
     }
 
     const [year, month, day] = date.split('-').map(Number);
@@ -128,20 +119,18 @@ export const createTimeSlots = async (formData: FormData): Promise<{ success?: s
     
     revalidatePath("/dashboard/mentorship");
     
-    const updatedSlots = await getUpdatedSlots(userId);
-    
-    return { success: `${slotsToCreate.length} بازه زمانی جدید ایجاد شد.`, updatedSlots };
+    return { success: `${slotsToCreate.length} بازه زمانی با موفقیت ایجاد شد.` };
 
   } catch (error) {
     console.error("[CREATE_TIME_SLOTS_ERROR]", error);
-    return { error: "خطایی در ایجاد بازه‌های زمانی رخ داد." };
+    return { error: "خطای داخلی سرور در هنگام ایجاد بازه‌های زمانی." };
   }
 };
 
 /**
- * یک بازه زمانی را حذف می‌کند و لیست کامل و به‌روز شده را برمی‌گرداند.
+ * یک بازه زمانی در دسترس را حذف می‌کند
  */
-export const deleteTimeSlot = async (timeSlotId: string): Promise<{ success?: string; error?: string; updatedSlots?: TimeSlot[] }> => {
+export const deleteTimeSlot = async (timeSlotId: string) => {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return { error: "دسترسی غیرمجاز." };
@@ -154,19 +143,17 @@ export const deleteTimeSlot = async (timeSlotId: string): Promise<{ success?: st
         return { error: "بازه زمانی یافت نشد." };
       }
       if (slotToDelete.status !== 'AVAILABLE') {
-        return { error: "فقط بازه‌های آزاد قابل حذف هستند." };
+        return { error: "فقط بازه‌های زمانی آزاد قابل حذف هستند." };
       }
   
       await db.timeSlot.delete({ where: { id: timeSlotId } });
   
       revalidatePath("/dashboard/mentorship");
       
-      const updatedSlots = await getUpdatedSlots(userId);
-
-      return { success: "بازه زمانی با موفقیت حذف شد.", updatedSlots };
+      return { success: "بازه زمانی با موفقیت حذف شد." };
     } catch (error) {
       console.error("[DELETE_TIME_SLOT_ERROR]", error);
-      return { error: "خطایی در حذف بازه زمانی رخ داد." };
+      return { error: "خطای داخلی سرور در هنگام حذف بازه." };
     }
 };
 
