@@ -1,4 +1,4 @@
-// فایل نهایی: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
+// فایل نهایی و قطعی: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
 "use client";
 
 import { useState, useTransition } from "react";
@@ -13,6 +13,7 @@ import { CalendarDays, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JalaliDatePicker } from "@/components/ui/jalali-date-picker";
 import { WeeklyScheduler } from "./WeeklyScheduler";
+import { useRouter } from "next/navigation";
 
 interface TimeSlotManagerProps {
   initialData: TimeSlot[];
@@ -20,26 +21,76 @@ interface TimeSlotManagerProps {
 }
 
 export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps) => {
-  // ۱. state محلی برای مدیریت آنی اسلات‌ها
   const [slots, setSlots] = useState<TimeSlot[]>(initialData);
   const [isPending, startTransition] = useTransition();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showManualForm, setShowManualForm] = useState(false);
+  const router = useRouter();
 
   const handleCreateSlots = (formData: FormData) => {
+    // +++ شروع منطق آپدیت خوش‌بینانه برای ایجاد +++
+
+    // ۱. داده‌ها را از فرم استخراج می‌کنیم
+    const date = formData.get("date") as string;
+    const startTime = formData.get("startTime") as string;
+    const endTime = formData.get("endTime") as string;
+    const title = formData.get("title") as string | null;
+    const color = (formData.get("color") as string) || "#10b981";
+
+    if (!date || !startTime || !endTime) {
+      toast.error("اطلاعات فرم ناقص است.");
+      return;
+    }
+
+    // ۲. اسلات‌های موقتی را در کلاینت می‌سازیم
+    const tempSlots: TimeSlot[] = [];
+    const [year, month, day] = date.split('-').map(Number);
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    let current = new Date(year, month - 1, day, startHour, startMinute);
+    const end = new Date(year, month - 1, day, endHour, endMinute);
+
+    while (current < end) {
+      tempSlots.push({
+        id: `temp-${Math.random()}`, // ID موقت
+        mentorId: "", // این مقادیر در UI استفاده نمی‌شوند
+        startTime: new Date(current),
+        endTime: new Date(current.getTime() + 60 * 60 * 1000),
+        status: 'AVAILABLE',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        title: title || null,
+        color: color,
+      });
+      current.setHours(current.getHours() + 1);
+    }
+    
+    if (tempSlots.length === 0) {
+        toast.error("هیچ بازه زمانی معتبری برای ایجاد یافت نشد.");
+        return;
+    }
+    
+    // ۳. UI را بلافاصله آپدیت می‌کنیم
+    const originalSlots = slots;
+    setSlots(prev => [...prev, ...tempSlots].sort((a,b) => a.startTime.getTime() - b.startTime.getTime()));
+    setShowManualForm(false);
+
+    // ۴. درخواست را به سرور ارسال می‌کنیم
     startTransition(async () => {
       const result = await createTimeSlots(formData);
-      // ۲. در صورت موفقیت، state محلی را مستقیماً آپدیت کن
-      if (result.success && result.updatedSlots) {
+      if (result.success) {
         toast.success(result.success);
-        setSlots(result.updatedSlots);
-        setShowManualForm(false);
+        // در پس‌زمینه، داده‌های واقعی را برای هماهنگی دریافت می‌کنیم
+        router.refresh();
       } else {
+        // ۵. در صورت خطا، به حالت قبل برمی‌گردیم (Rollback)
         toast.error(result.error || "خطا در ایجاد بازه‌ها.");
+        setSlots(originalSlots);
       }
     });
+    // +++ پایان منطق آپدیت خوش‌بینانه +++
   };
-
+  
   const handleCreateManual = (formData: FormData) => {
     if (!selectedDate) {
       toast.error("لطفاً یک تاریخ انتخاب کنید.");
@@ -49,45 +100,39 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
     formData.append("date", dateString);
     handleCreateSlots(formData);
   };
-
+  
   const handleDeleteSlot = (id: string) => {
+    // +++ شروع منطق آپدیت خوش‌بینانه برای حذف +++
+    
+    // ۱. UI را بلافاصله آپدیت می‌کنیم
+    const originalSlots = slots;
+    setSlots(prev => prev.filter(slot => slot.id !== id));
+    
+    // ۲. درخواست را به سرور ارسال می‌کنیم
     startTransition(async () => {
       const result = await deleteTimeSlot(id);
-      // ۳. در صورت موفقیت، state محلی را مستقیماً آپدیت کن
-      if (result.success && result.updatedSlots) {
+      if (result.success) {
         toast.success(result.success);
-        setSlots(result.updatedSlots);
+        router.refresh(); // برای هماهنگی در پس‌زمینه
       } else {
+        // ۳. در صورت خطا، به حالت قبل برمی‌گردیم
         toast.error(result.error || "خطا در حذف بازه.");
+        setSlots(originalSlots);
       }
     });
+    // +++ پایان منطق آپدیت خوش‌بینانه +++
   };
+
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CalendarDays className="w-6 h-6 text-sky-600" />
-          مدیریت برنامه‌زمانی
-        </CardTitle>
-        <CardDescription>
-          برای ایجاد بازه‌های زمانی از فرم زیر استفاده کنید. برای حذف، روی یک اسلات آزاد در تقویم کلیک کنید.
-        </CardDescription>
+        <CardTitle className="flex items-center gap-2"><CalendarDays className="w-6 h-6 text-sky-600" />مدیریت برنامه‌زمانی</CardTitle>
+        <CardDescription>برای ایجاد بازه‌های زمانی از فرم زیر استفاده کنید. برای حذف، روی یک اسلات آزاد در تقویم کلیک کنید.</CardDescription>
       </CardHeader>
       <CardContent className={cn(!isEnabled && "pointer-events-none opacity-50")}>
-        {!isEnabled && (
-          <div className="text-center text-sm text-amber-700 bg-amber-50 p-4 rounded-md mb-6">
-            برای مدیریت برنامه‌زمانی، ابتدا قابلیت منتورشیپ را از بخش تنظیمات فعال کنید.
-          </div>
-        )}
-
-        <div className="mb-6">
-          <Button type="button" variant="outline" onClick={() => setShowManualForm(!showManualForm)} className="w-full">
-            <PlusCircle className="w-4 h-4 mr-2" />
-            {showManualForm ? "بستن فرم ایجاد" : "ایجاد دستی بازه‌های زمانی"}
-          </Button>
-        </div>
-
+        {!isEnabled && (<div className="text-center text-sm text-amber-700 bg-amber-50 p-4 rounded-md mb-6">برای مدیریت برنامه‌زمانی، ابتدا قابلیت منتورشیپ را از بخش تنظیمات فعال کنید.</div>)}
+        <div className="mb-6"><Button type="button" variant="outline" onClick={() => setShowManualForm(!showManualForm)} className="w-full"><PlusCircle className="w-4 h-4 mr-2" />{showManualForm ? "بستن فرم ایجاد" : "ایجاد دستی بازه‌های زمانی"}</Button></div>
         {showManualForm && (
           <form action={handleCreateManual} className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-6">
             <h4 className="font-semibold">افزودن بازه‌های زمانی برای یک روز</h4>
@@ -102,13 +147,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
             <div className="flex justify-end"><Button type="submit" disabled={isPending || !selectedDate}>{isPending ? "در حال ایجاد..." : "ایجاد بازه‌ها"}</Button></div>
           </form>
         )}
-
-        {/* ۴. state محلی را به کامپوننت فرزند پاس می‌دهیم */}
-        <WeeklyScheduler 
-          timeSlots={slots} 
-          onDelete={handleDeleteSlot}
-          onCreate={handleCreateSlots}
-        />
+        <WeeklyScheduler timeSlots={slots} onDelete={handleDeleteSlot} onCreate={handleCreateSlots} />
       </CardContent>
     </Card>
   );
