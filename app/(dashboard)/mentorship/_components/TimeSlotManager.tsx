@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation"; // +++ ۱. useRouter را وارد کنید +++
+import { useRouter } from "next/navigation"; // ۱. useRouter را دوباره وارد می‌کنیم
 import toast from "react-hot-toast";
 import { TimeSlot } from "@prisma/client";
 import { createTimeSlots, deleteTimeSlot } from "@/actions/mentorship-actions";
@@ -24,18 +24,18 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
   const [isPending, startTransition] = useTransition();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showManualForm, setShowManualForm] = useState(false);
-  
-  const router = useRouter(); // +++ ۲. هوک useRouter را فراخوانی کنید +++
+  const router = useRouter(); // ۲. هوک را فراخوانی می‌کنیم
 
   const handleCreateSlots = (formData: FormData) => {
     startTransition(async () => {
       const result = await createTimeSlots(formData);
       if (result.success) {
         toast.success(result.success);
+        setShowManualForm(false); // بستن فرم پس از ایجاد موفق
       } else {
         toast.error(result.error || "خطا در ایجاد بازه‌ها.");
       }
-      router.refresh(); // +++ ۳. پس از اتمام عملیات، داده‌ها را رفرش کنید +++
+      router.refresh(); // ۳. این خط باعث می‌شود کلاینت داده جدید را از سرور (که کش آن پاک شده) بگیرد
     });
   };
 
@@ -57,7 +57,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
       } else {
         toast.error(result.error || "خطا در حذف بازه.");
       }
-      router.refresh(); // +++ ۴. پس از حذف نیز داده‌ها را رفرش کنید +++
+      router.refresh(); // ۴. این خط هم برای حذف ضروری است
     });
   };
 
@@ -80,12 +80,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
         )}
 
         <div className="mb-6">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowManualForm(!showManualForm)}
-            className="w-full"
-          >
+          <Button type="button" variant="outline" onClick={() => setShowManualForm(!showManualForm)} className="w-full">
             <PlusCircle className="w-4 h-4 mr-2" />
             {showManualForm ? "بستن فرم ایجاد" : "ایجاد دستی بازه‌های زمانی"}
           </Button>
@@ -94,54 +89,19 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
         {showManualForm && (
           <form action={handleCreateManual} className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-6">
             <h4 className="font-semibold">افزودن بازه‌های زمانی برای یک روز</h4>
-
-            <div className="space-y-2">
-              <Label htmlFor="title">عنوان (اختیاری)</Label>
-              <Input
-                id="title"
-                name="title"
-                placeholder="مثال: مشاوره انتخاب رشته"
-                className="bg-white"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="manualColor">رنگ (اختیاری)</Label>
-              <Input
-                id="manualColor"
-                name="color"
-                type="color"
-                defaultValue="#10b981"
-                className="bg-white h-10 w-20 p-1 border rounded cursor-pointer"
-              />
-            </div>
-            
+            <div className="space-y-2"><Label htmlFor="title">عنوان (اختیاری)</Label><Input id="title" name="title" className="bg-white" /></div>
+            <div className="space-y-2"><Label htmlFor="manualColor">رنگ (اختیاری)</Label><Input id="manualColor" name="color" type="color" defaultValue="#10b981" className="bg-white h-10 w-20 p-1" /></div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>تاریخ</Label>
-                <JalaliDatePicker date={selectedDate} onDateChange={setSelectedDate} placeholder="انتخاب تاریخ" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="startTime">از ساعت</Label>
-                <Input id="startTime" name="startTime" type="time" required defaultValue="09:00" className="bg-white" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endTime">تا ساعت</Label>
-                <Input id="endTime" name="endTime" type="time" required defaultValue="17:00" className="bg-white" />
-              </div>
+              <div className="space-y-2"><Label>تاریخ</Label><JalaliDatePicker date={selectedDate} onDateChange={setSelectedDate} /></div>
+              <div className="space-y-2"><Label htmlFor="startTime">از ساعت</Label><Input id="startTime" name="startTime" type="time" required defaultValue="09:00" className="bg-white" /></div>
+              <div className="space-y-2"><Label htmlFor="endTime">تا ساعت</Label><Input id="endTime" name="endTime" type="time" required defaultValue="17:00" className="bg-white" /></div>
             </div>
-            
-            <p className="text-xs text-muted-foreground">
-              💡 مثال: اگر از ساعت 09:00 تا 17:00 انتخاب کنید، 8 بازه زمانی یک ساعته ایجاد می‌شود.
-            </p>
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isPending || !selectedDate}>
-                {isPending ? "در حال ایجاد..." : "ایجاد بازه‌ها"}
-              </Button>
-            </div>
+            <p className="text-xs text-muted-foreground">💡 مثال: اگر از ساعت 09:00 تا 17:00 انتخاب کنید، 8 بازه زمانی یک ساعته ایجاد می‌شود.</p>
+            <div className="flex justify-end"><Button type="submit" disabled={isPending || !selectedDate}>{isPending ? "در حال ایجاد..." : "ایجاد بازه‌ها"}</Button></div>
           </form>
         )}
 
+        {/* ۵. کامپوننت فرزند حالا داده‌ها را مستقیماً از props اولیه می‌خواند */}
         <WeeklyScheduler 
           timeSlots={initialData} 
           onDelete={handleDeleteSlot}
