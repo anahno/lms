@@ -1,4 +1,4 @@
-// فایل نهایی و قطعی با لاگ‌های دقیق: actions/mentorship-actions.ts
+// فایل نهایی، کامل و بدون تکرار: actions/mentorship-actions.ts
 "use server";
 
 import { db } from "@/lib/db";
@@ -7,85 +7,6 @@ import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { Role } from "@prisma/client";
 import { createPaymentRequest, PaymentGateway } from "@/lib/payment/payment-service";
-
-// +++ تابع کمکی برای لاگ‌گیری دقیق در Vercel +++
-const log = (message: string, data?: any) => {
-  console.log(`[Mentorship Action] ${new Date().toISOString()} - ${message}`, data || '');
-};
-
-const logError = (message: string, error: any) => {
-  console.error(`[Mentorship Action ERROR] ${new Date().toISOString()} - ${message}`, error);
-};
-
-export const createTimeSlots = async (previousState: any, formData: FormData) => {
-  log("--- ACTION STARTED: createTimeSlots ---");
-  
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    logError("Unauthorized access attempt.", null);
-    return { error: "دسترسی غیرمجاز." };
-  }
-  const userId = session.user.id;
-  log(`User authenticated: ${userId}`);
-  
-  try {
-    const date = formData.get("date") as string;
-    const startTime = formData.get("startTime") as string;
-    const endTime = formData.get("endTime") as string;
-    const title = formData.get("title") as string | null;
-    const color = (formData.get("color") as string) || "#10b981";
-    
-    log("Parsed form data:", { date, startTime, endTime, title, color });
-
-    if (!date || !startTime || !endTime) {
-      logError("Form data is incomplete.", { date, startTime, endTime });
-      return { error: "اطلاعات فرم ناقص است." };
-    }
-
-    const [year, month, day] = date.split('-').map(Number);
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const [endHour, endMinute] = endTime.split(':').map(Number);
-    const startDateTime = new Date(year, month - 1, day, startHour, startMinute);
-    const endDateTime = new Date(year, month - 1, day, endHour, endMinute);
-
-    if (startDateTime >= endDateTime || startDateTime < new Date()) {
-      logError("Invalid time range selected.", { startDateTime, endDateTime });
-      return { error: "بازه زمانی نامعتبر است." };
-    }
-
-    const slotsToCreate = [];
-    let currentSlotStart = startDateTime;
-    while (currentSlotStart < endDateTime) {
-      const currentSlotEnd = new Date(currentSlotStart.getTime() + 60 * 60 * 1000);
-      if (currentSlotEnd > endDateTime) break;
-      slotsToCreate.push({ mentorId: userId, startTime: currentSlotStart, endTime: currentSlotEnd, title: title || null, color: color });
-      currentSlotStart = currentSlotEnd;
-    }
-    
-    if (slotsToCreate.length === 0) {
-      logError("No valid slots could be generated.", null);
-      return { error: "هیچ بازه زمانی کاملی در این محدوده یافت نشد." };
-    }
-
-    log(`Preparing to create ${slotsToCreate.length} slots in DB...`);
-    
-    // +++ تغییر کلیدی: استفاده از حلقه به جای createMany برای دیباگ بهتر +++
-    for (const slotData of slotsToCreate) {
-      await db.timeSlot.create({ data: slotData });
-    }
-    
-    log("Successfully created slots in DB.");
-    
-    revalidatePath("/dashboard/mentorship");
-    log("Path /dashboard/mentorship revalidated.");
-    
-    return { success: `${slotsToCreate.length} بازه زمانی با موفقیت ایجاد شد.` };
-
-  } catch (error) {
-    logError("Failed to create time slots due to a catch block error.", error);
-    return { error: "خطای داخلی سرور در هنگام ایجاد بازه‌ها." };
-  }
-};
 
 /**
  * اطلاعات کامل منتورشیپ یک مدرس را واکشی می‌کند
@@ -149,17 +70,22 @@ export const updateMentorProfile = async (data: {
  * بازه‌های زمانی جدید ایجاد می‌کند
  */
 export const createTimeSlots = async (previousState: any, formData: FormData) => {
+  console.log("--- ACTION STARTED: createTimeSlots ---");
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
+    console.error("[Mentorship Action ERROR] Unauthorized access attempt.");
     return { error: "دسترسی غیرمجاز." };
   }
   const userId = session.user.id;
+  
   try {
     const date = formData.get("date") as string;
     const startTime = formData.get("startTime") as string;
     const endTime = formData.get("endTime") as string;
     const title = formData.get("title") as string | null;
     const color = (formData.get("color") as string) || "#10b981";
+
+    console.log("[Mentorship Action] Parsed form data:", { date, startTime, endTime, title, color });
 
     if (!date || !startTime || !endTime) {
       return { error: "اطلاعات فرم ناقص است." };
@@ -194,15 +120,18 @@ export const createTimeSlots = async (previousState: any, formData: FormData) =>
       return { error: "هیچ بازه زمانی کاملی در این محدوده یافت نشد." };
     }
 
+    console.log(`[Mentorship Action] Preparing to create ${slotsToCreate.length} slots in DB...`);
     await db.timeSlot.createMany({ data: slotsToCreate, skipDuplicates: true });
+    console.log("[Mentorship Action] Successfully created slots in DB.");
     
     revalidatePath("/dashboard/mentorship");
+    console.log("[Mentorship Action] Path /dashboard/mentorship revalidated.");
     
     return { success: `${slotsToCreate.length} بازه زمانی با موفقیت ایجاد شد.` };
 
   } catch (error) {
-    console.error("[CREATE_TIME_SLOTS_ERROR]", error);
-    return { error: "خطای داخلی سرور در هنگام ایجاد بازه‌های زمانی." };
+    console.error("[Mentorship Action ERROR] Failed to create time slots.", error);
+    return { error: "خطای داخلی سرور در هنگام ایجاد بازه‌ها." };
   }
 };
 
