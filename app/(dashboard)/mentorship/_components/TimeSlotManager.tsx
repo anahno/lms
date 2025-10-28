@@ -1,14 +1,15 @@
-// فایل نهایی و قطعی: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
+// فایل: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
 "use client";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { TimeSlot } from "@prisma/client";
-import { deleteTimeSlot } from "@/actions/mentorship-actions";
+// +++ ۱. اکشن‌های سرور را وارد کنید +++
+import { deleteTimeSlot, createTimeSlots } from "@/actions/mentorship-actions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, PlusCircle } from "lucide-react";
+import { CalendarDays, PlusCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WeeklyScheduler } from "./WeeklyScheduler";
 import { CreateSlotsForm } from "./CreateSlotsForm";
@@ -19,7 +20,8 @@ interface TimeSlotManagerProps {
 }
 
 export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps) => {
-  const [, startTransition] = useTransition();
+  // +++ ۲. از isPending برای نمایش وضعیت لودینگ استفاده کنید +++
+  const [isPending, startTransition] = useTransition();
   const [showManualForm, setShowManualForm] = useState(false);
   const router = useRouter();
 
@@ -28,10 +30,25 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
       const result = await deleteTimeSlot(id);
       if (result.success) {
         toast.success(result.success);
-        router.refresh(); // مهم: درخواست داده‌های جدید از سرور
+        router.refresh(); 
       } else {
         toast.error(result.error || "خطا در حذف بازه.");
       }
+    });
+  };
+
+  // +++ ۳. یک تابع جدید برای ایجاد بازه زمانی از طریق تقویم ایجاد کنید +++
+  const handleCreateSlotFromCalendar = (formData: FormData) => {
+    startTransition(async () => {
+        // از آنجایی که اکشن createTimeSlots برای استفاده با useFormState طراحی شده،
+        // پارامتر اول را null ارسال می‌کنیم.
+        const result = await createTimeSlots(null, formData);
+        if (result.success) {
+            toast.success(result.success);
+            router.refresh();
+        } else if (result.error) {
+            toast.error(result.error);
+        }
     });
   };
 
@@ -55,10 +72,11 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
           <CreateSlotsForm onFormSuccess={() => setShowManualForm(false)} />
         )}
         
+        {/* +++ ۴. تابع جدید را به عنوان پراپ onCreate به تقویم پاس دهید +++ */}
         <WeeklyScheduler 
           timeSlots={initialData} 
           onDelete={handleDeleteSlot} 
-          onCreate={() => { /* onCreate is now handled by the dedicated form */ }}
+          onCreate={handleCreateSlotFromCalendar}
         />
       </CardContent>
     </Card>
