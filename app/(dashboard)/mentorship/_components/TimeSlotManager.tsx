@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { TimeSlot } from "@prisma/client";
 import { createTimeSlots, deleteTimeSlot } from "@/actions/mentorship-actions";
@@ -13,7 +14,6 @@ import { CalendarDays, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JalaliDatePicker } from "@/components/ui/jalali-date-picker";
 import { WeeklyScheduler } from "./WeeklyScheduler";
-import { useRouter } from "next/navigation";
 
 interface TimeSlotManagerProps {
   initialData: TimeSlot[];
@@ -48,7 +48,6 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
     const startDateTime = new Date(year, month - 1, day, startHour, startMinute);
     const endDateTime = new Date(year, month - 1, day, endHour, endMinute);
 
-    // +++ شروع اصلاح اصلی برای رفع خطای ESLint +++
     let currentSlotStart = startDateTime;
     while (currentSlotStart < endDateTime) {
       const currentSlotEnd = new Date(currentSlotStart.getTime() + 60 * 60 * 1000);
@@ -65,10 +64,8 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
         title: title || null,
         color: color,
       });
-      // متغیر currentSlotStart دوباره مقداردهی می‌شود، پس استفاده از let صحیح است
       currentSlotStart = currentSlotEnd;
     }
-    // +++ پایان اصلاح اصلی +++
     
     if (tempSlots.length === 0) {
         toast.error("هیچ بازه زمانی معتبری برای ایجاد یافت نشد.");
@@ -82,7 +79,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
       const result = await createTimeSlots(formData);
       if (result.success) {
         toast.success(result.success);
-        router.refresh(); // برای هماهنگی نهایی در پس‌زمینه
+        router.refresh(); 
       } else {
         toast.error(result.error || "خطا در ایجاد بازه‌ها.");
         setSlots(originalSlots);
@@ -90,7 +87,9 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
     });
   };
   
-  const handleCreateManual = (formData: FormData) => {
+  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); // جلوگیری از رفرش صفحه
+    const formData = new FormData(event.currentTarget);
     if (!selectedDate) {
       toast.error("لطفاً یک تاریخ انتخاب کنید.");
       return;
@@ -126,7 +125,10 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
         {!isEnabled && (<div className="text-center text-sm text-amber-700 bg-amber-50 p-4 rounded-md mb-6">برای مدیریت برنامه‌زمانی، ابتدا قابلیت منتورشیپ را از بخش تنظیمات فعال کنید.</div>)}
         <div className="mb-6"><Button type="button" variant="outline" onClick={() => setShowManualForm(!showManualForm)} className="w-full"><PlusCircle className="w-4 h-4 mr-2" />{showManualForm ? "بستن فرم ایجاد" : "ایجاد دستی بازه‌های زمانی"}</Button></div>
         {showManualForm && (
-          <form action={handleCreateManual} className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-6">
+          // +++ شروع اصلاح اصلی و نهایی +++
+          // به جای action از onSubmit استفاده می‌کنیم
+          <form onSubmit={handleFormSubmit} className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-6">
+          {/* +++ پایان اصلاح اصلی و نهایی +++ */}
             <h4 className="font-semibold">افزودن بازه‌های زمانی برای یک روز</h4>
             <div className="space-y-2"><Label htmlFor="title">عنوان (اختیاری)</Label><Input id="title" name="title" className="bg-white" /></div>
             <div className="space-y-2"><Label htmlFor="manualColor">رنگ (اختیاری)</Label><Input id="manualColor" name="color" type="color" defaultValue="#10b981" className="bg-white h-10 w-20 p-1" /></div>
@@ -139,7 +141,11 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
             <div className="flex justify-end"><Button type="submit" disabled={isPending || !selectedDate}>{isPending ? "در حال ایجاد..." : "ایجاد بازه‌ها"}</Button></div>
           </form>
         )}
-        <WeeklyScheduler timeSlots={slots} onDelete={handleDeleteSlot} onCreate={handleCreateSlots} />
+        <WeeklyScheduler 
+            timeSlots={slots} 
+            onDelete={handleDeleteSlot} 
+            onCreate={handleCreateSlots} 
+        />
       </CardContent>
     </Card>
   );
