@@ -1,7 +1,8 @@
-// فایل اصلاح شده: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
+// فایل اصلاح شده نهایی: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation"; // +++ ۱. useRouter را وارد کنید +++
 import toast from "react-hot-toast";
 import { TimeSlot } from "@prisma/client";
 import { createTimeSlots, deleteTimeSlot } from "@/actions/mentorship-actions";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarDays, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JalaliDatePicker } from "@/components/ui/jalali-date-picker";
-import { WeeklyScheduler } from "./WeeklyScheduler"; // <-- کامپوننت جدید را وارد کنید
+import { WeeklyScheduler } from "./WeeklyScheduler";
 
 interface TimeSlotManagerProps {
   initialData: TimeSlot[];
@@ -23,6 +24,8 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
   const [isPending, startTransition] = useTransition();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showManualForm, setShowManualForm] = useState(false);
+  
+  const router = useRouter(); // +++ ۲. هوک useRouter را فراخوانی کنید +++
 
   const handleCreateSlots = (formData: FormData) => {
     startTransition(async () => {
@@ -32,6 +35,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
       } else {
         toast.error(result.error || "خطا در ایجاد بازه‌ها.");
       }
+      router.refresh(); // +++ ۳. پس از اتمام عملیات، داده‌ها را رفرش کنید +++
     });
   };
 
@@ -53,6 +57,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
       } else {
         toast.error(result.error || "خطا در حذف بازه.");
       }
+      router.refresh(); // +++ ۴. پس از حذف نیز داده‌ها را رفرش کنید +++
     });
   };
 
@@ -140,7 +145,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
         <WeeklyScheduler 
           timeSlots={initialData} 
           onDelete={handleDeleteSlot}
-          onCreate={handleCreateSlots} // گرچه onCreate مستقیماً از تقویم جدید صدا زده نمی‌شود، اما برای حفظ ساختار آن را پاس می‌دهیم
+          onCreate={handleCreateSlots}
         />
       </CardContent>
     </Card>
