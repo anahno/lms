@@ -1,8 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// 📁 فایل: mentorship-actions.ts
-// 📍 مسیر: actions/mentorship-actions.ts
-// ═══════════════════════════════════════════════════════════════════════════
-
+// فایل اصلاح شده: actions/mentorship-actions.ts
 "use server";
 
 import { db } from "@/lib/db";
@@ -10,7 +6,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { Role } from "@prisma/client";
-// === ۱. این دو import را اضافه می‌کنیم ===
 import { createPaymentRequest, PaymentGateway } from "@/lib/payment/payment-service";
 
 /**
@@ -23,7 +18,7 @@ export const getMentorshipData = async (userId: string) => {
       db.timeSlot.findMany({
         where: { 
           mentorId: userId, 
-          status: { in: ["AVAILABLE", "BOOKED"] }, // <-- اصلاح اصلی
+          status: { in: ["AVAILABLE", "BOOKED"] },
           startTime: { gte: new Date() } 
         },
         orderBy: { startTime: "asc" },
@@ -94,8 +89,11 @@ export const createTimeSlots = async (formData: FormData) => {
     const startTime = formData.get("startTime") as string;
     const endTime = formData.get("endTime") as string;
     const title = formData.get("title") as string | null;
-    // +++ ۱. رنگ را از فرم داده بخوان و یک مقدار پیش‌فرض برایش در نظر بگیر +++ //
+    
+    // +++ شروع اصلاح اصلی +++
+    // ۱. رنگ را از فرم داده بخوان و یک مقدار پیش‌فرض برایش در نظر بگیر
     const color = (formData.get("color") as string) || "#10b981";
+    // +++ پایان اصلاح اصلی +++
 
     if (!date || !startTime || !endTime) {
       return { error: "تاریخ و ساعات شروع و پایان الزامی است." };
@@ -109,7 +107,7 @@ export const createTimeSlots = async (formData: FormData) => {
     const endDateTime = new Date(year, month - 1, day, endHour, endMinute);
 
     if (startDateTime >= endDateTime || startDateTime < new Date()) {
-      return { error: "بازه زمانی نامعتبر است. (زمان شروع نمی‌تواند در گذشته یا بعد از زمان پایان باشد)" };
+      return { error: "بازه زمانی نامعتبر است." };
     }
 
     const slotsToCreate = [];
@@ -123,8 +121,10 @@ export const createTimeSlots = async (formData: FormData) => {
         startTime: currentSlotStart,
         endTime: currentSlotEnd,
         title: title || null,
-        // +++ ۲. رنگ را به آبجکت‌هایی که باید ساخته شوند اضافه کن +++ //
+        // +++ شروع اصلاح اصلی +++
+        // ۲. رنگ را به آبجکت‌هایی که باید ساخته شوند اضافه کن
         color: color,
+        // +++ پایان اصلاح اصلی +++
       });
       currentSlotStart = currentSlotEnd;
     }
@@ -166,8 +166,8 @@ export const deleteTimeSlot = async (timeSlotId: string) => {
         return { error: "بازه زمانی یافت نشد یا شما مالک آن نیستید." };
       }
   
-      if (slotToDelete.status === 'BOOKED') {
-        return { error: "نمی‌توانید بازه زمانی رزرو شده را حذف کنید." };
+      if (slotToDelete.status !== 'AVAILABLE') {
+        return { error: "فقط بازه‌های زمانی آزاد قابل حذف هستند." };
       }
   
       await db.timeSlot.delete({
@@ -185,7 +185,6 @@ export const deleteTimeSlot = async (timeSlotId: string) => {
 /**
  * یک درخواست رزرو برای جلسه منتورشیپ ایجاد می‌کند
  */
-// === ۲. پارامتر gateway به تابع اضافه شد ===
 export const createMentorshipBooking = async (timeSlotIds: string[], gateway: PaymentGateway) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -208,7 +207,7 @@ export const createMentorshipBooking = async (timeSlotIds: string[], gateway: Pa
       });
 
       if (timeSlots.length !== timeSlotIds.length) {
-        throw new Error("یک یا چند بازه زمانی انتخاب شده دیگر در دسترس نیست. لطفاً صفحه را رفرش کنید.");
+        throw new Error("یک یا چند بازه زمانی انتخاب شده دیگر در دسترس نیست.");
       }
 
       const mentorId = timeSlots[0].mentorId;
@@ -217,11 +216,7 @@ export const createMentorshipBooking = async (timeSlotIds: string[], gateway: Pa
       const mentorProfile = await prisma.mentorProfile.findUnique({ where: { userId: mentorId } });
 
       if (!mentorProfile || !mentorProfile.isEnabled || mentorProfile.hourlyRate === null) {
-        throw new Error("اطلاعات منتورشیپ برای این مدرس کامل نیست یا این قابلیت غیرفعال است.");
-      }
-
-      if (studentId === mentorId) {
-        throw new Error("شما نمی‌توانید خودتان را رزرو کنید.");
+        throw new Error("اطلاعات منتورشیپ برای این مدرس کامل نیست.");
       }
 
       const totalAmount = timeSlots.length * mentorProfile.hourlyRate;
@@ -244,7 +239,6 @@ export const createMentorshipBooking = async (timeSlotIds: string[], gateway: Pa
       return { purchase, amount: totalAmount, mentorName };
     });
 
-    // === ۳. از پارامتر gateway در اینجا استفاده می‌شود ===
     const paymentResponse = await createPaymentRequest(gateway, {
       userId: studentId,
       email: studentEmail,
@@ -262,19 +256,7 @@ export const createMentorshipBooking = async (timeSlotIds: string[], gateway: Pa
 
   } catch (error: any) {
     console.error("[CREATE_MENTORSHIP_BOOKING_ERROR]", error);
-
-    if (transactionResult?.purchase?.id) {
-        const purchaseId = transactionResult.purchase.id;
-        console.log(`[ROLLBACK] Cleaning up failed purchase: ${purchaseId}`);
-        await db.booking.deleteMany({ where: { purchaseId } });
-        await db.purchase.delete({ where: { id: purchaseId } });
-    }
     
-    await db.timeSlot.updateMany({
-        where: { id: { in: timeSlotIds }, status: 'BOOKED' },
-        data: { status: 'AVAILABLE' }
-    });
-
     return { error: error.message || "خطایی در فرآیند رزرو رخ داد." };
   }
 };
@@ -299,7 +281,7 @@ export const addMeetingLinkToBooking = async (bookingId: string, meetingLink: st
     });
 
     if (!booking || booking.mentorId !== userId) {
-      return { error: "رزرو یافت نشد یا شما منتور این جلسه نیستید." };
+      return { error: "رزرو یافت نشد." };
     }
 
     await db.booking.update({

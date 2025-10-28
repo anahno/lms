@@ -1,8 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// 📁 فایل: TimeSlotManager.tsx
-// 📍 مسیر: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
-// ═══════════════════════════════════════════════════════════════════════════
-
+// فایل اصلاح شده: app/(dashboard)/mentorship/_components/TimeSlotManager.tsx
 "use client";
 
 import { useState, useTransition } from "react";
@@ -16,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarDays, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JalaliDatePicker } from "@/components/ui/jalali-date-picker";
-import { TimeSlotCalendar } from "./TimeSlotCalendar";
+import { WeeklyScheduler } from "./WeeklyScheduler"; // <-- کامپوننت جدید را وارد کنید
 
 interface TimeSlotManagerProps {
   initialData: TimeSlot[];
@@ -37,17 +33,6 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
         toast.error(result.error || "خطا در ایجاد بازه‌ها.");
       }
     });
-  };
-
-  // +++ تابع onCreate برای تقویم، رنگ را هم دریافت می‌کند +++ //
-  const handleCreateFromCalendar = (date: string, startTime: string, endTime: string, title: string, color: string) => {
-    const formData = new FormData();
-    formData.append("date", date);
-    formData.append("startTime", startTime);
-    formData.append("endTime", endTime);
-    formData.append("title", title);
-    formData.append("color", color); // +++ رنگ به فرم اضافه شد +++ //
-    handleCreateSlots(formData);
   };
 
   const handleCreateManual = (formData: FormData) => {
@@ -79,7 +64,7 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
           مدیریت برنامه‌زمانی
         </CardTitle>
         <CardDescription>
-          با کلیک و کشیدن روی تقویم یا استفاده از فرم زیر، بازه‌های زمانی خود را ایجاد کنید.
+          برای ایجاد بازه‌های زمانی از فرم زیر استفاده کنید. برای حذف، روی یک اسلات آزاد در تقویم کلیک کنید.
         </CardDescription>
       </CardHeader>
       <CardContent className={cn(!isEnabled && "pointer-events-none opacity-50")}>
@@ -97,13 +82,13 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
             className="w-full"
           >
             <PlusCircle className="w-4 h-4 mr-2" />
-            {showManualForm ? "بستن فرم ایجاد دستی" : "ایجاد دستی چند بازه زمانی برای یک روز"}
+            {showManualForm ? "بستن فرم ایجاد" : "ایجاد دستی بازه‌های زمانی"}
           </Button>
         </div>
 
         {showManualForm && (
           <form action={handleCreateManual} className="p-4 border rounded-lg bg-slate-50 space-y-4 mb-6">
-            <h4 className="font-semibold">افزودن بازه‌های زمانی برای یک روز کامل</h4>
+            <h4 className="font-semibold">افزودن بازه‌های زمانی برای یک روز</h4>
 
             <div className="space-y-2">
               <Label htmlFor="title">عنوان (اختیاری)</Label>
@@ -115,7 +100,6 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
               />
             </div>
 
-            {/* +++ انتخابگر رنگ برای فرم دستی +++ */}
             <div className="space-y-2">
               <Label htmlFor="manualColor">رنگ (اختیاری)</Label>
               <Input
@@ -153,10 +137,10 @@ export const TimeSlotManager = ({ initialData, isEnabled }: TimeSlotManagerProps
           </form>
         )}
 
-        <TimeSlotCalendar 
+        <WeeklyScheduler 
           timeSlots={initialData} 
           onDelete={handleDeleteSlot}
-          onCreate={handleCreateFromCalendar}
+          onCreate={handleCreateSlots} // گرچه onCreate مستقیماً از تقویم جدید صدا زده نمی‌شود، اما برای حفظ ساختار آن را پاس می‌دهیم
         />
       </CardContent>
     </Card>
