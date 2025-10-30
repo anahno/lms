@@ -1,4 +1,4 @@
-// فایل نهایی، کامل و بدون تکرار: actions/mentorship-actions.ts
+// فایل کامل: actions/mentorship-actions.ts
 "use server";
 
 import { db } from "@/lib/db";
@@ -70,10 +70,8 @@ export const updateMentorProfile = async (data: {
  * بازه‌های زمانی جدید ایجاد می‌کند
  */
 export const createTimeSlots = async (previousState: any, formData: FormData) => {
-  console.log("--- ACTION STARTED: createTimeSlots ---");
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || (session.user.role !== Role.INSTRUCTOR && session.user.role !== Role.ADMIN)) {
-    console.error("[Mentorship Action ERROR] Unauthorized access attempt.");
     return { error: "دسترسی غیرمجاز." };
   }
   const userId = session.user.id;
@@ -84,8 +82,6 @@ export const createTimeSlots = async (previousState: any, formData: FormData) =>
     const endTime = formData.get("endTime") as string;
     const title = formData.get("title") as string | null;
     const color = (formData.get("color") as string) || "#10b981";
-
-    console.log("[Mentorship Action] Parsed form data:", { date, startTime, endTime, title, color });
 
     if (!date || !startTime || !endTime) {
       return { error: "اطلاعات فرم ناقص است." };
@@ -120,17 +116,14 @@ export const createTimeSlots = async (previousState: any, formData: FormData) =>
       return { error: "هیچ بازه زمانی کاملی در این محدوده یافت نشد." };
     }
 
-    console.log(`[Mentorship Action] Preparing to create ${slotsToCreate.length} slots in DB...`);
     await db.timeSlot.createMany({ data: slotsToCreate, skipDuplicates: true });
-    console.log("[Mentorship Action] Successfully created slots in DB.");
     
     revalidatePath("/dashboard/mentorship");
-    console.log("[Mentorship Action] Path /dashboard/mentorship revalidated.");
     
     return { success: `${slotsToCreate.length} بازه زمانی با موفقیت ایجاد شد.` };
 
   } catch (error) {
-    console.error("[Mentorship Action ERROR] Failed to create time slots.", error);
+    console.error("[CREATE_TIME_SLOTS_ERROR]", error);
     return { error: "خطای داخلی سرور در هنگام ایجاد بازه‌ها." };
   }
 };

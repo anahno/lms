@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-// schema ساده بدون transform
 const formSchema = z.object({
   isEnabled: z.boolean(),
   hourlyRate: z.number().min(0, "قیمت نمی‌تواند منفی باشد.").optional().nullable(),

@@ -1,11 +1,9 @@
-
-// فایل: app/(dashboard)/mentorship/page.tsx
+// فایل نهایی و اصلاح شده: app/(dashboard)/mentorship/page.tsx
 "use server";
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-// import { Role } from "@prisma/client"; // --- این import استفاده نشده و حذف می‌شود ---
 import { getMentorshipData } from "@/actions/mentorship-actions";
 
 import { MentorshipSettingsForm } from "./_components/MentorshipSettingsForm";
@@ -19,7 +17,10 @@ export default async function MentorshipPage() {
     return redirect("/dashboard");
   }
 
-  const { mentorProfile, availableTimeSlots, confirmedBookings } = await getMentorshipData(session.user.id);
+  // ========== شروع تغییر اصلی ==========
+  // ما دیگر به availableTimeSlots در این کامپوننت نیازی نداریم، چون TimeSlotManager خودش آن را واکشی می‌کند.
+  const { mentorProfile, confirmedBookings } = await getMentorshipData(session.user.id);
+  // ========== پایان تغییر اصلی ==========
 
   return (
     <div className="p-6 space-y-8">
@@ -33,8 +34,9 @@ export default async function MentorshipPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <MentorshipSettingsForm initialData={mentorProfile} />
+          
+          {/* پراپرتی initialData از اینجا به طور کامل حذف شده است */}
           <TimeSlotManager 
-            initialData={availableTimeSlots} 
             isEnabled={mentorProfile?.isEnabled || false} 
           />
         </div>

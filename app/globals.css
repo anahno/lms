@@ -148,4 +148,20 @@
         #0000 100%,#000 calc(100% + 1px)) 0 calc(var(--r)*(sin(var(--a)) - 1)) no-repeat,
       linear-gradient(90deg,#000 calc(var(--p) - var(--_d)),#0000 0 calc(var(--p) + var(--_d)),#000 0);
   }
+     /* ========== شروع کد جدید برای تقوim ========== */
+  .day-with-dot {
+    position: relative;
+  }
+  .day-with-dot::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #0ea5e9; /* sky-500 */
+  }
+  /* ========== پایان کد جدید برای تقوim ========== */
 }
