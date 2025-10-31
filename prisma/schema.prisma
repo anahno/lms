@@ -424,7 +424,7 @@ model TimeSlot {
   startTime DateTime
   endTime   DateTime
   status    TimeSlotStatus @default(AVAILABLE)
-  booking   Booking?
+  bookings   Booking[] // ۱. این خط را تغییر دهید. یک TimeSlot می‌تواند چندین Booking داشته باشد
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 }
@@ -440,7 +440,7 @@ model Booking {
   // +++ شروع اصلاح +++
   // ما onDelete: Cascade را به رابطه با TimeSlot اضافه می‌کنیم
   // این یعنی اگر یک TimeSlot حذف شد، Booking مرتبط با آن هم خودکار حذف شود.
-  timeSlotId  String        @unique
+   timeSlotId  String        // ۲. @unique را از این خط حذف کنید
   timeSlot    TimeSlot      @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
   // +++ پایان اصلاح +++
 

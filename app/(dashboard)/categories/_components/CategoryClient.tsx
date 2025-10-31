@@ -1,6 +1,9 @@
+// فایل کامل و اصلاح شده: app/(dashboard)/categories/_components/CategoryClient.tsx
+
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation"; // ۱. useRouter برای رفرش کردن داده‌های سرور ایمپورت شد
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,9 +33,11 @@ interface CategoryClientProps {
 const ROOT_CATEGORY_VALUE = "_root_";
 
 export const CategoryClient = ({ initialData }: CategoryClientProps) => {
+  const router = useRouter(); // ۲. هوک روتر برای فراخوانی refresh
   const [open, setOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [categories, setCategories] = useState(initialData);
+  // ۳. دیگر نیازی به state جداگانه برای categories نداریم و مستقیماً از initialData استفاده می‌کنیم.
+  // const [categories, setCategories] = useState(initialData);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -60,97 +65,15 @@ export const CategoryClient = ({ initialData }: CategoryClientProps) => {
 
       if (editingCategory) {
         // ویرایش
-        const response = await axios.patch(`/api/categories/${editingCategory.id}`, submissionData);
-        const updatedCategory = response.data;
-
-        // بررسی تغییر والد (انتقال دسته‌بندی)
-        const oldParentId = editingCategory.parentId;
-        const newParentId = submissionData.parentId;
-
-        setCategories(prevCategories => {
-          let newCategories = [...prevCategories];
-
-          // اگر والد تغییر کرده (انتقال دسته‌بندی)
-          if (oldParentId !== newParentId) {
-            // حذف از موقعیت قدیمی
-            if (oldParentId === null) {
-              // از دسته‌های اصلی حذف شود
-              newCategories = newCategories.filter(cat => cat.id !== updatedCategory.id);
-            } else {
-              // از زیرمجموعه‌های والد قدیمی حذف شود
-              newCategories = newCategories.map(cat => {
-                if (cat.id === oldParentId) {
-                  return {
-                    ...cat,
-                    subcategories: cat.subcategories.filter(sub => sub.id !== updatedCategory.id)
-                  };
-                }
-                return cat;
-              });
-            }
-
-            // اضافه به موقعیت جدید
-            if (newParentId === null) {
-              // به دسته‌های اصلی اضافه شود
-              newCategories.push({ ...updatedCategory, subcategories: [] });
-            } else {
-              // به زیرمجموعه‌های والد جدید اضافه شود
-              newCategories = newCategories.map(cat => {
-                if (cat.id === newParentId) {
-                  return {
-                    ...cat,
-                    subcategories: [...cat.subcategories, updatedCategory]
-                  };
-                }
-                return cat;
-              });
-            }
-          } else {
-            // فقط نام تغییر کرده (بدون انتقال)
-            newCategories = newCategories.map(cat => {
-              // اگر دسته‌بندی اصلی ویرایش شده
-              if (cat.id === updatedCategory.id) {
-                return { ...cat, name: updatedCategory.name };
-              }
-              // اگر یک زیرمجموعه ویرایش شده
-              const updatedSubs = cat.subcategories.map(sub => 
-                sub.id === updatedCategory.id ? { ...sub, name: updatedCategory.name } : sub
-              );
-              return { ...cat, subcategories: updatedSubs };
-            });
-          }
-
-          return newCategories;
-        });
-
+        await axios.patch(`/api/categories/${editingCategory.id}`, submissionData);
         toast.success("دسته‌بندی ویرایش شد.");
       } else {
         // ایجاد
-        const response = await axios.post("/api/categories", submissionData);
-        const newCategory = response.data;
-
-        // آپدیت state محلی
-        if (!newCategory.parentId) {
-          // دسته‌بندی اصلی جدید
-          setCategories(prev => [...prev, { ...newCategory, subcategories: [] }]);
-        } else {
-          // زیرمجموعه جدید
-          setCategories(prevCategories => {
-            return prevCategories.map(cat => {
-              if (cat.id === newCategory.parentId) {
-                return {
-                  ...cat,
-                  subcategories: [...cat.subcategories, newCategory]
-                };
-              }
-              return cat;
-            });
-          });
-        }
-
+        await axios.post("/api/categories", submissionData);
         toast.success("دسته‌بندی جدید ایجاد شد.");
       }
       
+      router.refresh(); // ۴. مهم‌ترین بخش: به Next.js می‌گوییم داده‌های این مسیر را دوباره از سرور واکشی کند
       setOpen(false);
       form.reset();
     } catch (error) {
@@ -172,18 +95,8 @@ export const CategoryClient = ({ initialData }: CategoryClientProps) => {
   const onDelete = async (categoryId: string) => {
     try {
       await axios.delete(`/api/categories/${categoryId}`);
-      
-      // آپدیت state محلی - حذف دسته‌بندی
-      setCategories(prevCategories => {
-        return prevCategories
-          .filter(cat => cat.id !== categoryId) // حذف اگر دسته اصلی بود
-          .map(cat => ({
-            ...cat,
-            subcategories: cat.subcategories.filter(sub => sub.id !== categoryId) // حذف اگر زیرمجموعه بود
-          }));
-      });
-
       toast.success("دسته‌بندی حذف شد.");
+      router.refresh(); // ۵. پس از حذف هم داده‌ها را رفرش می‌کنیم
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 400) {
@@ -232,7 +145,8 @@ export const CategoryClient = ({ initialData }: CategoryClientProps) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ROOT_CATEGORY_VALUE}>- اصلی (بدون والد) -</SelectItem>
-                  {categories
+                  {/* ۶. برای نمایش لیست دسته‌بندی‌ها از initialData استفاده می‌کنیم */}
+                  {initialData
                     .filter(cat => cat.id !== editingCategory?.id)
                     .map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
@@ -251,10 +165,10 @@ export const CategoryClient = ({ initialData }: CategoryClientProps) => {
       </Dialog>
       
       <div className="mt-8 space-y-4">
-        {categories.length === 0 ? (
+        {initialData.length === 0 ? (
           <p className="text-center text-gray-500 py-8">هیچ دسته‌بندی وجود ندارد</p>
         ) : (
-          categories.map(category => (
+          initialData.map(category => (
             <div key={category.id} className="p-4 border rounded-lg bg-slate-50">
               <div className="flex items-center justify-between">
                 <span className="font-bold">{category.name}</span>

@@ -1,17 +1,15 @@
-// فایل: app/api/payment/verify/route.ts
+// فایل کامل و اصلاح شده: app/api/payment/verify/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import axios from "axios";
 import { PurchaseType, PurchaseStatus } from "@prisma/client";
 
-// آدرس‌های API برای هر دو درگاه
 const NEXTPAY_API_VERIFY = "https://nextpay.org/nx/gateway/verify";
 const ZARINPAL_API_VERIFY = process.env.ZARINPAL_MODE === "sandbox"
     ? "https://sandbox.zarinpal.com/pg/v4/payment/verify.json"
     : "https://api.zarinpal.com/pg/v4/payment/verify.json";
 
-// تابع کمکی برای آزاد کردن اسلات‌های رزرو شده در صورت شکست پرداخت
 async function releaseMentorshipSlots(purchaseId: string) {
   try {
     const bookings = await db.booking.findMany({
@@ -32,7 +30,6 @@ async function releaseMentorshipSlots(purchaseId: string) {
   }
 }
 
-// تابع کمکی برای انجام عملیات پس از پرداخت موفق
 async function handleSuccessfulPurchase(purchaseId: string, refId: string) {
   await db.$transaction(async (prisma) => {
     const purchase = await prisma.purchase.update({
@@ -57,7 +54,6 @@ export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
-  // --- تشخیص درگاه بر اساس پارامترهای URL ---
   const zarinpalAuthority = searchParams.get("Authority");
   const zarinpalStatus = searchParams.get("Status");
 
@@ -71,7 +67,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=invalid_order`);
     }
 
-    // اگر تراکنش ناموفق بود یا کاربر انصراف داد
     if (searchParams.get("np_status") !== "OK") {
         await db.purchase.update({ where: { id: purchase.id }, data: { status: PurchaseStatus.FAILED } });
         if (purchase.type === PurchaseType.MENTORSHIP) await releaseMentorshipSlots(purchase.id);
@@ -79,12 +74,18 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+      // ==================== شروع تغییر اصلی برای NextPay ====================
+      // طبق مستندات، مبلغ تایید هم به تومان است. پس ضرب در ۱۰ را حذف می‌کنیم.
+      const amountInTomans = Math.round(purchase.amount);
+      // ===================== پایان تغییر اصلی برای NextPay =====================
+
       const response = await axios.post(NEXTPAY_API_VERIFY, {
         api_key: process.env.NEXTPAY_API_KEY,
-        amount: Math.round(purchase.amount), // نکست‌پی در تایید، تومان می‌گیرد
+        amount: amountInTomans, // <-- از مبلغ به تومان برای تایید استفاده می‌کنیم
         trans_id: nextpayTransId,
       });
 
+      // طبق مستندات، کد موفقیت برای تایید، عدد 0 است.
       if (response.data.code.toString() === "0") {
         await handleSuccessfulPurchase(purchase.id, response.data.Shaparak_Ref_Id);
         return NextResponse.redirect(`${appUrl}/payment-result?status=success&purchaseId=${purchase.id}`);
@@ -100,7 +101,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // ========= منطق برای Zarinpal =========
+  // ========= منطق برای Zarinpal (صحیح) =========
   if (zarinpalAuthority) {
     const purchase = await db.purchase.findUnique({ where: { authority: zarinpalAuthority } });
     if (zarinpalStatus !== "OK" || !purchase) {
@@ -109,9 +110,13 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+      const amountInTomans = Math.round(purchase.amount);
+
       const response = await axios.post(ZARINPAL_API_VERIFY, {
-        merchant_id: process.env.ZARINPAL_MERCHANT_ID,
-        amount: Math.round(purchase.amount), // زرین‌پال در تایید، تومان می‌گیرد
+        merchant_id: process.env.ZARINPAL_MODE === "sandbox" 
+          ? process.env.ZARINPAL_SANDBOX_MERCHANT_ID 
+          : process.env.ZARINPAL_MERCHANT_ID,
+        amount: amountInTomans,
         authority: zarinpalAuthority,
       });
 
@@ -130,6 +135,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // اگر هیچکدام از پارامترهای مورد انتظار وجود نداشت
   return NextResponse.redirect(`${appUrl}/payment-result?status=failed&error=invalid_request`);
 }

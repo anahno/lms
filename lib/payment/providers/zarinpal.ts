@@ -1,4 +1,4 @@
-// فایل: lib/payment/providers/zarinpal.ts
+// فایل کامل و اصلاح شده: lib/payment/providers/zarinpal.ts
 
 import axios from "axios";
 import { db } from "@/lib/db";
@@ -41,18 +41,16 @@ export const createZarinpalRequest = async (
   console.log(`[Payment] Mode: ${isSandbox ? 'Sandbox' : 'Production'}`);
 
   try {
-    const amountInRials = Math.round(amount) * 10;
-    
-    // +++ شروع اصلاح اصلی +++
-    // purchaseId را به عنوان یک پارامتر کوئری به URL بازگشت اضافه می‌کنیم
-    const callbackUrlWithId = `${callbackUrl}?purchaseId=${purchaseId}`;
-    // +++ پایان اصلاح اصلی +++
+    // ==================== شروع تغییر اصلی ====================
+    // مبلغ باید به تومان باشد. دیگر آن را در ۱۰ ضرب نمی‌کنیم.
+    const amountInTomans = Math.round(amount);
+    // ===================== پایان تغییر اصلی =====================
 
     const requestBody = {
       merchant_id: merchantId,
-      amount: amountInRials,
+      amount: amountInTomans, // <-- از مبلغ به تومان استفاده می‌کنیم
       description: description,
-      callback_url: callbackUrlWithId, // <-- از URL جدید استفاده می‌کنیم
+      callback_url: callbackUrl,
       metadata: { email: email },
     };
     
